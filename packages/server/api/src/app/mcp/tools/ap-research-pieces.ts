@@ -1,5 +1,5 @@
-import { isNil, LocalesEnum } from '@activepieces/core-utils'
-import { McpToolDefinition, PieceCategory, ProjectScopedMcpServer, SuggestionType } from '@activepieces/shared'
+import { isNil, LocalesEnum } from '@inboxfm-connect/core-utils'
+import { McpToolDefinition, PieceCategory, ProjectScopedMcpServer, SuggestionType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { pieceMetadataService } from '../../pieces/metadata/piece-metadata-service'
@@ -8,7 +8,7 @@ import { ActionCardinality, mcpUtils } from './mcp-utils'
 const BULK_LOOKUP_CAP = 20
 
 const researchPiecesSchema = z.object({
-    pieceNames: z.array(z.string()).optional().describe('Exact piece names to look up (e.g. ["gmail", "slack", "@activepieces/piece-google-sheets"]). Always returns actions and triggers for each piece.'),
+    pieceNames: z.array(z.string()).optional().describe('Exact piece names to look up (e.g. ["gmail", "slack", "@inboxfm-connect/piece-google-sheets"]). Always returns actions and triggers for each piece.'),
     categories: z.array(z.enum(Object.values(PieceCategory) as [string, ...string[]])).optional(),
     tags: z.array(z.string()).optional(),
     searchQuery: z.string().optional(),

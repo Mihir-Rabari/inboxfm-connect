@@ -1,4 +1,4 @@
-import { BaseModelSchema, DateOrString, Nullable } from '@activepieces/core-utils'
+import { BaseModelSchema, DateOrString, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export enum PlatformRole {
@@ -84,3 +84,4 @@ export const UpdateMeResponse = z.object({
 })
 
 export type UpdateMeResponse = z.infer<typeof UpdateMeResponse>
+

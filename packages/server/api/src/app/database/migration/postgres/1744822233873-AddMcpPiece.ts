@@ -1,4 +1,4 @@
-import { apId } from '@activepieces/core-utils'
+import { apId } from '@inboxfm-connect/core-utils'
 import { MigrationInterface, QueryRunner } from 'typeorm'
 
 export class AddMcpPiece1744822233873 implements MigrationInterface {

@@ -1,5 +1,5 @@
-import { apId } from '@activepieces/core-utils'
-import { FilteredPieceBehavior, McpServerType, PackageType, PieceType, ProjectScopedMcpServer } from '@activepieces/shared'
+import { apId } from '@inboxfm-connect/core-utils'
+import { FilteredPieceBehavior, McpServerType, PackageType, PieceType, ProjectScopedMcpServer } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyInstance } from 'fastify'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { apResearchPiecesTool } from '../../../../src/app/mcp/tools/ap-research-pieces'
@@ -23,7 +23,7 @@ afterAll(async () => {
 
 describe('MCP piece visibility', () => {
     it('ap_research_pieces — does NOT return pieces hidden by platform admin (BLOCKED behavior)', async () => {
-        const blockedPieceName = '@activepieces/piece-hidden-by-admin'
+        const blockedPieceName = '@inboxfm-connect/piece-hidden-by-admin'
 
         const ctx = await createTestContext(app, {
             platform: {
@@ -55,12 +55,12 @@ describe('MCP piece visibility', () => {
     })
 
     it('ap_research_pieces — returns pieces NOT in the platform blocklist', async () => {
-        const visiblePieceName = '@activepieces/piece-visible'
+        const visiblePieceName = '@inboxfm-connect/piece-visible'
 
         const ctx = await createTestContext(app, {
             platform: {
                 filteredPieceBehavior: FilteredPieceBehavior.BLOCKED,
-                filteredPieceNames: ['@activepieces/piece-something-else'],
+                filteredPieceNames: ['@inboxfm-connect/piece-something-else'],
             },
         })
         const mcp = makeMcp(ctx.project.id)

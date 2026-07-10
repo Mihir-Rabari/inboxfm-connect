@@ -7,7 +7,7 @@ import {
     PieceType,
     TriggerStrategy,
     TriggerTestStrategy,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { db } from '../../../helpers/db'
 import {
@@ -37,7 +37,7 @@ async function setupFlowWithScheduleTrigger(ctx: TestContext) {
     await db.save('flow', mockFlow)
 
     const mockPieceMetadata = createMockPieceMetadata({
-        name: '@activepieces/piece-schedule',
+        name: '@inboxfm-connect/piece-schedule',
         version: '0.1.5',
         triggers: {
             every_hour: {
@@ -63,7 +63,7 @@ async function setupFlowWithScheduleTrigger(ctx: TestContext) {
             type: FlowTriggerType.PIECE,
             name: 'trigger',
             settings: {
-                pieceName: '@activepieces/piece-schedule',
+                pieceName: '@inboxfm-connect/piece-schedule',
                 pieceVersion: '0.1.5',
                 input: {},
                 propertySettings: {},

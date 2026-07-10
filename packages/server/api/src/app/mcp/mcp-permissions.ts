@@ -1,5 +1,5 @@
-import { ActivepiecesError, ErrorCode, isNil, Permission } from '@activepieces/core-utils'
-import { ApEdition, McpToolDefinition } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil, Permission } from '@inboxfm-connect/core-utils'
+import { ApEdition, McpToolDefinition } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { getPrincipalRoleOrThrow } from '../ee/authentication/project-role/rbac-middleware'
 import { system } from '../helper/system/system'

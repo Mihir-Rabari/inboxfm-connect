@@ -1,4 +1,4 @@
-import { ApId, BaseModelSchema } from '@activepieces/core-utils'
+import { ApId, BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export const ConcurrencyPool = z.object({
@@ -8,3 +8,4 @@ export const ConcurrencyPool = z.object({
     maxConcurrentJobs: z.number().int().positive(),
 })
 export type ConcurrencyPool = z.infer<typeof ConcurrencyPool>
+

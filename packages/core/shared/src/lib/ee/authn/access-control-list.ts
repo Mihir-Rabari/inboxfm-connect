@@ -1,4 +1,4 @@
-import { Permission } from '@activepieces/core-utils'
+import { Permission } from '@inboxfm-connect/core-utils'
 import { DefaultProjectRole } from '../../management/project/project-member'
 
 export const rolePermissions: Record<DefaultProjectRole, Permission[]> = {
@@ -69,3 +69,4 @@ export const rolePermissions: Record<DefaultProjectRole, Permission[]> = {
         Permission.READ_VARIABLE,
     ],
 }
+

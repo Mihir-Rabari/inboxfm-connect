@@ -1,4 +1,4 @@
-import { ApId } from '@activepieces/core-utils'
+import { ApId } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { AlertChannel } from './alerts-dto'
 
@@ -16,3 +16,4 @@ export const CreateAlertParams = z.object({
 })
 
 export type CreateAlertParams = z.infer<typeof CreateAlertParams>
+

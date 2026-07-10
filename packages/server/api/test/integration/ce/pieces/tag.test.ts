@@ -1,7 +1,7 @@
 import {
     PlatformRole,
     PrincipalType,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { generateMockToken } from '../../../helpers/auth'
@@ -82,7 +82,7 @@ describe('Tags API', () => {
             const tagName = tagResponse?.json().name
 
             const response = await ctx.post('/v1/tags/pieces', {
-                piecesName: ['@activepieces/piece-test'],
+                piecesName: ['@inboxfm-connect/piece-test'],
                 tags: [tagName],
             })
 
@@ -110,7 +110,7 @@ describe('Tags API', () => {
                 url: '/api/v1/tags/pieces',
                 headers: { authorization: `Bearer ${memberToken}` },
                 body: {
-                    piecesName: ['@activepieces/piece-test'],
+                    piecesName: ['@inboxfm-connect/piece-test'],
                     tags: ['some-tag'],
                 },
             })

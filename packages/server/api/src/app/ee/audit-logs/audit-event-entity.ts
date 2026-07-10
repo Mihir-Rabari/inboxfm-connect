@@ -1,4 +1,4 @@
-import { ApplicationEvent, Platform } from '@activepieces/shared'
+import { ApplicationEvent, Platform } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import { BaseColumnSchemaPart } from '../../database/database-common'
 

@@ -1,4 +1,4 @@
-import { ApId, BaseModel } from '@activepieces/core-utils'
+import { ApId, BaseModel } from '@inboxfm-connect/core-utils'
 
 export type FlagId = ApId
 
@@ -71,3 +71,4 @@ export enum ApFlagId {
     SMTP_CONFIGURED = 'SMTP_CONFIGURED',
     PGVECTOR_AVAILABLE = 'PGVECTOR_AVAILABLE',
 }
+

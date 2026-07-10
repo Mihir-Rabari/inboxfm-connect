@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { ApEnvironment, PieceType } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { ApEnvironment, PieceType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { repoFactory } from '../../core/db/repo-factory'
 import { pubsub } from '../../helper/pubsub'

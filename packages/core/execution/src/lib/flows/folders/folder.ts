@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { BaseModelSchema, Nullable } from '@activepieces/core-utils'
+import { BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
 
 export type FolderId = string
 
@@ -16,4 +16,5 @@ export const UncategorizedFolderId = 'NULL'
 export type Folder = z.infer<typeof Folder>
 
 export type FolderDto = Folder & { numberOfFlows: number, numberOfTables: number }
+
 

@@ -1,4 +1,4 @@
-import { BaseModelSchema, Nullable } from '@activepieces/core-utils'
+import { BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 
@@ -24,3 +24,4 @@ export const UserIdentity = z.object({
 })
 
 export type UserIdentity = z.infer<typeof UserIdentity>
+

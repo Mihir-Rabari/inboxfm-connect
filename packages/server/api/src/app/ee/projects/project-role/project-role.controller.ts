@@ -1,5 +1,5 @@
-import { ApId, ProjectRole, SeekPage } from '@activepieces/core-utils'
-import { ApplicationEventName, CreateProjectRoleRequestBody, ListProjectMembersForProjectRoleRequestQuery, PrincipalType, ProjectMemberWithUser, SERVICE_KEY_SECURITY_OPENAPI, UpdateProjectRoleRequestBody } from '@activepieces/shared'
+import { ApId, ProjectRole, SeekPage } from '@inboxfm-connect/core-utils'
+import { ApplicationEventName, CreateProjectRoleRequestBody, ListProjectMembersForProjectRoleRequestQuery, PrincipalType, ProjectMemberWithUser, SERVICE_KEY_SECURITY_OPENAPI, UpdateProjectRoleRequestBody } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'

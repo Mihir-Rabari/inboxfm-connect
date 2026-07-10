@@ -1,5 +1,5 @@
-import { apId } from '@activepieces/core-utils'
-import { EmbedSubdomainStatus } from '@activepieces/shared'
+import { apId } from '@inboxfm-connect/core-utils'
+import { EmbedSubdomainStatus } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { databaseConnection } from '../../../../src/app/database/database-connection'

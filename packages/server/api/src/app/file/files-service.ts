@@ -1,4 +1,4 @@
-import { FileReadToken, FileType } from '@activepieces/shared'
+import { FileReadToken, FileType } from '@inboxfm-connect/shared'
 import dayjs from 'dayjs'
 import { domainHelper } from '../helper/domain-helper'
 import { JwtAudience, JwtSignAlgorithm, jwtUtils } from '../helper/jwt-utils'

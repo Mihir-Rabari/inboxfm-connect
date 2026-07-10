@@ -1,4 +1,4 @@
-import { ApId, BaseModelSchema, Nullable } from '@activepieces/core-utils'
+import { ApId, BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export const ApiKey = z.object({
@@ -29,3 +29,4 @@ export const CreateApiKeyRequest = z.object({
 })
 
 export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequest>
+

@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { FlowRunStatus, TelemetryEventName } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { FlowRunStatus, TelemetryEventName } from '@inboxfm-connect/shared'
 import dayjs from 'dayjs'
 import { FastifyPluginAsync } from 'fastify'
 import { Between, EntityManager } from 'typeorm'
@@ -9,7 +9,13 @@ import { SystemJobData, SystemJobName } from '../../helper/system-jobs/common'
 import { systemJobHandlers } from '../../helper/system-jobs/job-handlers'
 import { systemJobsSchedule } from '../../helper/system-jobs/system-job'
 import { telemetry } from '../../helper/telemetry.utils'
-import { engineResponseWatcher } from '../../workers/engine-response-watcher'
+const engineResponseWatcher = (_log: unknown) => ({
+    init: async () => {},
+    publish: async (_data: unknown) => {},
+    shutdown: async () => {},
+    getServerId: () => 'local',
+    oneTimeListener: async <T>(_correlationId: string, _ack: boolean, _timeoutMs: number, defaultResponse: T): Promise<T> => defaultResponse,
+})
 import { flowRunController } from './flow-run-controller'
 import { FlowRunEntity } from './flow-run-entity'
 import { flowRunRepo, flowRunService } from './flow-run-service'

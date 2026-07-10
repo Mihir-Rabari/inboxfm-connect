@@ -1,4 +1,4 @@
-import { RoleType, SAFE_STRING_PATTERN } from '@activepieces/core-utils'
+import { RoleType, SAFE_STRING_PATTERN } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export const CreateProjectRoleRequestBody = z.object({
@@ -22,3 +22,4 @@ export const ListProjectMembersForProjectRoleRequestQuery = z.object({
 })
 
 export type ListProjectMembersForProjectRoleRequestQuery = z.infer<typeof ListProjectMembersForProjectRoleRequestQuery>
+

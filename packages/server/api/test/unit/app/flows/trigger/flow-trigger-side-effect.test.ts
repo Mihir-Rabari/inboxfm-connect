@@ -1,6 +1,6 @@
-import { ActivepiecesError, ErrorCode } from '@activepieces/core-utils'
-import { TriggerStrategy } from '@activepieces/pieces-framework'
-import { ApEnvironment, EngineResponseStatus } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
+import { TriggerStrategy } from '@inboxfm-connect/pieces-framework'
+import { ApEnvironment, EngineResponseStatus } from '@inboxfm-connect/shared'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockSubmitAndWaitForResponse = vi.fn()
@@ -57,7 +57,7 @@ const mockLog = {
 const BASE_PARAMS = {
     flowId: 'flow-1',
     flowVersionId: 'fv-1',
-    pieceName: '@activepieces/piece-test',
+    pieceName: '@inboxfm-connect/piece-test',
     projectId: 'proj-1',
     simulate: false,
 }

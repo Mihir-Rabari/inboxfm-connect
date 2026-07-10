@@ -1,5 +1,5 @@
-import { apId } from '@activepieces/core-utils'
-import { FlowRunStatus, FlowVersionState, PauseType, RunEnvironment } from '@activepieces/shared'
+import { apId } from '@inboxfm-connect/core-utils'
+import { FlowRunStatus, FlowVersionState, PauseType, RunEnvironment } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { resumeService } from '../../../../../src/app/flows/flow-run/waitpoint/resume-service'
 import { waitpointService } from '../../../../../src/app/flows/flow-run/waitpoint/waitpoint-service'

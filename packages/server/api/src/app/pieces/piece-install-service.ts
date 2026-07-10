@@ -1,12 +1,12 @@
-import { ActivepiecesError, ErrorCode, isNil, PlatformId, ProjectId } from '@activepieces/core-utils'
-import { PieceMetadata, PieceMetadataModel } from '@activepieces/pieces-framework'
-import { AddPieceRequestBody, EngineResponse, EngineResponseStatus, ExecuteExtractPieceMetadata, FileCompression, FileId, FileType, PackageType, PiecePackage, PieceType, WorkerJobType } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil, PlatformId, ProjectId } from '@inboxfm-connect/core-utils'
+import { PieceMetadata, PieceMetadataModel } from '@inboxfm-connect/pieces-framework'
+import { AddPieceRequestBody, EngineResponse, EngineResponseStatus, ExecuteExtractPieceMetadata, FileCompression, FileId, FileType, PackageType, PiecePackage, PieceType, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { fileService } from '../file/file.service'
 import { rejectedPromiseHandler } from '../helper/promise-handler'
 import { isToolSearchEnabled } from '../tool-search/tool-search-flag'
 import { toolSearchReindexJob } from '../tool-search/tool-search-reindex.job'
-import { userInteractionWatcher } from '../workers/user-interaction-watcher'
+import { userInteractionWatcher } from '../helper/user-interaction/user-interaction-watcher'
 import { pieceMetadataService } from './metadata/piece-metadata-service'
 
 export const pieceInstallService = (log: FastifyBaseLogger) => ({

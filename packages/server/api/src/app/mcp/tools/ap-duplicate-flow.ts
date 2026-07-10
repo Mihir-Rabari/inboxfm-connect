@@ -1,5 +1,5 @@
-import { isNil, Permission } from '@activepieces/core-utils'
-import { FlowCreatorType, FlowOperationType, McpToolContext, McpToolDefinition } from '@activepieces/shared'
+import { isNil, Permission } from '@inboxfm-connect/core-utils'
+import { FlowCreatorType, FlowOperationType, McpToolContext, McpToolDefinition } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { flowService } from '../../flows/flow/flow.service'

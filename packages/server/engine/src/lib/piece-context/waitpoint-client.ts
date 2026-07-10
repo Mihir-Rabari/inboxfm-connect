@@ -1,4 +1,4 @@
-import { CreateWaitpointRequest, CreateWaitpointResponse, EngineGenericError } from '@activepieces/shared'
+import { CreateWaitpointRequest, CreateWaitpointResponse, EngineGenericError } from '@inboxfm-connect/shared'
 
 export const waitpointClient = {
     create: async ({ apiUrl, engineToken, ...body }: CreateWaitpointClientRequest): Promise<CreateWaitpointResponse> => {

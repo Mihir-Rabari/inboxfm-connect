@@ -1,5 +1,5 @@
-import { apVersionUtil } from '@activepieces/server-utils'
-import { apId, chunk, isNil, tryCatch } from '@activepieces/shared'
+import { apVersionUtil } from '@inboxfm-connect/server-utils'
+import { apId, chunk, isNil, tryCatch } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { databaseConnection } from '../database/database-connection'
 import { PieceMetadataSchema } from '../pieces/metadata/piece-metadata-entity'

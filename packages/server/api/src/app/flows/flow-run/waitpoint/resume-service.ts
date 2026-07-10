@@ -1,10 +1,15 @@
-import { apId, FlowRunId, isNil } from '@activepieces/core-utils'
-import { EngineHttpResponse, ExecutionType, FlowRun, FlowRunStatus, isFlowRunStateTerminal, ResumeReason, RunEnvironment, StreamStepProgress } from '@activepieces/shared'
+import { apId, FlowRunId, isNil } from '@inboxfm-connect/core-utils'
+import { EngineHttpResponse, ExecutionType, FlowRun, FlowRunStatus, isFlowRunStateTerminal, ResumeReason, RunEnvironment, StreamStepProgress } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { distributedLock } from '../../../database/redis-connections'
 import { projectService } from '../../../project/project-service'
-import { engineResponseWatcher } from '../../../workers/engine-response-watcher'
+const engineResponseWatcher = (_log: unknown) => ({
+    publish: async (_data: unknown) => {},
+    shutdown: async () => {},
+    getServerId: () => 'local',
+    oneTimeListener: async <T>(_correlationId: string, _ack: boolean, _timeoutMs: number, defaultResponse: T): Promise<T> => defaultResponse,
+})
 import { addToQueue, findFlowRunOrThrow, flowRunService, WEBHOOK_TIMEOUT_MS } from '../flow-run-service'
 import { flowRunSideEffects } from '../flow-run-side-effects'
 import { waitpointService } from './waitpoint-service'

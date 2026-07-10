@@ -1,5 +1,5 @@
-import { ActivepiecesError, ApId, ErrorCode, isNil, Permission, ProjectId, ProjectRole } from '@activepieces/core-utils'
-import { ApEdition, FlowOperationType, Principal, PrincipalType, UserPrincipal } from '@activepieces/shared'
+import { ActivepiecesError, ApId, ErrorCode, isNil, Permission, ProjectId, ProjectRole } from '@inboxfm-connect/core-utils'
+import { ApEdition, FlowOperationType, Principal, PrincipalType, UserPrincipal } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { system } from '../../../helper/system/system'
 import { projectService } from '../../../project/project-service'

@@ -1,5 +1,5 @@
-import { ApId, isNil } from '@activepieces/core-utils'
-import { ALL_PRINCIPAL_TYPES, FlowRunStatus } from '@activepieces/shared'
+import { ApId, isNil } from '@inboxfm-connect/core-utils'
+import { ALL_PRINCIPAL_TYPES, FlowRunStatus } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyReply } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import Mustache from 'mustache'

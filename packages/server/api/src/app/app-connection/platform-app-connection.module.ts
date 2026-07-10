@@ -3,6 +3,6 @@ import { platformAppConnectionController } from './platform-app-connection.contr
 
 export const platformAppConnectionModule: FastifyPluginAsyncZod = async (app) => {
     await app.register(platformAppConnectionController, {
-        prefix: '/v1/platform-app-connections',
+        prefix: '/v1/platform-connections',
     })
 }

@@ -1,14 +1,14 @@
 {
-  "name": "@activepieces/shared",
-  "version": "0.113.1",
+  "name": "@inboxfm-connect/shared",
+  "version": "0.113.3",
   "type": "commonjs",
   "sideEffects": false,
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
   "dependencies": {
-    "@activepieces/core-execution": "workspace:*",
-    "@activepieces/core-formula": "workspace:*",
-    "@activepieces/core-utils": "workspace:*",
+    "@inboxfm-connect/core-execution": "workspace:*",
+    "@inboxfm-connect/core-formula": "workspace:*",
+    "@inboxfm-connect/core-utils": "workspace:*",
     "dayjs": "1.11.9",
     "deepmerge-ts": "7.1.0",
     "expr-eval": "2.0.2",
@@ -30,3 +30,4 @@
     "vitest": "3.2.6"
   }
 }
+

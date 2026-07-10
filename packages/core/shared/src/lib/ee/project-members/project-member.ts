@@ -1,4 +1,4 @@
-import { ApId, BaseModelSchema, ProjectRole } from '@activepieces/core-utils'
+import { ApId, BaseModelSchema, ProjectRole } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { UserWithMetaInformation } from '../../core/user/user'
 import { ProjectMetaData } from '../../management/project/project'
@@ -22,3 +22,4 @@ export const ProjectMemberWithUser = ProjectMember.extend({
 })
 
 export type ProjectMemberWithUser = z.infer<typeof ProjectMemberWithUser>
+

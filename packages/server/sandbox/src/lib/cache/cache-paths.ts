@@ -1,6 +1,6 @@
 import { readdir, rm } from 'fs/promises'
 import path from 'path'
-import { type ApLogger } from '@activepieces/server-utils'
+import { type ApLogger } from '@inboxfm-connect/server-utils'
 
 export const cacheUtils = (basePath: string) => ({
     getGlobalCachePathLatestVersion(): string {

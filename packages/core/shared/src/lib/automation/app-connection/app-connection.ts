@@ -1,4 +1,4 @@
-import { ApId, BaseModel, BaseModelSchema, Metadata, Nullable } from '@activepieces/core-utils'
+import { ApId, BaseModel, BaseModelSchema, Metadata, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { UserWithMetaInformation } from '../../core/user'
 import { OAuth2GrantType } from './dto/upsert-app-connection-request'
@@ -160,3 +160,4 @@ export const resolveValueFromProps = (props: Record<string, unknown> | undefined
     })
     return resolvedScope
 }
+

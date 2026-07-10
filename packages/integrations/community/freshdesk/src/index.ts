@@ -1,0 +1,55 @@
+import { createCustomApiCallAction } from '@inboxfm-connect/pieces-common';
+import {
+  PieceAuth,
+  Property,
+  createPiece,
+} from '@inboxfm-connect/pieces-framework';
+import { PieceCategory } from '@inboxfm-connect/pieces-framework';
+import { getContactFromID } from './lib/actions/get-contact-from-id';
+import { getTicketStatus } from './lib/actions/get-ticket-status';
+import { getTickets } from './lib/actions/get-tickets';
+import { getContacts } from './lib/actions/get-contacts';
+import { getAllTicketsByStatus } from './lib/actions/get-all-tickets-by-status';
+
+export const freshdeskAuth = PieceAuth.CustomAuth({
+  props: {
+    base_url: Property.ShortText({
+      displayName: 'Base URL',
+      description: 'Enter the base URL',
+      required: true,
+    }),
+    access_token: Property.ShortText({
+      displayName: 'API Token',
+      description: 'Enter the API token',
+      required: true,
+    }),
+  },
+  description: `Get the API token by visiting your profile settings and clicking View API key`,
+  required: true,
+});
+
+export const freshdesk = createPiece({
+  displayName: 'Freshdesk',
+  description: 'Customer support software',
+
+  logoUrl: 'https://cdn.activepieces.com/pieces/freshdesk.png',
+  categories: [PieceCategory.CUSTOMER_SUPPORT],
+  authors: ["buttonsbond","kishanprmr","MoShizzle","AbdulTheActivePiecer","abuaboud"],
+  auth: freshdeskAuth,
+  actions: [
+    getTickets,
+    getContactFromID,
+    getTicketStatus,
+    getContacts,
+    getAllTicketsByStatus,
+    createCustomApiCallAction({
+     baseUrl: (auth) => (auth?.props.base_url ?? ''),
+      auth: freshdeskAuth,
+      authMapping: async (auth) => ({
+        Authorization: (auth.props.access_token),
+      }),
+    }),
+  ],
+  triggers: [],
+});
+

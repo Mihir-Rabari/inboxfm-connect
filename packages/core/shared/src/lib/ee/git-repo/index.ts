@@ -1,4 +1,4 @@
-import { BaseModelSchema, Nullable } from '@activepieces/core-utils'
+import { BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { formErrors } from '../../form-errors'
 
@@ -70,3 +70,4 @@ export const ConfigureRepoRequest = z.object({
 })
 
 export type ConfigureRepoRequest = z.infer<typeof ConfigureRepoRequest>
+

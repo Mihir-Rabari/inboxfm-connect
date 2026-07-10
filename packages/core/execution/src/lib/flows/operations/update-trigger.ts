@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { isNil } from '@activepieces/core-utils'
+import { isNil } from '@inboxfm-connect/core-utils'
 import { FlowAction } from '../actions/action'
 import { FlowVersion } from '../flow-version'
 import { SampleDataSettings } from '../sample-data'
@@ -55,3 +55,4 @@ function _updateTrigger(flowVersion: FlowVersion, request: UpdateTriggerRequest)
 }
 
 export { _updateTrigger }
+

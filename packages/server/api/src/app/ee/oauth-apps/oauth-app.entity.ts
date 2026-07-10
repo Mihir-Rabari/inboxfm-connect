@@ -1,4 +1,4 @@
-import { OAuthApp, Platform } from '@activepieces/shared'
+import { OAuthApp, Platform } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import {
     ApIdSchema,

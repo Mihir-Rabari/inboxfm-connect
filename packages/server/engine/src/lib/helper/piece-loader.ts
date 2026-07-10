@@ -1,8 +1,8 @@
 import fs from 'fs/promises'
 import path from 'path'
-import { ActivepiecesError, ErrorCode, isNil } from '@activepieces/core-utils'
-import { Action, Piece, PiecePropertyMap, Trigger } from '@activepieces/pieces-framework'
-import { EngineGenericError, extractPieceFromModule, getPackageAliasForPiece, getPieceNameFromAlias, trimVersionFromAlias } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil } from '@inboxfm-connect/core-utils'
+import { Action, Piece, PiecePropertyMap, Trigger } from '@inboxfm-connect/pieces-framework'
+import { EngineGenericError, extractPieceFromModule, getPackageAliasForPiece, getPieceNameFromAlias, trimVersionFromAlias } from '@inboxfm-connect/shared'
 import { utils } from '../utils'
 
 export const pieceLoader = {
@@ -131,7 +131,7 @@ export const pieceLoader = {
 }
 
 async function findInDistFolder(packageName: string): Promise<string | null> {
-    const sourcePiecesPath = path.resolve('packages/pieces')
+    const sourcePiecesPath = path.resolve('packages/integrations')
     if (!await utils.folderExists(sourcePiecesPath)) {
         return null
     }

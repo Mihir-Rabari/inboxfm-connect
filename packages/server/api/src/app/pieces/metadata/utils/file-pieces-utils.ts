@@ -2,13 +2,13 @@ import { readdir, readFile, stat } from 'node:fs/promises'
 import { join, resolve } from 'node:path'
 import { cwd } from 'node:process'
 import { sep } from 'path'
-import { Piece, PieceMetadata, pieceTranslation } from '@activepieces/pieces-framework'
-import { extractPieceFromModule } from '@activepieces/shared'
+import { Piece, PieceMetadata, pieceTranslation } from '@inboxfm-connect/pieces-framework'
+import { extractPieceFromModule } from '@inboxfm-connect/shared'
 import clearModule from 'clear-module'
 import { FastifyBaseLogger } from 'fastify'
 import { AppSystemProp, environmentVariables } from '../../../helper/system/system-props'
 
-const SOURCE_PIECES_PATH = resolve(cwd(), 'packages', 'pieces')
+const SOURCE_PIECES_PATH = resolve(cwd(), 'packages', 'integrations')
 
 export const filePiecesUtils = (log: FastifyBaseLogger) => ({
 

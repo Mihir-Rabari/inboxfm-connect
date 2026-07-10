@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { FlowVersion, TemplateStatus } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { FlowVersion, TemplateStatus } from '@inboxfm-connect/shared'
 import { MigrationInterface, QueryRunner } from 'typeorm'
 import { z } from 'zod'
 import { system } from '../../../helper/system/system'

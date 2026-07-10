@@ -1,4 +1,4 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 const MAX_EMBED_HOSTNAME_LENGTH = 253
@@ -57,3 +57,4 @@ export const GenerateEmbedSubdomainRequest = z.object({
 })
 
 export type GenerateEmbedSubdomainRequest = z.infer<typeof GenerateEmbedSubdomainRequest>
+

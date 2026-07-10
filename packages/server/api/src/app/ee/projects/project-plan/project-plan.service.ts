@@ -1,5 +1,5 @@
-import { apId, isNil, spreadIfDefined } from '@activepieces/core-utils'
-import { PiecesFilterType, ProjectPlan, ProjectPlanLimits } from '@activepieces/shared'
+import { apId, isNil, spreadIfDefined } from '@inboxfm-connect/core-utils'
+import { PiecesFilterType, ProjectPlan, ProjectPlanLimits } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { EntityManager, In } from 'typeorm'
 import { repoFactory } from '../../../core/db/repo-factory'

@@ -1,5 +1,5 @@
-import { isNil, tryCatch } from '@activepieces/core-utils'
-import { ApEdition, ExecutioOutputFile, FileCompression, FileType, isFlowRunStateTerminal, logSerializer, RunInternalError, RunInternalErrorSource, SendFlowResponseRequest, StreamStepProgress, truncateFailedStepMessage, UpdateStepProgressRequest, UploadRunLogsRequest, WebsocketClientEvent } from '@activepieces/shared'
+import { isNil, tryCatch } from '@inboxfm-connect/core-utils'
+import { ApEdition, ExecutioOutputFile, FileCompression, FileType, isFlowRunStateTerminal, logSerializer, RunInternalError, RunInternalErrorSource, SendFlowResponseRequest, StreamStepProgress, truncateFailedStepMessage, UpdateStepProgressRequest, UploadRunLogsRequest, WebsocketClientEvent } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { websocketService } from '../../core/websockets.service'
 import { fileCompressor } from '../../file/file-compressor'
@@ -7,7 +7,7 @@ import { fileService } from '../../file/file.service'
 import { pubsub } from '../../helper/pubsub'
 import { system } from '../../helper/system/system'
 import { projectService } from '../../project/project-service'
-import { RunsMetadataUpsertData } from '../../workers/job'
+import { RunsMetadataUpsertData } from './flow-runs-queue'
 import { runsMetadataQueue } from './flow-runs-queue'
 
 export const engineRunCallbackService = (log: FastifyBaseLogger) => ({

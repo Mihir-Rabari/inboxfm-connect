@@ -1,4 +1,4 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export enum FieldType {
@@ -35,3 +35,4 @@ export const StaticDropdownEmptyOption = {
     label: '',
     value: '',
 }
+

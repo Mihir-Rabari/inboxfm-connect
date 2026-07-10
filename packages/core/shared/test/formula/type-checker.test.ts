@@ -1,4 +1,4 @@
-import { typeCheckTiptapDoc } from '@activepieces/core-formula'
+import { typeCheckTiptapDoc } from '@inboxfm-connect/core-formula'
 import { describe, expect, it } from 'vitest'
 
 type Node = {
@@ -194,3 +194,4 @@ describe('zero-width space stripping', () => {
         expect(typeCheckTiptapDoc(d).size).toBe(0)
     })
 })
+

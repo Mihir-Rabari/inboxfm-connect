@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { ContinueOnFailureBranches, FlowAction, FlowActionType, FlowState, FlowTrigger, FlowTriggerType, FlowVersion } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { ContinueOnFailureBranches, FlowAction, FlowActionType, FlowState, FlowTrigger, FlowTriggerType, FlowVersion } from '@inboxfm-connect/shared'
 
 function cleanFlowState(flowState: FlowState): FlowState {
     return {

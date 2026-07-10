@@ -1,5 +1,5 @@
-import { assertNotNullOrUndefined } from '@activepieces/core-utils'
-import { environmentMigrations } from '@activepieces/server-utils'
+import { assertNotNullOrUndefined } from '@inboxfm-connect/core-utils'
+import { environmentMigrations } from '@inboxfm-connect/server-utils'
 
 export type SystemProp = AppSystemProp
 

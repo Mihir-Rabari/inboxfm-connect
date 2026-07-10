@@ -1,4 +1,4 @@
-import { ProjectId } from '@activepieces/core-utils'
+import { ProjectId } from '@inboxfm-connect/core-utils'
 
 export type ConnectionKeyId = string
 
@@ -19,3 +19,4 @@ export type SigningKeyConnection = {
 export enum ConnectionKeyType {
     SIGNING_KEY = 'SIGNING_KEY',
 }
+

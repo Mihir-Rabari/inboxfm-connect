@@ -1,4 +1,4 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { ApplicationEventName } from '../audit-events/index'
 import { EventDestinationScope } from './dto'
@@ -31,3 +31,4 @@ export const EventDestination = z.discriminatedUnion('scope', [
 export type EventDestination = z.infer<typeof EventDestination>
 
 export * from './dto'
+

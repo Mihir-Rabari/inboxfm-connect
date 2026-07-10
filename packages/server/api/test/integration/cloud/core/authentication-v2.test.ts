@@ -1,5 +1,5 @@
-import { ActivepiecesError, ErrorCode } from '@activepieces/core-utils'
-import { Principal, PrincipalType } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
+import { Principal, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyInstance } from 'fastify'
 import { nanoid } from 'nanoid'
 import { authenticateOrThrow } from '../../../../src/app/core/security/v2/authn/authenticate'

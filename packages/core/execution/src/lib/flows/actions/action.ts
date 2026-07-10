@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { STEP_NAME_REGEX } from '@activepieces/core-utils'
-import { VersionType } from '@activepieces/core-piece-types'
+import { STEP_NAME_REGEX } from '@inboxfm-connect/core-utils'
+import { VersionType } from '@inboxfm-connect/core-piece-types'
 import { PropertySettings } from '../properties'
 import { SampleDataSetting } from '../sample-data'
 
@@ -379,3 +379,4 @@ export const emptyCondition: ValidBranchCondition = {
     operator: BranchOperator.TEXT_CONTAINS,
     caseSensitive: false,
 }
+

@@ -1,4 +1,4 @@
-import { apId } from '@activepieces/core-utils'
+import { apId } from '@inboxfm-connect/core-utils'
 import { In } from 'typeorm'
 import { repoFactory } from '../../../core/db/repo-factory'
 import { tagService } from '../tag-service'

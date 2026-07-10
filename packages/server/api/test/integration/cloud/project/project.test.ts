@@ -1,5 +1,5 @@
-import { Permission, RoleType } from '@activepieces/core-utils'
-import { ApiKeyResponseWithValue, DefaultProjectRole, FlowStatus, Platform, PlatformRole, PrincipalType, Project, ProjectType, UpdateProjectPlatformRequest, User } from '@activepieces/shared'
+import { Permission, RoleType } from '@inboxfm-connect/core-utils'
+import { ApiKeyResponseWithValue, DefaultProjectRole, FlowStatus, Platform, PlatformRole, PrincipalType, Project, ProjectType, UpdateProjectPlatformRequest, User } from '@inboxfm-connect/shared'
 import { faker } from '@faker-js/faker'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'

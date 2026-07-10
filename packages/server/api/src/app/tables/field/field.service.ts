@@ -1,5 +1,5 @@
-import { ActivepiecesError, apId, assertNotNullOrUndefined, ErrorCode, isNil } from '@activepieces/core-utils'
-import { CreateFieldRequest, Field, FieldState, FieldType, UpdateFieldRequest } from '@activepieces/shared'
+import { ActivepiecesError, apId, assertNotNullOrUndefined, ErrorCode, isNil } from '@inboxfm-connect/core-utils'
+import { CreateFieldRequest, Field, FieldState, FieldType, UpdateFieldRequest } from '@inboxfm-connect/shared'
 import { In } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
 import { system } from '../../helper/system/system'

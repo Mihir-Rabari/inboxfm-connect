@@ -1,5 +1,5 @@
-import { AIProviderName } from '@activepieces/core-utils'
-import { AIProviderAuthConfig, AIProviderConfig } from '@activepieces/shared'
+import { AIProviderName } from '@inboxfm-connect/core-utils'
+import { AIProviderAuthConfig, AIProviderConfig } from '@inboxfm-connect/shared'
 import { AIProviderStrategy } from './ai-provider'
 import { anthropicProvider } from './anthropic-provider'
 import { azureProvider } from './azure-provider'

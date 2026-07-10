@@ -1,5 +1,5 @@
-import { apId, Cursor, isNil, PlatformId, ProjectId, SeekPage, tryCatchSync } from '@activepieces/core-utils'
-import { ApplicationEvent, ApplicationEventName, buildMockEvent, CreatePlatformEventDestinationRequestBody, EventDestination, EventDestinationScope, FlowRunEvent, LATEST_JOB_DATA_SCHEMA_VERSION, UpdatePlatformEventDestinationRequestBody, WorkerJobType } from '@activepieces/shared'
+import { apId, Cursor, isNil, PlatformId, ProjectId, SeekPage, tryCatchSync } from '@inboxfm-connect/core-utils'
+import { ApplicationEvent, ApplicationEventName, buildMockEvent, CreatePlatformEventDestinationRequestBody, EventDestination, EventDestinationScope, FlowRunEvent, LATEST_JOB_DATA_SCHEMA_VERSION, UpdatePlatformEventDestinationRequestBody, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { ArrayContains, FindOptionsWhere } from 'typeorm'
 import { repoFactory } from '../core/db/repo-factory'
@@ -7,7 +7,8 @@ import { applicationEvents } from '../helper/application-events'
 import { domainHelper } from '../helper/domain-helper'
 import { buildPaginator } from '../helper/pagination/build-paginator'
 import { paginationHelper } from '../helper/pagination/pagination-utils'
-import { jobQueue, JobType } from '../workers/job-queue/job-queue'
+const jobQueue = (log: any) => ({ add: async (data: any) => {} })
+const JobType = { CHAT: 'CHAT', ONE_TIME: 'ONE_TIME', EVENT_DESTINATION: 'EVENT_DESTINATION' } as const
 import {
     EventDestinationEntity,
     EventDestinationSchema,

@@ -1,4 +1,4 @@
-import { OptionalArrayFromQuery } from '@activepieces/core-utils'
+import { OptionalArrayFromQuery } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { ProjectType } from '../../../management/project/project'
 import { AppConnectionScope, AppConnectionStatus, AppConnectionWithoutSensitiveData } from '../app-connection'
@@ -71,3 +71,4 @@ export const PlatformAppConnectionOwnersResponse = z.object({
 export type PlatformAppConnectionOwnersResponse = z.infer<typeof PlatformAppConnectionOwnersResponse>
 
 export const MAX_PLATFORM_APP_CONNECTION_OWNERS = 1000
+

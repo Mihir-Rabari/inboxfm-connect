@@ -1,6 +1,6 @@
 import {
     PopulatedFlow,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { createTestContext } from '../../../helpers/test-context'

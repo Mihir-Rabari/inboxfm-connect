@@ -1,6 +1,6 @@
-import { apId } from '@activepieces/core-utils'
-import { FilesService } from '@activepieces/pieces-framework'
-import { FileSizeError, FileType } from '@activepieces/shared'
+import { apId } from '@inboxfm-connect/core-utils'
+import { FilesService } from '@inboxfm-connect/pieces-framework'
+import { FileSizeError, FileType } from '@inboxfm-connect/shared'
 import { engineFileApi } from '../api/engine-file-api'
 
 export function createFileUploader({ engineToken, apiUrl }: CreateFileUploaderParams): FilesService {

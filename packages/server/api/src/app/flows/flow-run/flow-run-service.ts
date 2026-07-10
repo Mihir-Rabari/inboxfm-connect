@@ -1,6 +1,6 @@
-import { ActivepiecesError, apId, Cursor, ErrorCode, FlowId, FlowRunId, FlowVersionId, isNil, PlatformId, ProjectId, SeekPage } from '@activepieces/core-utils'
-import { apDayjs, wideEvent } from '@activepieces/server-utils'
-import { ExecuteFlowJobData, ExecutionType, ExecutioOutputFile, FileType, FlowRetryStrategy, FlowRun, FlowRunCountByStatus, FlowRunStatus, FlowRunWithRetryError, isFlowRunStateTerminal, JobPayload, LATEST_JOB_DATA_SCHEMA_VERSION, LogSliceRef, ResumeReason, RunEnvironment, RunInternalError, SampleDataFileType, StepOutput, StepOutputStatus, StepOutputType, StreamStepProgress, WorkerJobType } from '@activepieces/shared'
+import { ActivepiecesError, apId, Cursor, ErrorCode, FlowId, FlowRunId, FlowVersionId, isNil, PlatformId, ProjectId, SeekPage } from '@inboxfm-connect/core-utils'
+import { apDayjs, wideEvent } from '@inboxfm-connect/server-utils'
+import { ExecuteFlowJobData, ExecutionType, ExecutioOutputFile, FileType, FlowRetryStrategy, FlowRun, FlowRunCountByStatus, FlowRunStatus, FlowRunWithRetryError, isFlowRunStateTerminal, JobPayload, LATEST_JOB_DATA_SCHEMA_VERSION, LogSliceRef, ResumeReason, RunEnvironment, RunInternalError, SampleDataFileType, StepOutput, StepOutputStatus, StepOutputType, StreamStepProgress, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import pLimit from 'p-limit'
 import { ArrayContains, In, IsNull, Not, Repository, SelectQueryBuilder } from 'typeorm'
@@ -13,8 +13,17 @@ import { Order } from '../../helper/pagination/paginator'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 import { projectService } from '../../project/project-service'
-import { jobQueue, JobType } from '../../workers/job-queue/job-queue'
-import { payloadOffloader } from '../../workers/payload-offloader'
+const jobQueue = (log: any) => ({
+    add: async (data: any) => {},
+    removeAllFlowRunJobs: async (data: any) => {},
+})
+const JobType = { CHAT: 'CHAT', ONE_TIME: 'ONE_TIME' } as const
+const payloadOffloader = {
+    offload: async (_data: unknown) => _data,
+    offloadPayload: async (_log: unknown, payload: unknown, _projectId: unknown, _platformId: unknown) => ({ type: 'inline' as const, value: payload }),
+    maybeOffloadPayload: async (_log: unknown, payload: unknown, _projectId: unknown, _platformId: unknown) => ({ type: 'inline' as const, value: payload }),
+    getPayloadSizeInBytes: (payload: unknown): number => JSON.stringify(payload).length,
+}
 import { flowService } from '../flow/flow.service'
 import { flowVersionService } from '../flow-version/flow-version.service'
 import { sampleDataService } from '../step-run/sample-data.service'

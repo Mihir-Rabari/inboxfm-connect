@@ -1,4 +1,4 @@
-import { isNil } from '@activepieces/core-utils'
+import { isNil } from '@inboxfm-connect/core-utils'
 import { Mutex } from 'async-mutex'
 import { FastifyBaseLogger } from 'fastify'
 import Redis from 'ioredis'

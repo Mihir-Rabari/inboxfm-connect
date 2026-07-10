@@ -1,6 +1,6 @@
-import { ActivepiecesError, ErrorCode, isNil } from '@activepieces/core-utils'
-import { PropertyType } from '@activepieces/pieces-framework'
-import { AppConnectionType, PlatformOAuth2ConnectionValue } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil } from '@inboxfm-connect/core-utils'
+import { PropertyType } from '@inboxfm-connect/pieces-framework'
+import { AppConnectionType, PlatformOAuth2ConnectionValue } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import {
     ClaimOAuth2Request,

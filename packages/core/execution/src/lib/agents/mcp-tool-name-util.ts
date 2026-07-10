@@ -24,7 +24,7 @@ function createToolName(name: string): string {
 }
 
 /**
- * Strips the @scope/piece- prefix from pieceName (e.g. @activepieces/piece-slack → slack)
+ * Strips the @scope/piece- prefix from pieceName (e.g. @inboxfm-connect/piece-slack → slack)
  * and delegates to createToolName.
  */
 function createPieceToolName(pieceName: string, actionName: string): string {
@@ -38,3 +38,4 @@ export const mcpToolNameUtils = {
     createToolName,
     createPieceToolName,
 }
+

@@ -2,8 +2,8 @@ import { rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { type ApLogger } from '@activepieces/server-utils'
-import { FlowActionType, FlowTriggerType, FlowVersion, FlowVersionState, LATEST_FLOW_SCHEMA_VERSION, PackageType, PieceType, WorkerToApiContract } from '@activepieces/shared'
+import { type ApLogger } from '@inboxfm-connect/server-utils'
+import { FlowActionType, FlowTriggerType, FlowVersion, FlowVersionState, LATEST_FLOW_SCHEMA_VERSION, PackageType, PieceType, WorkerToApiContract } from '@inboxfm-connect/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { flowProvisioning } from '../../../../src/lib/cache/flow/flow-provisioning'
 
@@ -41,14 +41,14 @@ function flowWithPiece(overrides: Partial<FlowVersion> = {}): FlowVersion {
             name: 'trigger', type: FlowTriggerType.EMPTY, displayName: 'Trigger', valid: true, settings: {},
             nextAction: {
                 name: 'step_1', type: FlowActionType.PIECE, displayName: 'HTTP', valid: true,
-                settings: { pieceName: '@activepieces/piece-http', pieceVersion: '^1.0.0', actionName: 'send', input: {}, inputUiInfo: {} },
+                settings: { pieceName: '@inboxfm-connect/piece-http', pieceVersion: '^1.0.0', actionName: 'send', input: {}, inputUiInfo: {} },
             },
         },
         ...overrides,
     } as unknown as FlowVersion
 }
 
-const httpPiece = { packageType: PackageType.REGISTRY, name: '@activepieces/piece-http', version: '1.0.5', pieceType: PieceType.OFFICIAL }
+const httpPiece = { packageType: PackageType.REGISTRY, name: '@inboxfm-connect/piece-http', version: '1.0.5', pieceType: PieceType.OFFICIAL }
 
 const flow = { id: 'flow1', versionId: 'fv1', projectId: 'p1' }
 

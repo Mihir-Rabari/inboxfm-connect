@@ -1,4 +1,4 @@
-import { RoleType } from '@activepieces/core-utils'
+import { RoleType } from '@inboxfm-connect/core-utils'
 import { MigrationInterface, QueryRunner } from 'typeorm'
 import { system } from '../../../helper/system/system'
 

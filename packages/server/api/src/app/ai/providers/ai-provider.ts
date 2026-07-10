@@ -1,4 +1,4 @@
-import { AIProviderAuthConfig, AIProviderConfig, AIProviderModel } from '@activepieces/shared'
+import { AIProviderAuthConfig, AIProviderConfig, AIProviderModel } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 
 export type AIProviderStrategy<T extends AIProviderAuthConfig, C extends AIProviderConfig> = {

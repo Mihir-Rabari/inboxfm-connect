@@ -1,4 +1,4 @@
-import { BaseModelSchema, Nullable } from '@activepieces/core-utils'
+import { BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { UserWithMetaInformation } from '../../core/user'
 import { ProjectReleaseType } from './project-release.request'
@@ -15,3 +15,4 @@ export const ProjectRelease = z.object({
 })
 
 export type ProjectRelease = z.infer<typeof ProjectRelease>
+

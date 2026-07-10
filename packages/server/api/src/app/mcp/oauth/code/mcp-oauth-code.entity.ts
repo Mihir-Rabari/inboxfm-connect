@@ -1,4 +1,4 @@
-import { McpOAuthAuthorizationCode } from '@activepieces/shared'
+import { McpOAuthAuthorizationCode } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import { ApIdSchema, BaseColumnSchemaPart } from '../../../database/database-common'
 

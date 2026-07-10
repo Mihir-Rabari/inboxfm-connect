@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { McpToolDefinition } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { McpToolDefinition } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { projectService } from '../../project/project-service'

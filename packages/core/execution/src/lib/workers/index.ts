@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { EngineResponseStatus } from '../engine/engine-operation'
 import { JobData } from './job-data'
 
@@ -138,3 +138,4 @@ export const WorkerSettingsResponse = z.object({
 })
 
 export type WorkerSettingsResponse = z.infer<typeof WorkerSettingsResponse>
+

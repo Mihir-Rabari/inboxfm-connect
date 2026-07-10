@@ -1,13 +1,13 @@
-import { isNil, isObject, spreadIfDefined, tryCatch } from '@activepieces/core-utils'
-import { PiecePropertyMap } from '@activepieces/pieces-framework'
-import { AppConnectionStatus, EngineResponse, EngineResponseStatus, FlowVersion, McpToolDefinition, ProjectScopedMcpServer, SampleDataFileType, WorkerJobType } from '@activepieces/shared'
+import { isNil, isObject, spreadIfDefined, tryCatch } from '@inboxfm-connect/core-utils'
+import { PiecePropertyMap } from '@inboxfm-connect/pieces-framework'
+import { AppConnectionStatus, EngineResponse, EngineResponseStatus, FlowVersion, McpToolDefinition, ProjectScopedMcpServer, SampleDataFileType, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { appConnectionService } from '../../app-connection/app-connection-service/app-connection-service'
 import { flowService } from '../../flows/flow/flow.service'
 import { sampleDataService } from '../../flows/step-run/sample-data.service'
 import { getPiecePackageWithoutArchive } from '../../pieces/metadata/piece-metadata-service'
-import { userInteractionWatcher } from '../../workers/user-interaction-watcher'
+import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
 import { mcpUtils, PropertyResolutionResult, PropSummary } from './mcp-utils'
 import { pieceExpertise } from './piece-expertise'
 
@@ -259,7 +259,7 @@ async function validateAuthOwnership({ auth, pieceName, projectId, platformId, l
 const { withTimeout } = mcpUtils
 
 const getPiecePropsInput = z.object({
-    pieceName: z.string().describe('The piece name (e.g. "@activepieces/piece-slack"). Use ap_research_pieces to get valid values.'),
+    pieceName: z.string().describe('The piece name (e.g. "@inboxfm-connect/piece-slack"). Use ap_research_pieces to get valid values.'),
     actionOrTriggerName: z.string().describe('The action or trigger name (e.g. "send_channel_message"). Use ap_research_pieces with pieceNames to get valid values.'),
     type: z.enum(['action', 'trigger']).describe('Whether to look up an action or a trigger.'),
     auth: z.string().optional().describe('Connection externalId from ap_list_connections. When provided, dynamic dropdowns and dynamic property sub-fields are resolved via your account.'),

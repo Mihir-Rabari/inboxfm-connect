@@ -1,5 +1,5 @@
-import { safeHttp } from '@activepieces/server-utils'
-import { SecretManagerProviderId } from '@activepieces/shared'
+import { safeHttp } from '@inboxfm-connect/server-utils'
+import { SecretManagerProviderId } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { SecretManagerProvider, throwConnectionError, throwGetSecretError } from './secret-manager-providers'
 

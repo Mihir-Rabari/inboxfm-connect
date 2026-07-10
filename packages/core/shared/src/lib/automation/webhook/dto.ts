@@ -1,4 +1,4 @@
-import { ApId } from '@activepieces/core-utils'
+import { ApId } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export const WebhookUrlParams = z.object({
@@ -6,3 +6,4 @@ export const WebhookUrlParams = z.object({
 })
 
 export type WebhookUrlParams = z.infer<typeof WebhookUrlParams>
+

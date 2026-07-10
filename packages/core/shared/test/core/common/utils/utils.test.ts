@@ -15,7 +15,7 @@ import {
     startCase,
     unique,
     validateIndexBound,
-} from '@activepieces/core-utils'
+} from '@inboxfm-connect/core-utils'
 
 describe('setAtPath', () => {
     it('should set a value at a dot-separated path', () => {
@@ -247,3 +247,4 @@ describe('parseToJsonIfPossible', () => {
         expect(parseToJsonIfPossible(42)).toBe(42)
     })
 })
+

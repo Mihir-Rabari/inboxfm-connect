@@ -1,4 +1,4 @@
-import { isBase64 } from '@activepieces/core-utils'
+import { isBase64 } from '@inboxfm-connect/core-utils'
 
 const validBase64 = 'SGVsbG8gV29ybGQ='  // "Hello World"
 const validPngBase64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg=='
@@ -89,3 +89,4 @@ describe('isBase64', () => {
         })
     })
 })
+

@@ -1,4 +1,4 @@
-import { AIProviderName } from '@activepieces/core-utils'
+import { AIProviderName } from '@inboxfm-connect/core-utils'
 import { getEffectiveProviderAndModel } from '../../src/lib/management/ai-providers'
 
 describe('getEffectiveProviderAndModel', () => {
@@ -68,3 +68,4 @@ describe('getEffectiveProviderAndModel', () => {
         })
     })
 })
+

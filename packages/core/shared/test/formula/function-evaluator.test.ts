@@ -1,4 +1,4 @@
-import { formulaEvaluator } from '@activepieces/core-formula'
+import { formulaEvaluator } from '@inboxfm-connect/core-formula'
 import { describe, expect, it } from 'vitest'
 
 const ok = (expr: string, data: Record<string, unknown> = {}) =>
@@ -781,3 +781,4 @@ describe('formulaEvaluator wrapper detection', () => {
         expect(formulaEvaluator.containsWrapper(input)).toBe(true)
     })
 })
+

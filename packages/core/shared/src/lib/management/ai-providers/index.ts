@@ -1,4 +1,4 @@
-import { AIProviderName, BaseModelSchema } from '@activepieces/core-utils'
+import { AIProviderName, BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export enum AIProviderModelType {
@@ -393,3 +393,4 @@ export type ActivepiecesChatTier = typeof ACTIVEPIECES_CHAT_TIERS[number]
 export const aiProviderUtils = {
     getMaxContextTokens,
 }
+

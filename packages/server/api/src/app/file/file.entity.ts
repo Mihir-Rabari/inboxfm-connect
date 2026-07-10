@@ -1,4 +1,4 @@
-import { File, FileCompression, FileType, Project } from '@activepieces/shared'
+import { File, FileCompression, FileType, Project } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import {
     ApIdSchema,

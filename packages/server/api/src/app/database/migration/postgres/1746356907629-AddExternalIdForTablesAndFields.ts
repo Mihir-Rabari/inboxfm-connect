@@ -1,4 +1,4 @@
-import { apId } from '@activepieces/core-utils'
+import { apId } from '@inboxfm-connect/core-utils'
 import { MigrationInterface, QueryRunner } from 'typeorm'
 
 export class AddExternalIdForTablesAndFields1746356907629 implements MigrationInterface {

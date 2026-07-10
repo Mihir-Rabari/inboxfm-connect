@@ -1,4 +1,4 @@
-import { PopulatedRecord, TableAutomationTrigger, TableWebhookEventType } from '@activepieces/shared'
+import { PopulatedRecord, TableAutomationTrigger, TableWebhookEventType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { recordService } from './record.service'
 

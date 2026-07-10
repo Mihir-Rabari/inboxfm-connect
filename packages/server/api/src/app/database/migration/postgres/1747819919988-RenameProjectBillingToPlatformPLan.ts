@@ -1,5 +1,5 @@
-import { apId } from '@activepieces/core-utils'
-import { ApEdition } from '@activepieces/shared'
+import { apId } from '@inboxfm-connect/core-utils'
+import { ApEdition } from '@inboxfm-connect/shared'
 import { MigrationInterface, QueryRunner } from 'typeorm'
 import { system } from '../../../helper/system/system'
 

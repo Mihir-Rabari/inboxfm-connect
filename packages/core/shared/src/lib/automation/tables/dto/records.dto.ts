@@ -1,4 +1,4 @@
-import { Cursor, OptionalArrayFromQuery } from '@activepieces/core-utils'
+import { Cursor, OptionalArrayFromQuery } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 const coerceToString = z.preprocess(
@@ -80,4 +80,5 @@ export const DeleteRecordsRequest = z.object({
 })
 
 export type DeleteRecordsRequest = z.infer<typeof DeleteRecordsRequest>
+
 

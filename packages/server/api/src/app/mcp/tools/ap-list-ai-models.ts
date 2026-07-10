@@ -1,5 +1,5 @@
-import { AIProviderName } from '@activepieces/core-utils'
-import { AIProviderModelType, McpToolDefinition, ProjectScopedMcpServer } from '@activepieces/shared'
+import { AIProviderName } from '@inboxfm-connect/core-utils'
+import { AIProviderModelType, McpToolDefinition, ProjectScopedMcpServer } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { aiProviderService } from '../../ai/ai-provider-service'

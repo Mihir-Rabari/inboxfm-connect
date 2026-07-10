@@ -1,5 +1,5 @@
-import { assertNotNullOrUndefined, SeekPage } from '@activepieces/core-utils'
-import { DeleteTagRequest, ListTagsRequest, PrincipalType, SetPieceTagsRequest, Tag, UpsertTagRequest } from '@activepieces/shared'
+import { assertNotNullOrUndefined, SeekPage } from '@inboxfm-connect/core-utils'
+import { DeleteTagRequest, ListTagsRequest, PrincipalType, SetPieceTagsRequest, Tag, UpsertTagRequest } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'

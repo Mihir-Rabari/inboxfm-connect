@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { BaseModel } from '@activepieces/core-utils'
+import { BaseModel } from '@inboxfm-connect/core-utils'
 
 export type TriggerEventId = string
 
@@ -18,3 +18,4 @@ export const TriggerEventWithPayload = TriggerEvent.extend({
 })
 
 export type TriggerEventWithPayload = z.infer<typeof TriggerEventWithPayload>
+

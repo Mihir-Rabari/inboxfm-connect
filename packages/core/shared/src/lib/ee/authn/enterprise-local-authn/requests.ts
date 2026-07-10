@@ -1,4 +1,4 @@
-import { ApId } from '@activepieces/core-utils'
+import { ApId } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { SignUpRequest } from '../../../core/authentication/dto/sign-up-request'
 
@@ -20,3 +20,4 @@ export const SignUpAndAcceptRequestBody = SignUpRequest.omit({ email: true }).ex
 })
 
 export type SignUpAndAcceptRequestBody = z.infer<typeof SignUpAndAcceptRequestBody>
+

@@ -1,11 +1,10 @@
-import { apVersionUtil, systemUsage } from '@activepieces/server-utils'
-import { GetSystemHealthChecksResponse } from '@activepieces/shared'
+import { apVersionUtil, systemUsage } from '@inboxfm-connect/server-utils'
+import { GetSystemHealthChecksResponse } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { databaseConnection } from '../database/database-connection'
 import { system } from '../helper/system/system'
-import { machineService } from '../workers/machine/machine-service'
 
-let workerHealthStatus = false
+let workerHealthStatus = true
 
 export const healthStatusService = (log: FastifyBaseLogger) => ({
     markWorkerHealthy: async (): Promise<void> => {
@@ -38,20 +37,18 @@ export const healthStatusService = (log: FastifyBaseLogger) => ({
         return  workerHealthy && databaseHealthy
     },
     getSystemHealthChecks: async (platformId: string): Promise<GetSystemHealthChecksResponse> => {
-        const [workers, databaseHealthy, latestVersion] = await Promise.all([
-            machineService(log).list(platformId),
+        const [databaseHealthy, latestVersion] = await Promise.all([
             healthStatusService(log).checkDatabaseHealth(),
             apVersionUtil.getLatestRelease(),
         ])
-        const hasWorkers = workers.length > 0
 
         return {
             latestVersion,
             appCpu: await systemUsage.getCpuCores() >= APP_MIN_CPU_CORES,
             appRam: (await systemUsage.getContainerMemoryUsage()).totalRamInBytes >= gigaBytes(APP_MIN_RAM_GB),
             disk: (await systemUsage.getDiskInfo()).total >= gigaBytes(APP_MIN_DISK_GB),
-            workerCpu: hasWorkers ? workers.every(worker => worker.information.totalCpuCores >= WORKER_MIN_CPU_CORES) : null,
-            workerRam: hasWorkers ? workers.every(worker => worker.information.totalAvailableRamInBytes >= gigaBytes(WORKER_MIN_RAM_GB)) : null,
+            workerCpu: null,
+            workerRam: null,
             database: databaseHealthy,
         }
     },

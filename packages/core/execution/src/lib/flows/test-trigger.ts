@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ApId } from '@activepieces/core-utils'
+import { ApId } from '@inboxfm-connect/core-utils'
 
 export enum TriggerTestStrategy {
     SIMULATION = 'SIMULATION',
@@ -22,3 +22,4 @@ export const CancelTestTriggerRequestBody = z.object({
 })
 
 export type CancelTestTriggerRequestBody = z.infer<typeof CancelTestTriggerRequestBody>
+

@@ -1,4 +1,4 @@
-import { PlatformThemeColors } from '@activepieces/shared'
+import { PlatformThemeColors } from '@inboxfm-connect/shared'
 import tinycolor from 'tinycolor2'
 
 function generateColorVariations(defaultColor: string) {

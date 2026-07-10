@@ -2,8 +2,8 @@ import { ChildProcess } from 'child_process'
 import { randomBytes, timingSafeEqual } from 'crypto'
 import { createServer, Server as HttpServer } from 'http'
 import path from 'path'
-import { ActivepiecesError, assertNotNullOrUndefined, ErrorCode, isNil, tryCatch } from '@activepieces/core-utils'
-import { createNotifyServer, createRpcClient, EngineContract, EngineOperation, EngineOperationType, EngineResponse, EngineStderr, EngineStdout, WorkerNotifyContract } from '@activepieces/shared'
+import { ActivepiecesError, assertNotNullOrUndefined, ErrorCode, isNil, tryCatch } from '@inboxfm-connect/core-utils'
+import { createNotifyServer, createRpcClient, RuntimeContract, RuntimeOperation, RuntimeOperationType, RuntimeResponse, RuntimeStderr, RuntimeStdout, WorkerNotifyContract } from '@inboxfm-connect/shared'
 import { Socket, Server as SocketIOServer } from 'socket.io'
 import treeKill from 'tree-kill'
 import { cacheUtils } from '../cache/cache-paths'
@@ -246,7 +246,7 @@ export function createSandbox(
                 platform: { id: platformId },
             }, 'Sandbox started')
         },
-        execute: async (operationType: EngineOperationType, operation: EngineOperation, executeOptions: SandboxOptions) => {
+        execute: async (operationType: RuntimeOperationType, operation: RuntimeOperation, executeOptions: SandboxOptions) => {
             busy = true
             let killedByTimeout = false
             let timeout: NodeJS.Timeout | null = null
@@ -264,10 +264,10 @@ export function createSandbox(
                 let stdOut = ''
 
                 createNotifyServer<WorkerNotifyContract>(executeSocket, {
-                    stdout: (input: EngineStdout) => {
+                    stdout: (input: RuntimeStdout) => {
                         stdOut += input.message
                     },
-                    stderr: (input: EngineStderr) => {
+                    stderr: (input: RuntimeStderr) => {
                         stdError += input.message
                     },
                 })
@@ -300,8 +300,8 @@ export function createSandbox(
 
                 log.debug({ sandbox: { id: sandboxId }, operationType }, '[Sandbox] Executing operation via RPC')
                 const operationTimeoutMs = (executeOptions.timeoutInSeconds + 5) * 1000
-                const client = createRpcClient<EngineContract>(executeSocket, operationTimeoutMs)
-                client.executeOperation({ operationType, operation }).then((engineResponse: EngineResponse<unknown>) => {
+                const client = createRpcClient<RuntimeContract>(executeSocket, operationTimeoutMs)
+                client.executeOperation({ operationType, operation }).then((engineResponse: RuntimeResponse<unknown>) => {
                     resolve({ ...engineResponse, logs: buildLogs(stdOut, stdError) })
                 }).catch((error: unknown) => {
                     log.error({ sandbox: { id: sandboxId }, error: String(error) }, '[Sandbox] RPC call failed')
@@ -478,7 +478,7 @@ function authenticateHandshake({ getExpectedToken, log, sandboxId }: {
 
 type ProcessExitParams = {
     sandboxId: string
-    operationType: EngineOperationType
+    operationType: RuntimeOperationType
     code: number | null
     signal: string | null
     killedByTimeout: boolean

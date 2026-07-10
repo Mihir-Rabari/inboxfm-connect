@@ -67,10 +67,10 @@ const scaffoldPiece = async (
     main: './dist/src/index.js',
     types: './dist/src/index.d.ts',
     dependencies: {
-      '@activepieces/pieces-common': 'workspace:*',
-      '@activepieces/pieces-framework': 'workspace:*',
-      '@activepieces/core-piece-types': 'workspace:*',
-      '@activepieces/core-utils': 'workspace:*',
+      '@inboxfm-connect/pieces-common': 'workspace:*',
+      '@inboxfm-connect/pieces-framework': 'workspace:*',
+      '@inboxfm-connect/core-piece-types': 'workspace:*',
+      '@inboxfm-connect/core-utils': 'workspace:*',
     },
     devDependencies: {
       tslib: '2.6.2',
@@ -142,10 +142,10 @@ const scaffoldPiece = async (
               patterns: [
                 'lodash',
                 'lodash/*',
-                '@activepieces/core-*',
-                '@activepieces/server*',
-                '@activepieces/engine',
-                '@activepieces/shared',
+                '@inboxfm-connect/core-*',
+                '@inboxfm-connect/server*',
+                '@inboxfm-connect/engine',
+                '@inboxfm-connect/shared',
               ],
             },
           ],
@@ -170,7 +170,7 @@ const scaffoldPiece = async (
     })
     .join('');
 
-  const indexTemplate = `import { createPiece, PieceAuth } from '@activepieces/pieces-framework';
+  const indexTemplate = `import { createPiece, PieceAuth } from '@inboxfm-connect/pieces-framework';
 
 export const ${pieceNameCamelCase} = createPiece({
   displayName: '${capitalizeFirstLetter(pieceName)}',
@@ -218,7 +218,7 @@ export const createPieceCommand = new Command('create')
         name: 'packageName',
         message: 'Enter the package name:',
         default: (answers: Record<string, string>) =>
-          `@activepieces/piece-${answers.pieceName}`,
+          `@inboxfm-connect/piece-${answers.pieceName}`,
         when: (answers: Record<string, string>) =>
           answers.pieceName !== undefined,
       },
@@ -234,3 +234,4 @@ export const createPieceCommand = new Command('create')
     const answers = await inquirer.prompt(questions);
     createPiece(answers.pieceName, answers.packageName, answers.pieceType);
   });
+

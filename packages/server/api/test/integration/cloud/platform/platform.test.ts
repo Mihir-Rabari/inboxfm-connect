@@ -1,5 +1,5 @@
-import { apId } from '@activepieces/core-utils'
-import { ApEdition, FileCompression, FileLocation, FileType, FilteredPieceBehavior, FlowOperationStatus, FlowStatus, PlanName, PlatformRole, PrincipalType, UpdatePlatformRequestBody, UserIdentityProvider } from '@activepieces/shared'
+import { apId } from '@inboxfm-connect/core-utils'
+import { ApEdition, FileCompression, FileLocation, FileType, FilteredPieceBehavior, FlowOperationStatus, FlowStatus, PlanName, PlatformRole, PrincipalType, UpdatePlatformRequestBody, UserIdentityProvider } from '@inboxfm-connect/shared'
 import { faker } from '@faker-js/faker'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
@@ -365,12 +365,12 @@ describe('Platform API', () => {
                         title: 'Internal Tools',
                         icon: 'Star',
                         hidden: false,
-                        pieceNames: ['@activepieces/piece-internal-a', '@activepieces/piece-internal-b'],
+                        pieceNames: ['@inboxfm-connect/piece-internal-a', '@inboxfm-connect/piece-internal-b'],
                         sections: [
                             {
                                 id: apId(),
                                 title: 'CRM',
-                                pieceNames: ['@activepieces/piece-internal-crm'],
+                                pieceNames: ['@inboxfm-connect/piece-internal-crm'],
                             },
                         ],
                     },

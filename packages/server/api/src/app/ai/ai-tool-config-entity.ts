@@ -1,5 +1,5 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
-import { AiToolCapability, AiToolProvider, AiToolProviderConfig, Platform } from '@activepieces/shared'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
+import { AiToolCapability, AiToolProvider, AiToolProviderConfig, Platform } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import { z } from 'zod'
 import { ApIdSchema, BaseColumnSchemaPart } from '../database/database-common'

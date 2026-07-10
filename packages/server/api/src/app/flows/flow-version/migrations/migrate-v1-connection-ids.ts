@@ -1,4 +1,4 @@
-import { flowStructureUtil, FlowVersion } from '@activepieces/shared'
+import { flowStructureUtil, FlowVersion } from '@inboxfm-connect/shared'
 import { Migration } from '.'
 
 export const migrateConnectionIds: Migration = {

@@ -1,4 +1,4 @@
-import { EngineGenericError, SendFlowResponseRequest, UpdateRunProgressRequest, UpdateStepProgressRequest, UploadRunLogsRequest } from '@activepieces/shared'
+import { EngineGenericError, SendFlowResponseRequest, UpdateRunProgressRequest, UpdateStepProgressRequest, UploadRunLogsRequest } from '@inboxfm-connect/shared'
 import fetchRetry from 'fetch-retry'
 
 const TERMINAL_RETRY_CONFIG = {

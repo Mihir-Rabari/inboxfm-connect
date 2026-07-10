@@ -1,6 +1,6 @@
 import { resolveTxt } from 'dns/promises'
-import { ActivepiecesError, apId, assertNotNullOrUndefined, ErrorCode, isNil, PlatformId, tryCatch } from '@activepieces/core-utils'
-import { ApEdition, AuthenticationResponse, SAMLAuthnProviderConfig, SsoDomainVerification, SsoDomainVerificationRecordType, SsoDomainVerificationStatus, UserIdentityProvider } from '@activepieces/shared'
+import { ActivepiecesError, apId, assertNotNullOrUndefined, ErrorCode, isNil, PlatformId, tryCatch } from '@inboxfm-connect/core-utils'
+import { ApEdition, AuthenticationResponse, SAMLAuthnProviderConfig, SsoDomainVerification, SsoDomainVerificationRecordType, SsoDomainVerificationStatus, UserIdentityProvider } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { authenticationService } from '../../../authentication/authentication.service'

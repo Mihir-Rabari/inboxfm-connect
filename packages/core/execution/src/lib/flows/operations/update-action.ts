@@ -1,5 +1,5 @@
 import dayjs from 'dayjs'
-import { isNil } from '@activepieces/core-utils'
+import { isNil } from '@inboxfm-connect/core-utils'
 import { FlowAction, FlowActionType, SingleActionSchema } from '../actions/action'
 import { FlowVersion } from '../flow-version'
 import { flowStructureUtil } from '../util/flow-structure-util'
@@ -87,3 +87,4 @@ function _updateAction(flowVersion: FlowVersion, request: UpdateActionRequest): 
 }
 
 export { _updateAction }
+

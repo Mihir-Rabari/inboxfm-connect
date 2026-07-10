@@ -1,13 +1,13 @@
-import { isNil, isObject, tryCatch } from '@activepieces/core-utils'
-import { AiMetadata, OutputSchema, OutputSchemaField, PieceMetadataModel, PiecePropertyMap, PropertyType } from '@activepieces/pieces-framework'
-import { BranchOperator, EngineResponse, EngineResponseStatus, FlowActionType, flowStructureUtil, McpServerType, McpToolResult, ProjectScopedMcpServer, singleValueConditions, WorkerJobType } from '@activepieces/shared'
-import type { RouterAction, Step } from '@activepieces/shared'
+import { isNil, isObject, tryCatch } from '@inboxfm-connect/core-utils'
+import { AiMetadata, OutputSchema, OutputSchemaField, PieceMetadataModel, PiecePropertyMap, PropertyType } from '@inboxfm-connect/pieces-framework'
+import { BranchOperator, EngineResponse, EngineResponseStatus, FlowActionType, flowStructureUtil, McpServerType, McpToolResult, ProjectScopedMcpServer, singleValueConditions, WorkerJobType } from '@inboxfm-connect/shared'
+import type { RouterAction, Step } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { expressionRewriter } from '../../flows/flow-version/migrations/expression-rewriter'
 import { getPiecePackageWithoutArchive, pieceMetadataService } from '../../pieces/metadata/piece-metadata-service'
 import { projectService } from '../../project/project-service'
-import { userInteractionWatcher } from '../../workers/user-interaction-watcher'
+import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
 
 const NON_INPUT_PROP_TYPES = new Set<PropertyType>([
     PropertyType.OAUTH2,
@@ -373,7 +373,7 @@ function normalizePieceName(pieceName: string | undefined): string | undefined {
     }
     const stripped = pieceName.startsWith('piece-') ? pieceName.slice('piece-'.length) : pieceName
     const normalized = stripped.replace(/_/g, '-')
-    return `@activepieces/piece-${normalized}`
+    return `@inboxfm-connect/piece-${normalized}`
 }
 
 async function lookupPieceComponent({ pieceName, componentName, componentType, projectId, platformId, log }: LookupPieceComponentParams): Promise<LookupPieceComponentResult> {

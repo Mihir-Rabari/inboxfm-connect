@@ -1,10 +1,13 @@
-import { EngineOperation, EngineOperationType, EngineResponse, EngineStderr, EngineStdout } from './engine-operation'
+import { RuntimeOperation, RuntimeOperationType, RuntimeResponse, RuntimeStderr, RuntimeStdout } from './engine-operation'
 
-export type EngineContract = {
-    executeOperation(input: { operationType: EngineOperationType, operation: EngineOperation }): Promise<EngineResponse<unknown>>
+export type RuntimeContract = {
+    executeOperation(input: { operationType: RuntimeOperationType, operation: RuntimeOperation }): Promise<RuntimeResponse<unknown>>
 }
 
 export type WorkerNotifyContract = {
-    stdout(input: EngineStdout): void
-    stderr(input: EngineStderr): void
+    stdout(input: RuntimeStdout): void
+    stderr(input: RuntimeStderr): void
 }
+
+export type EngineContract = RuntimeContract
+

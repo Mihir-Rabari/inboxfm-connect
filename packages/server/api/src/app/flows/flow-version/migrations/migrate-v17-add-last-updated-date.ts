@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { flowStructureUtil, FlowVersion, Step } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { flowStructureUtil, FlowVersion, Step } from '@inboxfm-connect/shared'
 import { Migration } from '.'
 
 export const migrateV17AddLastUpdatedDate: Migration = {

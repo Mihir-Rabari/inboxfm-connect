@@ -1,4 +1,4 @@
-import { AIProviderName } from '@activepieces/core-utils'
+import { AIProviderName } from '@inboxfm-connect/core-utils'
 import * as z from 'zod/mini'
 
 export enum AIProviderModelType {
@@ -200,3 +200,4 @@ const CF_GATEWAY_SUBMODEL_TO_PROVIDER: Record<string, AIProviderName> = {
     'google-ai-studio': AIProviderName.GOOGLE,
     'google-vertex-ai': AIProviderName.GOOGLE,
 }
+

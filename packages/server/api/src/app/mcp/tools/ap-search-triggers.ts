@@ -1,4 +1,4 @@
-import { McpToolDefinition, ProjectScopedMcpServer } from '@activepieces/shared'
+import { McpToolDefinition, ProjectScopedMcpServer } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { toolSearchService } from '../../tool-search/tool-search.service'
@@ -45,5 +45,5 @@ export const apSearchTriggersTool = (mcp: ProjectScopedMcpServer, log: FastifyBa
 const searchTriggersInput = z.object({
     query: z.string().describe('Natural-language description of the event that should start the flow (e.g. "when a new row is added to a Google Sheet", "when a new email arrives").'),
     limit: z.number().int().min(1).max(20).optional().describe('Maximum number of trigger matches to return. Defaults to 5.'),
-    pieceName: z.string().optional().describe('Restrict results to a single piece (e.g. "slack" or "@activepieces/piece-slack"). Omit to search the whole catalog.'),
+    pieceName: z.string().optional().describe('Restrict results to a single piece (e.g. "slack" or "@inboxfm-connect/piece-slack"). Omit to search the whole catalog.'),
 })

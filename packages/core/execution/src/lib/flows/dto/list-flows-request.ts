@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { OptionalArrayFromQuery } from '@activepieces/core-utils'
-import { Cursor } from '@activepieces/core-utils'
+import { OptionalArrayFromQuery } from '@inboxfm-connect/core-utils'
+import { Cursor } from '@inboxfm-connect/core-utils'
 import { FlowStatus } from '../flow'
 import { FlowVersionState } from '../flow-version'
 
@@ -32,3 +32,4 @@ export const ListFlowVersionRequest = z.object({
 })
 
 export type ListFlowVersionRequest = Omit<z.infer<typeof ListFlowVersionRequest>, 'cursor'> & { cursor: Cursor | undefined }
+

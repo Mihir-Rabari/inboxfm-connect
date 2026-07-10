@@ -1,4 +1,4 @@
-import { Platform, Template } from '@activepieces/shared'
+import { Platform, Template } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import {
     BaseColumnSchemaPart,

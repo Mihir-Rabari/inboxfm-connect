@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { ProjectState, TableOperation, TableOperationType, TableState } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { ProjectState, TableOperation, TableOperationType, TableState } from '@inboxfm-connect/shared'
 import deepEqual from 'deep-equal'
 
 export const tableDiffService = {

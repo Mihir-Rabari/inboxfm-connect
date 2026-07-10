@@ -1,4 +1,4 @@
-import { isNil } from '@activepieces/core-utils'
+import { isNil } from '@inboxfm-connect/core-utils'
 import {
     DataSource,
     EntitySchema,
@@ -6,7 +6,7 @@ import {
 import { AIProviderEntity } from '../ai/ai-provider-entity'
 import { AiToolConfigEntity } from '../ai/ai-tool-config-entity'
 import { PlatformAnalyticsReportEntity } from '../analytics/platform-analytics-report.entity'
-import { AppConnectionEntity } from '../app-connection/app-connection.entity'
+import { ConnectionEntity } from '../app-connection/app-connection.entity'
 import { UserIdentityEntity } from '../authentication/user-identity/user-identity-entity'
 import { AlertEntity } from '../ee/alerts/alerts-entity'
 import { ApiKeyEntity } from '../ee/api-keys/api-key-entity'
@@ -14,8 +14,6 @@ import { AppCredentialEntity } from '../ee/app-credentials/app-credentials.entit
 import { AppSumoEntity } from '../ee/appsumo/appsumo.entity'
 import { AuditEventEntity } from '../ee/audit-logs/audit-event-entity'
 import { OtpEntity } from '../ee/authentication/otp/otp-entity'
-import { ChatConversationEntity } from '../ee/chat/chat-conversation-entity'
-import { ChatRolloutUserEntity } from '../ee/chat/chat-rollout-user-entity'
 import { ConnectionKeyEntity } from '../ee/connection-keys/connection-key.entity'
 import { EmbedSubdomainEntity } from '../ee/embed-subdomain/embed-subdomain.entity'
 import { OAuthAppEntity } from '../ee/oauth-apps/oauth-app.entity'
@@ -44,7 +42,7 @@ import { McpServerEntity } from '../mcp/mcp-entity'
 import { McpOAuthClientEntity } from '../mcp/oauth/client/mcp-oauth-client.entity'
 import { McpOAuthAuthorizationCodeEntity } from '../mcp/oauth/code/mcp-oauth-code.entity'
 import { McpOAuthTokenEntity } from '../mcp/oauth/token/mcp-oauth-token.entity'
-import { PieceMetadataEntity } from '../pieces/metadata/piece-metadata-entity'
+import { IntegrationMetadataEntity } from '../pieces/metadata/piece-metadata-entity'
 import { PieceTagEntity } from '../pieces/tags/pieces/piece-tag.entity'
 import { TagEntity } from '../pieces/tags/tag-entity'
 import { PlatformEntity } from '../platform/platform.entity'
@@ -81,10 +79,10 @@ function getEntities(): EntitySchema<unknown>[] {
         ProjectEntity,
         StoreEntryEntity,
         UserEntity,
-        AppConnectionEntity,
+        ConnectionEntity,
         VariableEntity,
         FolderEntity,
-        PieceMetadataEntity,
+        IntegrationMetadataEntity,
         PlatformEntity,
         SecretManagerEntity,
         TagEntity,
@@ -107,8 +105,6 @@ function getEntities(): EntitySchema<unknown>[] {
         KnowledgeBaseFileEntity,
         KnowledgeBaseChunkEntity,
         ToolSearchIndexEntity,
-        ChatConversationEntity,
-        ChatRolloutUserEntity,
         TriggerSourceEntity,
         WaitpointEntity,
         // Enterprise

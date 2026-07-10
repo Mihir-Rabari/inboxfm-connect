@@ -2,8 +2,8 @@ import {
     FlowTriggerType,
     FlowVersionState,
     TriggerHookType,
-} from '@activepieces/shared'
-import type { ExecuteTriggerOperation, FlowVersion } from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
+import type { ExecuteTriggerOperation, FlowVersion } from '@inboxfm-connect/shared'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { mockDownload } = vi.hoisted(() => ({

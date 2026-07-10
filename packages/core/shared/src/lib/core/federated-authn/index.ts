@@ -1,4 +1,4 @@
-import { Nullable } from '@activepieces/core-utils'
+import { Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { ThirdPartyAuthnProviderEnum } from './authn-provider-name'
 
@@ -41,3 +41,4 @@ export const FederatedAuthnProviderConfigWithoutSensitiveData = z.object({
 })
 
 export type FederatedAuthnProviderConfigWithoutSensitiveData = z.infer<typeof FederatedAuthnProviderConfigWithoutSensitiveData>
+

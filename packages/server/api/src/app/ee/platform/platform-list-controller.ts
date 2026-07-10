@@ -1,5 +1,5 @@
-import { assertNotNullOrUndefined } from '@activepieces/core-utils'
-import { PrincipalType, ProjectWithLimitsWithPlatform } from '@activepieces/shared'
+import { assertNotNullOrUndefined } from '@inboxfm-connect/core-utils'
+import { PrincipalType, ProjectWithLimitsWithPlatform } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'

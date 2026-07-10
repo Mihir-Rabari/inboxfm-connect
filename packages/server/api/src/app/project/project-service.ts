@@ -1,5 +1,5 @@
-import { ActivepiecesError, ApId, apId, assertNotNullOrUndefined, ErrorCode, isNil, Metadata, ProjectId, spreadIfDefined, UserId } from '@activepieces/core-utils'
-import { ColorName, Project, ProjectIcon, ProjectType } from '@activepieces/shared'
+import { ActivepiecesError, ApId, apId, assertNotNullOrUndefined, ErrorCode, isNil, Metadata, ProjectId, spreadIfDefined, UserId } from '@inboxfm-connect/core-utils'
+import { ColorName, Project, ProjectIcon, ProjectType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { Brackets, EntityManager, IsNull, Not, ObjectLiteral, SelectQueryBuilder } from 'typeorm'
 import { userService } from '../user/user-service'

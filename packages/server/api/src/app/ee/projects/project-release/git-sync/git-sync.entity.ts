@@ -1,4 +1,4 @@
-import { GitRepo, Project } from '@activepieces/shared'
+import { GitRepo, Project } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import { ApIdSchema, BaseColumnSchemaPart } from '../../../../database/database-common'
 

@@ -1,4 +1,4 @@
-import { isNil } from '@activepieces/core-utils'
+import { isNil } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { PlatformRole } from '../../core/user'
 
@@ -193,3 +193,4 @@ export const parseScimFilter = (filter: string | undefined, field: string) => {
     }
     return undefined
 }
+

@@ -1,5 +1,5 @@
-import { DateOrString } from '@activepieces/core-utils'
-import { ApEdition } from '@activepieces/shared'
+import { DateOrString } from '@inboxfm-connect/core-utils'
+import { ApEdition } from '@inboxfm-connect/shared'
 import dayjs from 'dayjs'
 import { MigrationInterface, QueryRunner } from 'typeorm'
 import { z } from 'zod'

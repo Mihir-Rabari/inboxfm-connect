@@ -1,5 +1,5 @@
-import { ApMultipartFile, isMultipartFile } from '@activepieces/core-utils'
-import { EventPayload, FAIL_PARENT_ON_FAILURE_HEADER, FileCompression, FileType, FlowRun, PARENT_RUN_ID_HEADER } from '@activepieces/shared'
+import { ApMultipartFile, isMultipartFile } from '@inboxfm-connect/core-utils'
+import { EventPayload, FAIL_PARENT_ON_FAILURE_HEADER, FileCompression, FileType, FlowRun, PARENT_RUN_ID_HEADER } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyRequest } from 'fastify'
 import mime from 'mime-types'
 import { fileService } from '../file/file.service'

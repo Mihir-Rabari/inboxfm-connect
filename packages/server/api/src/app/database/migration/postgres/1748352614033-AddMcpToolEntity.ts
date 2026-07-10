@@ -1,5 +1,5 @@
-import { apId } from '@activepieces/core-utils'
-import { ActionBase } from '@activepieces/pieces-framework'
+import { apId } from '@inboxfm-connect/core-utils'
+import { ActionBase } from '@inboxfm-connect/pieces-framework'
 import { gt } from 'semver'
 import { MigrationInterface, QueryRunner } from 'typeorm'
 import { system } from '../../../helper/system/system'

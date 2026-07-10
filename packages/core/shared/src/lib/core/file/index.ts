@@ -1,4 +1,4 @@
-import { ApId, BaseModelSchema, Nullable } from '@activepieces/core-utils'
+import { ApId, BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export type FileId = ApId
@@ -130,3 +130,4 @@ const SOCKET_BUFFER_OVERHEAD_MB = 4
 export function maxSocketHttpBufferSizeBytes(maxFileSizeMb: number): number {
     return Math.max(maxFileSizeMb + SOCKET_BUFFER_OVERHEAD_MB, SOCKET_BUFFER_FLOOR_MB) * 1024 * 1024
 }
+

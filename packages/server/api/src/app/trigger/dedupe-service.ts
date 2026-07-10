@@ -1,6 +1,6 @@
 
-import { isNil } from '@activepieces/core-utils'
-import { DEDUPE_KEY_PROPERTY } from '@activepieces/pieces-framework'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { DEDUPE_KEY_PROPERTY } from '@inboxfm-connect/pieces-framework'
 import { redisConnections } from '../database/redis-connections'
 
 const DUPLICATE_RECORD_EXPIRATION_SECONDS = 30

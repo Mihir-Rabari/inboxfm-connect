@@ -1,4 +1,4 @@
-import { isNil, Nullable, PlatformUsageMetric } from '@activepieces/core-utils'
+import { isNil, Nullable, PlatformUsageMetric } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { AiCreditsAutoTopUpState, PlanName, PlatformPlanWithOnlyLimits, TeamProjectsLimit } from '../../management/platform'
 import { PiecesFilterType } from '../../management/project'
@@ -150,3 +150,4 @@ export const isCloudPlanButNotEnterprise = (plan?: string | null): boolean => {
 
     return plan === PlanName.STANDARD
 }
+

@@ -1,4 +1,4 @@
-import { StepRunResponse, UpdateStepProgressRequest } from '@activepieces/core-execution'
+import { StepRunResponse, UpdateStepProgressRequest } from '@inboxfm-connect/core-execution'
 import { z } from 'zod'
 
 export enum WebsocketClientEvent {
@@ -79,3 +79,4 @@ export type TestStepProgressEvent = UpdateStepProgressRequest | EmitTestStepProg
 export type PresenceRequest = z.infer<typeof PresenceRequest>
 export type PresenceUser = z.infer<typeof PresenceUser>
 export type PresenceUpdatedEvent = z.infer<typeof PresenceUpdatedEvent>
+

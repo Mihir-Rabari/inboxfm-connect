@@ -1,4 +1,4 @@
-import { ApId, SAFE_STRING_PATTERN } from '@activepieces/core-utils'
+import { ApId, SAFE_STRING_PATTERN } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { EmailType, PasswordType } from '../../user/user'
 
@@ -18,3 +18,4 @@ export const SwitchPlatformRequest = z.object({
 })
 
 export type SwitchPlatformRequest = z.infer<typeof SwitchPlatformRequest>
+

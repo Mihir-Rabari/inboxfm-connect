@@ -2,8 +2,8 @@ import { randomUUID } from 'node:crypto'
 import { readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ExecutionMode, FlowVersionState, NetworkMode } from '@activepieces/shared'
-import { ApLogger } from '@activepieces/server-utils'
+import { ExecutionMode, FlowVersionState, NetworkMode } from '@inboxfm-connect/shared'
+import { ApLogger } from '@inboxfm-connect/server-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const installMock = vi.fn()

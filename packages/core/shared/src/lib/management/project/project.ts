@@ -1,4 +1,4 @@
-import { ApId, BaseModelSchema, DateOrString, Metadata, Nullable } from '@activepieces/core-utils'
+import { ApId, BaseModelSchema, DateOrString, Metadata, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export enum ColorName {
@@ -148,3 +148,4 @@ export const PROJECT_COLOR_PALETTE: Record<ColorName, ProjectColor> = {
         color: '#ea580c',
     },
 }
+

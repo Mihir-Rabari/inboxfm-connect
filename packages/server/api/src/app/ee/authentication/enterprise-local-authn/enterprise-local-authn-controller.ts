@@ -1,6 +1,6 @@
 import {
     ResetPasswordRequestBody,
-    VerifyEmailRequestBody } from '@activepieces/shared'
+    VerifyEmailRequestBody } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { securityAccess } from '../../../core/security/authorization/fastify-security'
 import { enterpriseLocalAuthnService } from './enterprise-local-authn-service'

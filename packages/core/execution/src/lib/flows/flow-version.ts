@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { BaseModelSchema, Nullable } from '@activepieces/core-utils'
-import { UserWithMetaInformation } from '@activepieces/core-piece-types'
+import { BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
+import { UserWithMetaInformation } from '@inboxfm-connect/core-piece-types'
 import { Note } from './note'
 import { FlowTrigger } from './triggers/trigger'
 
@@ -40,4 +40,5 @@ export const FlowVersionMetadata = z.object({
 })
 
 export type FlowVersionMetadata = z.infer<typeof FlowVersionMetadata>
+
 

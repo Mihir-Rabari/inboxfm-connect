@@ -17,14 +17,14 @@ worker replicas, each its own container capped at **0.5 CPU / 1 GB**. This super
 - The in-process multi-slot pool (already reduced to a single box earlier): the worker now calls
   `createSandboxRuntime` directly and pins concurrency to 1.
 
-The `@activepieces/sandbox` package stays — it is the in-process box (cache, sandbox-manager, fork /
+The `@inboxfm-connect/sandbox` package stays — it is the in-process box (cache, sandbox-manager, fork /
 isolate, resolver). It is imported and run by the worker, not shipped as its own container.
 
 ## Why
 
 - **Removes the Docker-socket requirement** the `LOCAL_POOL` model needed — the worker no longer drives
   the Docker daemon, so there is nothing privileged to mount and the self-hosting story is just "scale
-  workers", which is how Activepieces already scales. (This was the biggest risk in the prior model.)
+  workers", which is how Inboxfm Connect already scales. (This was the biggest risk in the prior model.)
 - **Memory isolation without a pool:** one capped container per job means an OOM or runaway flow kills
   exactly one worker; the orchestrator (k8s/compose) restarts it. The shared-heap ratchet that came
   from reusing in-process slots cannot happen across jobs — the blast radius is a single run.

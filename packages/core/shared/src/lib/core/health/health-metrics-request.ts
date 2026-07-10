@@ -1,5 +1,5 @@
-import { FlowRunStatus } from '@activepieces/core-execution'
-import { ApId } from '@activepieces/core-utils'
+import { FlowRunStatus } from '@inboxfm-connect/core-execution'
+import { ApId } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export const PlatformMetricsReportRequest = z.object({
@@ -70,3 +70,4 @@ export type StuckJob = z.infer<typeof StuckJob>
 export type PlatformMetricsLive = z.infer<typeof PlatformMetricsLive>
 export type PlatformMetricsHealthDay = z.infer<typeof PlatformMetricsHealthDay>
 export type PlatformMetricsHealthHistory = z.infer<typeof PlatformMetricsHealthHistory>
+

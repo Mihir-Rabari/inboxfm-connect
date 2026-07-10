@@ -1,4 +1,4 @@
-import { AIProviderName, Nullable } from "@activepieces/core-utils";
+import { AIProviderName, Nullable } from "@inboxfm-connect/core-utils";
 import * as z from "zod/mini";
 
 export const TASK_COMPLETION_TOOL_NAME = 'updateTaskStatus'
@@ -297,3 +297,4 @@ export type AgentResult = {
     status: AgentTaskStatus
     structuredOutput?: unknown
 }
+

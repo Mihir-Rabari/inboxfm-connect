@@ -1,4 +1,4 @@
-import {  DiffState, FlowProjectOperationType, ProjectState, TableOperationType } from '@activepieces/shared'
+import {  DiffState, FlowProjectOperationType, ProjectState, TableOperationType } from '@inboxfm-connect/shared'
 import { connectionDiffService } from './diff/connection-diff.service'
 import { flowDiffService } from './diff/flow-diff.service'
 import { tableDiffService } from './diff/table-diff.service'

@@ -1,5 +1,5 @@
-import { assertNotNullOrUndefined } from '@activepieces/core-utils'
-import { AppConnectionScope } from '@activepieces/shared'
+import { assertNotNullOrUndefined } from '@inboxfm-connect/core-utils'
+import { AppConnectionScope } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { ArrayContains } from 'typeorm'
 import { appConnectionsRepo } from '../../app-connection/app-connection-service/app-connection-service'

@@ -1,4 +1,4 @@
-import { Nullable, OptionalArrayFromQuery } from '@activepieces/core-utils'
+import { Nullable, OptionalArrayFromQuery } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { formErrors } from '../../../form-errors'
 import { FieldState } from '../../project-release/project-state'
@@ -62,3 +62,4 @@ export const CountTablesRequest = z.object({
 })
 
 export type CountTablesRequest = z.infer<typeof CountTablesRequest>
+

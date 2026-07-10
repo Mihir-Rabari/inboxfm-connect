@@ -1,12 +1,12 @@
 
 import { z } from 'zod'
-import { isNil } from '@activepieces/core-utils'
+import { isNil } from '@inboxfm-connect/core-utils'
 import { ResumeReason, StreamStepProgress, TriggerHookType, TriggerPayload } from '../engine'
 import { ExecutionType } from '../flow-run/execution/execution-output'
 import { RunEnvironment } from '../flow-run/flow-run'
 import { FlowVersion } from '../flows/flow-version'
 import { FlowTriggerType } from '../flows/triggers/trigger'
-import { AppConnectionValue, PiecePackage } from '@activepieces/core-piece-types'
+import { AppConnectionValue, PiecePackage } from '@inboxfm-connect/core-piece-types'
 
 export const LATEST_JOB_DATA_SCHEMA_VERSION = 10
 
@@ -289,7 +289,7 @@ export const EventDestinationJobData = z.object({
     projectId: z.string().optional(),
     webhookId: z.string(),
     webhookUrl: z.string(),
-    payload: z.unknown(), // EE audit-event schema stays in @activepieces/shared; engine does not need it
+    payload: z.unknown(), // EE audit-event schema stays in @inboxfm-connect/shared; engine does not need it
     jobType: z.literal(WorkerJobType.EVENT_DESTINATION),
 })
 
@@ -306,3 +306,4 @@ export const JobData = z.union([
 ])
 export type JobData = z.infer<typeof JobData>
 export type JobPayload = z.infer<typeof JobPayload>
+

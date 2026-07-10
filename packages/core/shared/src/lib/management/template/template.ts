@@ -1,5 +1,5 @@
-import { FlowVersion, Note } from '@activepieces/core-execution'
-import { BaseModelSchema, ColorHex, Metadata, Nullable } from '@activepieces/core-utils'
+import { FlowVersion, Note } from '@inboxfm-connect/core-execution'
+import { BaseModelSchema, ColorHex, Metadata, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export const TemplateTag = z.object({
@@ -92,3 +92,4 @@ export type Template = z.infer<typeof Template>
 
 export const SharedTemplate = Template.omit({ platformId: true, id: true, created: true, updated: true })
 export type SharedTemplate = z.infer<typeof SharedTemplate>
+

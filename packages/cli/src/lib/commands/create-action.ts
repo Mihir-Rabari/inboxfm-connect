@@ -8,7 +8,7 @@ import { join } from 'node:path';
 
 function createActionTemplate(displayName: string, description: string) {
   const camelCase = displayNameToCamelCase(displayName)
-  const actionTemplate = `import { createAction, Property } from '@activepieces/pieces-framework';
+  const actionTemplate = `import { createAction, Property } from '@inboxfm-connect/pieces-framework';
 
 export const ${camelCase} = createAction({
   // auth: check https://www.activepieces.com/docs/developers/piece-reference/authentication,
@@ -72,3 +72,4 @@ export const createActionCommand = new Command('create')
     const answers = await inquirer.prompt(questions);
     createAction(answers.pieceName, answers.actionName, answers.actionDescription);
   });
+

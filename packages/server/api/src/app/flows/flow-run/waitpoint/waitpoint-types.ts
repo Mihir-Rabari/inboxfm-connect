@@ -1,5 +1,5 @@
-import { ApId } from '@activepieces/core-utils'
-import { FlowRunStatus, PauseType, RespondResponse, WaitpointVersion } from '@activepieces/shared'
+import { ApId } from '@inboxfm-connect/core-utils'
+import { FlowRunStatus, PauseType, RespondResponse, WaitpointVersion } from '@inboxfm-connect/shared'
 
 enum WaitpointStatus {
     PENDING = 'PENDING',

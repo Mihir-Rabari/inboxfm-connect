@@ -1,5 +1,5 @@
-import { ProjectRole } from '@activepieces/core-utils'
-import { Project, UserInvitation } from '@activepieces/shared'
+import { ProjectRole } from '@inboxfm-connect/core-utils'
+import { Project, UserInvitation } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import { BaseColumnSchemaPart } from '../database/database-common'
 

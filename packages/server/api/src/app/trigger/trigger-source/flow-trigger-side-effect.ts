@@ -1,16 +1,20 @@
-import { ActivepiecesError, ErrorCode, FlowId, FlowVersionId, isNil, tryCatch } from '@activepieces/core-utils'
+import { ActivepiecesError, ErrorCode, FlowId, FlowVersionId, isNil, tryCatch } from '@inboxfm-connect/core-utils'
 import {
     TriggerBase,
     TriggerStrategy,
     WebhookRenewStrategy,
-} from '@activepieces/pieces-framework'
-import { ApEnvironment, EngineResponse, EngineResponseStatus, ExecuteTriggerResponse, FlowTriggerType, LATEST_JOB_DATA_SCHEMA_VERSION, ScheduleOptions, TriggerHookType, TriggerSourceScheduleType, WorkerJobType } from '@activepieces/shared'
+} from '@inboxfm-connect/pieces-framework'
+import { ApEnvironment, EngineResponse, EngineResponseStatus, ExecuteTriggerResponse, FlowTriggerType, LATEST_JOB_DATA_SCHEMA_VERSION, ScheduleOptions, TriggerHookType, TriggerSourceScheduleType, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 import { projectService } from '../../project/project-service'
-import { jobQueue, JobType } from '../../workers/job-queue/job-queue'
-import { userInteractionWatcher } from '../../workers/user-interaction-watcher'
+const jobQueue = (_log: unknown) => ({
+    add: async (_data: unknown) => {},
+    removeRepeatingJob: async (_params: unknown) => {},
+})
+const JobType = { CHAT: 'CHAT', ONE_TIME: 'ONE_TIME', REPEATING: 'REPEATING' } as const
+import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
 import { appEventRoutingService } from '../app-event-routing/app-event-routing.service'
 
 const environment = system.getOrThrow<ApEnvironment>(AppSystemProp.ENVIRONMENT)

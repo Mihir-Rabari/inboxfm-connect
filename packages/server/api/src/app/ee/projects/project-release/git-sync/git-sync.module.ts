@@ -1,5 +1,5 @@
-import { Permission, SeekPage } from '@activepieces/core-utils'
-import { ConfigureRepoRequest, GitRepoWithoutSensitiveData, PrincipalType, PushGitRepoRequest } from '@activepieces/shared'
+import { Permission, SeekPage } from '@inboxfm-connect/core-utils'
+import { ConfigureRepoRequest, GitRepoWithoutSensitiveData, PrincipalType, PushGitRepoRequest } from '@inboxfm-connect/shared'
 import { FastifyPluginAsync } from 'fastify'
 import { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'

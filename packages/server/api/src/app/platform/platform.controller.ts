@@ -1,12 +1,11 @@
-import { ActivepiecesError, ApId, assertNotNullOrUndefined, ErrorCode } from '@activepieces/core-utils'
-import { apDayjs } from '@activepieces/server-utils'
-import { ApEdition, AuthenticationResponse, CreatePlatformRequest, FileType, PlatformWithoutSensitiveData, PrincipalType, SERVICE_KEY_SECURITY_OPENAPI, UpdatePlatformRequestBody, UserStatus } from '@activepieces/shared'
+import { ActivepiecesError, ApId, assertNotNullOrUndefined, ErrorCode } from '@inboxfm-connect/core-utils'
+import { apDayjs } from '@inboxfm-connect/server-utils'
+import { ApEdition, AuthenticationResponse, CreatePlatformRequest, FileType, PlatformWithoutSensitiveData, PrincipalType, SERVICE_KEY_SECURITY_OPENAPI, UpdatePlatformRequestBody, UserStatus } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { securityAccess } from '../core/security/authorization/fastify-security'
 import { platformToEditMustBeOwnedByCurrentUser } from '../ee/authentication/ee-authorization'
-import { chatVisibilityHelper } from '../ee/chat/chat-visibility-helper'
 import { platformPlanService } from '../ee/platform/platform-plan/platform-plan.service'
 import { stripeHelper } from '../ee/platform/platform-plan/stripe-helper'
 import { platformProjectService } from '../ee/projects/platform-project-service'
@@ -96,7 +95,7 @@ export const platformController: FastifyPluginAsyncZod = async (app) => {
         const platform = await platformService(req.log).getOneWithPlanAndUsageOrThrow(req.principal.platform.id)
         if (req.principal.type === PrincipalType.USER) {
             const isEmbedded = await userIdentityHelper(req.log).isUserEmbedded(req.principal.id)
-            const chatEnabled = await chatVisibilityHelper.resolveChatEnabledForUser({ userId: req.principal.id, platform, isEmbedded })
+            const chatEnabled = false
             return {
                 ...platform,
                 plan: {

@@ -1,5 +1,5 @@
-import { apId, Metadata, sanitizeObjectForPostgresql, spreadIfDefined } from '@activepieces/core-utils'
-import { flowPieceUtil, FlowVersionTemplate, Template, TemplateStatus, TemplateTag, TemplateType, UpdateTemplateRequestBody } from '@activepieces/shared'
+import { apId, Metadata, sanitizeObjectForPostgresql, spreadIfDefined } from '@inboxfm-connect/core-utils'
+import { flowPieceUtil, FlowVersionTemplate, Template, TemplateStatus, TemplateTag, TemplateType, UpdateTemplateRequestBody } from '@inboxfm-connect/shared'
 import { repoFactory } from '../../core/db/repo-factory'
 import { TemplateEntity } from '../../template/template.entity'
 

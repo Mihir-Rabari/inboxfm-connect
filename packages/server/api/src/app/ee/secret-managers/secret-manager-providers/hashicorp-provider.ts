@@ -1,6 +1,6 @@
-import { ActivepiecesError, ErrorCode } from '@activepieces/core-utils'
-import { safeHttp } from '@activepieces/server-utils'
-import { SecretManagerProviderId } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
+import { safeHttp } from '@inboxfm-connect/server-utils'
+import { SecretManagerProviderId } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { SecretManagerProvider, throwConnectionError, throwGetSecretError } from './secret-manager-providers'
 

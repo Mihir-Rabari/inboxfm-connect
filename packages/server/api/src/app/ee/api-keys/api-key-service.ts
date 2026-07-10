@@ -1,6 +1,6 @@
-import { ActivepiecesError, apId, assertNotNullOrUndefined, ErrorCode, isNil, secureApId, SeekPage } from '@activepieces/core-utils'
-import { cryptoUtils } from '@activepieces/server-utils'
-import { ApiKey, ApiKeyResponseWithValue } from '@activepieces/shared'
+import { ActivepiecesError, apId, assertNotNullOrUndefined, ErrorCode, isNil, secureApId, SeekPage } from '@inboxfm-connect/core-utils'
+import { cryptoUtils } from '@inboxfm-connect/server-utils'
+import { ApiKey, ApiKeyResponseWithValue } from '@inboxfm-connect/shared'
 import { repoFactory } from '../../core/db/repo-factory'
 import { ApiKeyEntity } from './api-key-entity'
 

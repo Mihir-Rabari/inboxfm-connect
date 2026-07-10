@@ -1,6 +1,6 @@
-import { AIProviderName } from '@activepieces/core-utils'
+import { AIProviderName } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
-import { Nullable } from '@activepieces/core-utils'
+import { Nullable } from '@inboxfm-connect/core-utils'
 export * from './tools'
 export * from './mcp'
 export * from './mcp-tool-name-util'
@@ -124,3 +124,4 @@ export type ToolCallContentBlock = z.infer<typeof ToolCallContentBlock>
 
 export const AgentStepBlock = z.union([MarkdownContentBlock, ToolCallContentBlock])
 export type AgentStepBlock = z.infer<typeof AgentStepBlock>
+

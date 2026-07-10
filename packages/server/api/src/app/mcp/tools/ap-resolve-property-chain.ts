@@ -1,10 +1,10 @@
-import { isNil, isObject } from '@activepieces/core-utils'
-import { PiecePropertyMap, PropertyType } from '@activepieces/pieces-framework'
-import { EngineResponse, EngineResponseStatus, McpToolDefinition, ProjectScopedMcpServer, WorkerJobType } from '@activepieces/shared'
+import { isNil, isObject } from '@inboxfm-connect/core-utils'
+import { PiecePropertyMap, PropertyType } from '@inboxfm-connect/pieces-framework'
+import { EngineResponse, EngineResponseStatus, McpToolDefinition, ProjectScopedMcpServer, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { getPiecePackageWithoutArchive } from '../../pieces/metadata/piece-metadata-service'
-import { userInteractionWatcher } from '../../workers/user-interaction-watcher'
+import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
 import { mcpUtils, PropSummary } from './mcp-utils'
 
 const { withTimeout, RESOLVE_TIMEOUT_MS } = mcpUtils
@@ -172,7 +172,7 @@ export const apResolvePropertyChainTool = (mcp: ProjectScopedMcpServer, log: Fas
 }
 
 const resolvePropertyChainInput = z.object({
-    pieceName: z.string().describe('The piece name (e.g. "@activepieces/piece-google-sheets").'),
+    pieceName: z.string().describe('The piece name (e.g. "@inboxfm-connect/piece-google-sheets").'),
     actionOrTriggerName: z.string().describe('The action or trigger name (e.g. "insert_row").'),
     type: z.enum(['action', 'trigger']).describe('Whether this is an action or trigger.'),
     propertyChain: z.array(z.object({

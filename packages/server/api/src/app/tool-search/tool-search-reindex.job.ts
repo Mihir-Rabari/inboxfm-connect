@@ -1,5 +1,5 @@
-import { apDayjs } from '@activepieces/server-utils'
-import { ApEdition, isNil } from '@activepieces/shared'
+import { apDayjs } from '@inboxfm-connect/server-utils'
+import { ApEdition, isNil } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { databaseConnection } from '../database/database-connection'
 import { distributedLock } from '../database/redis-connections'

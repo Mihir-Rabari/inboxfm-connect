@@ -1,4 +1,4 @@
-import { isNil } from '@activepieces/core-utils'
+import { isNil } from '@inboxfm-connect/core-utils'
 import { FlowActionType } from '../../flows/actions/action'
 import { BaseStepOutput, LoopStepOutput, StepOutput, StepOutputStatus } from './step-output'
 
@@ -165,3 +165,4 @@ export type GetStateAtPathParams = {
     path: readonly [string, number][]
     steps: Record<string, StepOutput>
 }
+

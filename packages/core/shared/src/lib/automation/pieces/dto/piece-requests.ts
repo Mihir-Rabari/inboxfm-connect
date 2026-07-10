@@ -1,4 +1,4 @@
-import { ApMultipartFile, OptionalArrayFromQuery, OptionalBooleanFromQuery } from '@activepieces/core-utils'
+import { ApMultipartFile, OptionalArrayFromQuery, OptionalBooleanFromQuery } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { ApEdition } from '../../../core/flag/flag'
 import { PackageType, PieceCategory } from '../piece'
@@ -109,4 +109,5 @@ export const AddPieceRequestBody = z.union([
 ])
 
 export type AddPieceRequestBody = z.infer<typeof AddPieceRequestBody>
+
 

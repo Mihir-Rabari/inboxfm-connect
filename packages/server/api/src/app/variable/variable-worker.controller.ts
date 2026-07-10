@@ -1,5 +1,5 @@
-import { assertNotNullOrUndefined } from '@activepieces/core-utils'
-import { EnginePrincipal, GetVariableForWorkerRequestParams, RevealVariableResponse } from '@activepieces/shared'
+import { assertNotNullOrUndefined } from '@inboxfm-connect/core-utils'
+import { EnginePrincipal, GetVariableForWorkerRequestParams, RevealVariableResponse } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { securityAccess } from '../core/security/authorization/fastify-security'

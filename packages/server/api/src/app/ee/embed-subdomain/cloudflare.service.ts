@@ -1,5 +1,5 @@
-import { ActivepiecesError, ErrorCode, isNil, tryCatch } from '@activepieces/core-utils'
-import { EmbedVerificationRecord, EmbedVerificationRecordPurpose, EmbedVerificationRecordType } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil, tryCatch } from '@inboxfm-connect/core-utils'
+import { EmbedVerificationRecord, EmbedVerificationRecordPurpose, EmbedVerificationRecordType } from '@inboxfm-connect/shared'
 import Cloudflare from 'cloudflare'
 import { FastifyBaseLogger } from 'fastify'
 import { system } from '../../helper/system/system'

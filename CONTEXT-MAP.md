@@ -1,6 +1,6 @@
-# Context Map — Activepieces
+# Context Map — Inboxfm Connect
 
-Activepieces is split into bounded contexts. Product/domain contexts live under `.agents/contexts/`; the execution-runtime contexts live next to the code they describe. Each `CONTEXT.md` is a glossary only — no implementation details. Decisions live in `docs/adr/`.
+Inboxfm Connect is split into bounded contexts. Product/domain contexts live under `.agents/contexts/`; the execution-runtime contexts live next to the code they describe. Each `CONTEXT.md` is a glossary only — no implementation details. Decisions live in `docs/adr/`.
 
 ## Contexts
 
@@ -8,7 +8,7 @@ Activepieces is split into bounded contexts. Product/domain contexts live under 
 
 - [Automation Core](./.agents/contexts/automation-core/CONTEXT.md) — flows, versions, steps, triggers, and runs (what users build and what runs)
 - [Data & Storage](./.agents/contexts/data-storage/CONTEXT.md) — Tables, Files, key-value state
-- [Pieces & Integrations](./.agents/contexts/pieces/CONTEXT.md) — packaged integrations and the connections that authenticate them
+- [Integrations & Integrations](./.agents/contexts/integrations/CONTEXT.md) — packaged integrations and the connections that authenticate them
 - [Platform & Multi-tenancy](./.agents/contexts/platform/CONTEXT.md) — Platform → Project → User hierarchy, plans, roles, keys
 - [Authentication & Security](./.agents/contexts/authentication/CONTEXT.md) — login, RBAC, audit, secret storage
 - [AI & Intelligence](./.agents/contexts/ai/CONTEXT.md) — AI providers, credits, copilot
@@ -24,10 +24,10 @@ Activepieces is split into bounded contexts. Product/domain contexts live under 
 
 ## Relationships
 
-- **Automation Core → Pieces**: a flow's actions and triggers are provided by Pieces; steps reference Piece Metadata.
+- **Automation Core → Integrations**: a flow's actions and triggers are provided by Integrations; steps reference Integration Metadata.
 - **Automation Core → Execution Runtime**: a published Flow becomes a FlowRun, executed by the Worker/Sandbox; RunTimeline phases (PROVISION, BOOT) map to runtime concepts.
 - **Platform & Multi-tenancy** is the spine: every entity in every other context is scoped by `projectId` / `platformId`, and PlatformPlan gates feature availability by Edition.
-- **Pieces ↔ Authentication**: App Connections may resolve secrets from a Secret Manager.
+- **Integrations ↔ Authentication**: Connections may resolve secrets from a Secret Manager.
 - **Eventing → Authentication**: Application Events feed Audit Events.
 - **Eventing → Automation Core**: Webhooks and TableWebhooks are TriggerSources that start flows.
 - **Releases → Automation Core / Data & Storage**: a Project Release snapshots flows, tables, and connections, cross-referenced by `externalId`.

@@ -1,9 +1,9 @@
 import { z } from 'zod'
 import * as zMini from 'zod/mini'
-import { BaseModelSchema, Nullable } from '@activepieces/core-utils'
-import { ApId } from '@activepieces/core-utils'
-import { Metadata } from '@activepieces/core-utils'
-import { TriggerSource, WebhookHandshakeConfiguration } from '@activepieces/core-piece-types'
+import { BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
+import { ApId } from '@inboxfm-connect/core-utils'
+import { Metadata } from '@inboxfm-connect/core-utils'
+import { TriggerSource, WebhookHandshakeConfiguration } from '@inboxfm-connect/core-piece-types'
 import { FlowVersion } from './flow-version'
 
 type FlowId = ApId
@@ -72,3 +72,4 @@ export const PopulatedTriggerSource = zMini.extend(TriggerSource, {
     flow: Flow,
 })
 export type PopulatedTriggerSource = z.infer<typeof PopulatedTriggerSource>
+

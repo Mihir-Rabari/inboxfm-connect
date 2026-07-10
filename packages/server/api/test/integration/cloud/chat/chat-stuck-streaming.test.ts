@@ -1,4 +1,4 @@
-import { ChatConversationStatus } from '@activepieces/shared'
+import { ChatConversationStatus } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

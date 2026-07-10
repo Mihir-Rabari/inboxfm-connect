@@ -1,4 +1,4 @@
-import { UserIdentity } from '@activepieces/shared'
+import { UserIdentity } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import { ApIdSchema, BaseColumnSchemaPart } from '../../database/database-common'
 

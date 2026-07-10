@@ -1,5 +1,5 @@
-import { ProjectRole } from '@activepieces/core-utils'
-import { Project, ProjectMember, User } from '@activepieces/shared'
+import { ProjectRole } from '@inboxfm-connect/core-utils'
+import { Project, ProjectMember, User } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import {
     ApIdSchema,

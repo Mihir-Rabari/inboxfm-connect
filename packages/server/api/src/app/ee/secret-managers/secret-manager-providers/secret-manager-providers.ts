@@ -1,5 +1,5 @@
-import { ActivepiecesError, ErrorCode } from '@activepieces/core-utils'
-import { ConnectSecretManagerRequest, SecretManagerProviderId } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
+import { ConnectSecretManagerRequest, SecretManagerProviderId } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { awsProvider } from './aws-provider'
 import { cyberarkConjurProvider } from './cyberark-conjur-provider'

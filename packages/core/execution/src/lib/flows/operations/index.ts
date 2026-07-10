@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { Nullable } from '@activepieces/core-utils'
-import { Metadata } from '@activepieces/core-utils'
+import { Nullable } from '@inboxfm-connect/core-utils'
+import { Metadata } from '@inboxfm-connect/core-utils'
 import { BranchCondition, CodeActionSchema, CodeActionSettings, FlowActionType, LoopOnItemsActionSchema, LoopOnItemsActionSettings, PieceActionSchema, PieceActionSettings, RouterActionSchema, RouterActionSettings } from '../actions/action'
 import { FlowStatus } from '../flow'
 import { FlowVersion, FlowVersionState } from '../flow-version'
@@ -432,3 +432,4 @@ export const flowOperations = {
         return clonedVersion
     },
 }
+

@@ -1,5 +1,5 @@
-import { ActivepiecesError, apId, ErrorCode, isNil, spreadIfDefined } from '@activepieces/core-utils'
-import { KnowledgeBaseFile } from '@activepieces/shared'
+import { ActivepiecesError, apId, ErrorCode, isNil, spreadIfDefined } from '@inboxfm-connect/core-utils'
+import { KnowledgeBaseFile } from '@inboxfm-connect/shared'
 import { parse as parseCsv } from 'csv-parse/sync'
 import { FastifyBaseLogger } from 'fastify'
 import { IsNull, Not } from 'typeorm'

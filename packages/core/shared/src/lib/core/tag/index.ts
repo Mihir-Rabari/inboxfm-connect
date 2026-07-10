@@ -1,4 +1,4 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export const Tag = z.object({
@@ -43,3 +43,4 @@ export const DeleteTagRequest = z.object({
 })
 
 export type DeleteTagRequest = z.infer<typeof DeleteTagRequest>
+

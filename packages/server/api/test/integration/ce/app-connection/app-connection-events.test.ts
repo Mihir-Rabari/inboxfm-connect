@@ -1,10 +1,10 @@
-import { wideEvent } from '@activepieces/server-utils'
+import { wideEvent } from '@inboxfm-connect/server-utils'
 import {
     AppConnectionType,
     ApplicationEventName,
     PackageType,
     PieceType,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import * as applicationEventsModule from '../../../../src/app/helper/application-events'

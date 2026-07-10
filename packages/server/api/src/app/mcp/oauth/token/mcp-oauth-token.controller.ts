@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { McpOAuthClient } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { McpOAuthClient } from '@inboxfm-connect/shared'
 import { FastifyReply } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'

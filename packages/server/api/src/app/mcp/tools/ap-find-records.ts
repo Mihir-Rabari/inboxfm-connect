@@ -1,5 +1,5 @@
-import { isNil, Permission } from '@activepieces/core-utils'
-import { FilterOperator, McpToolDefinition, ProjectScopedMcpServer } from '@activepieces/shared'
+import { isNil, Permission } from '@inboxfm-connect/core-utils'
+import { FilterOperator, McpToolDefinition, ProjectScopedMcpServer } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { recordService } from '../../tables/record/record.service'

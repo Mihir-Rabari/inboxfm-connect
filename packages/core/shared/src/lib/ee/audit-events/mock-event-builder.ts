@@ -1,5 +1,5 @@
-import { FlowOperationType, FlowStatus } from '@activepieces/core-execution'
-import { apId, PlatformId, ProjectId } from '@activepieces/core-utils'
+import { FlowOperationType, FlowStatus } from '@inboxfm-connect/core-execution'
+import { apId, PlatformId, ProjectId } from '@inboxfm-connect/core-utils'
 import {
     ApplicationEvent,
     ApplicationEventName,
@@ -157,7 +157,7 @@ export const buildMockEvent = ({ event, platformId, projectId }: BuildMockEventP
                         id: apId(),
                         displayName: 'Sample connection',
                         externalId: 'sample-connection',
-                        pieceName: '@activepieces/piece-sample',
+                        pieceName: '@inboxfm-connect/piece-sample',
                         status: 'ACTIVE',
                         type: 'CUSTOM_AUTH',
                         created: isoNow,
@@ -291,3 +291,4 @@ export type BuildMockEventParams = {
     platformId: PlatformId
     projectId?: ProjectId
 }
+

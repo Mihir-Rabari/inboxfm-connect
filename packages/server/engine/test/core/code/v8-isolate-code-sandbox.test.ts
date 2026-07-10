@@ -3,7 +3,14 @@ import os from 'node:os'
 import path from 'node:path'
 import { v8IsolateCodeSandbox } from '../../../src/lib/core/code/v8-isolate-code-sandbox'
 
-describe('v8IsolateCodeSandbox', () => {
+let isIvmAvailable = true
+try {
+    require('isolated-vm')
+} catch {
+    isIvmAvailable = false
+}
+
+describe.runIf(isIvmAvailable)('v8IsolateCodeSandbox', () => {
     describe('runCodeModule', () => {
         let tmpFile: string
 

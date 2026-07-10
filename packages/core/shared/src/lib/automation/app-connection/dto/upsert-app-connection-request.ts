@@ -1,4 +1,4 @@
-import { Metadata } from '@activepieces/core-utils'
+import { Metadata } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { AppConnectionScope, AppConnectionType } from '../app-connection'
 import { OAuth2AuthorizationMethod } from '../oauth2-authorization-method'
@@ -206,3 +206,4 @@ export const ListFlowsFromAppConnectionRequestQuery = z.object({
     projectId: z.string(),
 })
 export type ListFlowsFromAppConnectionRequestQuery = z.infer<typeof ListFlowsFromAppConnectionRequestQuery>
+

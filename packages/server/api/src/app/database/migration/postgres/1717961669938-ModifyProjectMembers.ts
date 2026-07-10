@@ -1,4 +1,4 @@
-import { ApEdition } from '@activepieces/shared'
+import { ApEdition } from '@inboxfm-connect/shared'
 import dayjs from 'dayjs'
 import { MigrationInterface, QueryRunner } from 'typeorm'
 import { isNotOneOfTheseEditions } from '../../database-common'

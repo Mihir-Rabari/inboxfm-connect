@@ -20,14 +20,14 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     testTimeout: 20000,
-    include: [path.resolve(__dirname, 'test/**/*.test.ts')],
+    include: [path.resolve(__dirname, 'test/**/*.test.ts').replaceAll('\\', '/')],
   },
   resolve: {
     alias: {
-      '@activepieces/shared': path.resolve(__dirname, '../../../packages/core/shared/src/index.ts'),
-      '@activepieces/pieces-framework': path.resolve(__dirname, '../../../packages/pieces/framework/src/index.ts'),
-      '@activepieces/pieces-common': path.resolve(__dirname, '../../../packages/pieces/common/src/index.ts'),
-      '@activepieces/core-formula': path.resolve(__dirname, '../../../packages/core/formula/src/index.ts'),
+      '@inboxfm-connect/shared': path.resolve(__dirname, '../../../packages/core/shared/src/index.ts'),
+      '@inboxfm-connect/pieces-framework': path.resolve(__dirname, '../../../packages/integrations/framework/src/index.ts'),
+      '@inboxfm-connect/pieces-common': path.resolve(__dirname, '../../../packages/integrations/common/src/index.ts'),
+      '@inboxfm-connect/core-formula': path.resolve(__dirname, '../../../packages/core/formula/src/index.ts'),
     },
   },
 })

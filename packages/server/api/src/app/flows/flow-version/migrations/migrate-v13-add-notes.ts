@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { FlowVersion } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { FlowVersion } from '@inboxfm-connect/shared'
 import { Migration } from '.'
 
 export const migrateV13AddNotes: Migration = {

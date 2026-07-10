@@ -1,5 +1,5 @@
-import { apId } from '@activepieces/core-utils'
-import { CreateProjectReleaseRequestBody, ProjectReleaseType } from '@activepieces/shared'
+import { apId } from '@inboxfm-connect/core-utils'
+import { CreateProjectReleaseRequestBody, ProjectReleaseType } from '@inboxfm-connect/shared'
 import { faker } from '@faker-js/faker'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'

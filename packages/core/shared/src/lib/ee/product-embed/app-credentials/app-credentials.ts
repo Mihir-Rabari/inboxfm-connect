@@ -1,4 +1,4 @@
-import { ProjectId } from '@activepieces/core-utils'
+import { ProjectId } from '@inboxfm-connect/core-utils'
 import { OAuth2GrantType } from '../../../automation/app-connection/dto/upsert-app-connection-request'
 
 export type AppCredentialId = string
@@ -29,5 +29,6 @@ export enum AppCredentialType {
     OAUTH2 = 'OAUTH2',
     API_KEY = 'API_KEY',
 }
+
 
 

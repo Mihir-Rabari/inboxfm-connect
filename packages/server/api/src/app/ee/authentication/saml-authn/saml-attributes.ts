@@ -1,5 +1,5 @@
-import { ActivepiecesError, ErrorCode, isNil } from '@activepieces/core-utils'
-import { SAMLAttributeMapping } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil } from '@inboxfm-connect/core-utils'
+import { SAMLAttributeMapping } from '@inboxfm-connect/shared'
 
 export const resolveSamlAttributes = ({ rawAttributes, mapping }: ResolveArgs): SamlAttributes => {
     const safeAttributes = rawAttributes ?? {}

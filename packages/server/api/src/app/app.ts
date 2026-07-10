@@ -1,7 +1,7 @@
-import { isNil, spreadIfDefined } from '@activepieces/core-utils'
-import { PieceMetadata } from '@activepieces/pieces-framework'
-import { wideEvent } from '@activepieces/server-utils'
-import { AddAllowedEmbedOriginsRequestBody, ApEdition, ApEnvironment, AppConnectionWithoutSensitiveData, ApplicationEventName, ConnectionDeletedEvent, ConnectionUpsertedEvent, Flow, FlowActivatedEvent, FlowCreatedEvent, FlowDeactivatedEvent, FlowDeletedEvent, FlowPublishedEvent, FlowRun, FlowRunFinishedEvent, FlowRunRetriedEvent, FlowRunStartedEvent, FlowUpdatedEvent, Folder, FolderCreatedEvent, FolderDeletedEvent, FolderUpdatedEvent, GitRepoWithoutSensitiveData, ProjectMember, ProjectRelease, ProjectReleaseEvent, ProjectRoleEvent, ProjectWithLimits, SigningKeyEvent, SignUpEvent, Template, UserEmailVerifiedEvent, UserInvitation, UserPasswordResetEvent, UserSignedInEvent, UserWithMetaInformation } from '@activepieces/shared'
+import { isNil, spreadIfDefined } from '@inboxfm-connect/core-utils'
+import { PieceMetadata } from '@inboxfm-connect/pieces-framework'
+import { wideEvent } from '@inboxfm-connect/server-utils'
+import { AddAllowedEmbedOriginsRequestBody, ApEdition, ApEnvironment, AppConnectionWithoutSensitiveData, ApplicationEventName, ConnectionDeletedEvent, ConnectionUpsertedEvent, Flow, FlowActivatedEvent, FlowCreatedEvent, FlowDeactivatedEvent, FlowDeletedEvent, FlowPublishedEvent, FlowRun, FlowRunFinishedEvent, FlowRunRetriedEvent, FlowRunStartedEvent, FlowUpdatedEvent, Folder, FolderCreatedEvent, FolderDeletedEvent, FolderUpdatedEvent, GitRepoWithoutSensitiveData, ProjectMember, ProjectRelease, ProjectReleaseEvent, ProjectRoleEvent, ProjectWithLimits, SigningKeyEvent, SignUpEvent, Template, UserEmailVerifiedEvent, UserInvitation, UserPasswordResetEvent, UserSignedInEvent, UserWithMetaInformation } from '@inboxfm-connect/shared'
 import replyFrom from '@fastify/reply-from'
 import swagger from '@fastify/swagger'
 import { createAdapter } from '@socket.io/redis-adapter'
@@ -36,8 +36,6 @@ import { federatedAuthModule } from './ee/authentication/federated-authn/federat
 import { otpModule } from './ee/authentication/otp/otp-module'
 import { rbacMiddleware } from './ee/authentication/project-role/rbac-middleware'
 import { authnSsoSamlModule } from './ee/authentication/saml-authn/authn-sso-saml-module'
-import { chatEvalModule } from './ee/chat/chat-eval-controller'
-import { chatModule } from './ee/chat/chat.module'
 import { connectionKeyModule } from './ee/connection-keys/connection-key.module'
 import { embedSubdomainModule } from './ee/embed-subdomain/embed-subdomain.module'
 import { enterpriseFlagsHooks } from './ee/flags/enterprise-flags.hooks'
@@ -109,10 +107,7 @@ import { platformUserModule } from './user/platform/platform-user-module'
 import { invitationModule } from './user-invitations/user-invitation.module'
 import { variableModule } from './variable/variable.module'
 import { webhookModule } from './webhooks/webhook-module'
-import { engineResponseWatcher } from './workers/engine-response-watcher'
-
-import { workerCapacity } from './workers/machine/worker-capacity'
-import { migrateQueuesAndRunConsumers, workerModule } from './workers/worker-module'
+import { executeModule } from './execute/execute.module'
 
 export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> => {
 
@@ -214,47 +209,48 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     await app.register(fileModule)
     await app.register(flagModule)
     await app.register(storeEntryModule)
-    await app.register(folderModule)
+    // await app.register(folderModule)
     await pieceSyncService(app.log).setup()
-    toolSearchReindexJob(app.log).register()
+    // toolSearchReindexJob(app.log).register()
     // Cold-start backfill: build the tool-search index once if the flag is on but it has never been
     // built (existing deployment whose piece_metadata is already populated, so no sync delta fires).
     // Fire-and-forget — a no-op once the index has rows, and must never block or fail boot.
-    rejectedPromiseHandler(toolSearchReindexJob(app.log).backfillIfEmpty(), app.log)
+    // rejectedPromiseHandler(toolSearchReindexJob(app.log).backfillIfEmpty(), app.log)
     await pieceMetadataService(app.log).setup()
     await app.register(pieceModule)
-    await app.register(collaborativeModule)
-    await app.register(flowModule)
-    await app.register(flowRunModule)
-    await app.register(webhookModule)
+    // await app.register(collaborativeModule)
+    // await app.register(flowModule)
+    // await app.register(flowRunModule)
+    // await app.register(webhookModule)
     await app.register(appConnectionModule)
     await app.register(platformAppConnectionModule)
-    await app.register(variableModule)
+    // await app.register(variableModule)
     await app.register(openapiModule)
-    await app.register(appEventRoutingModule)
+    // await app.register(appEventRoutingModule)
     await app.register(authenticationModule)
-    await app.register(triggerModule)
+    // await app.register(triggerModule)
     await app.register(platformModule)
-    await app.register(humanInputModule)
-    await app.register(tagsModule)
-    await app.register(mcpServerModule)
-    await app.register(mcpOAuthApproveController)
-    await app.register(agentsModule)
+    await app.register(executeModule)
+    // await app.register(humanInputModule)
+    // await app.register(tagsModule)
+    // await app.register(mcpServerModule)
+    // await app.register(mcpOAuthApproveController)
+    // await app.register(agentsModule)
     await app.register(platformUserModule)
-    await app.register(alertsModule)
+    // await app.register(alertsModule)
     await app.register(invitationModule)
-    await app.register(workerModule)
-    await workerCapacity.setup()
+    // await app.register(workerModule)
+    // await workerCapacity.setup()
     await app.register(oidcModule)
     await aiProviderService(app.log).setup()
     await app.register(aiProviderModule)
     await app.register(licenseKeysModule)
-    await app.register(flowRunTrackingModule)
-    await app.register(tablesModule)
-    await app.register(knowledgeBaseModule)
+    // await app.register(flowRunTrackingModule)
+    // await app.register(tablesModule)
+    // await app.register(knowledgeBaseModule)
     await app.register(userModule)
-    await app.register(templateModule)
-    await app.register(platformAnalyticsModule)
+    // await app.register(templateModule)
+    // await app.register(platformAnalyticsModule)
 
     // Dev-only: accept browser debug logs into the shared evlog fs drain so a
     // chat run can be reconstructed end-to-end (web + api + worker). Never in cloud/prod.
@@ -320,8 +316,6 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             await app.register(secretManagersModule)
             await app.register(scimModule)
             await app.register(embedSubdomainModule)
-            await app.register(chatModule)
-            await app.register(chatEvalModule)
             await app.register(aiToolConfigModule)
             setPlatformOAuthService(platformOAuth2Service(app.log))
             projectHooks.set(projectEnterpriseHooks)
@@ -354,8 +348,6 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             await app.register(secretManagersModule)
             await app.register(scimModule)
             await app.register(embedSubdomainModule)
-            await app.register(chatModule)
-            await app.register(chatEvalModule)
             await app.register(aiToolConfigModule)
             setPlatformOAuthService(platformOAuth2Service(app.log))
             projectHooks.set(projectEnterpriseHooks)
@@ -381,7 +373,6 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
         await systemJobsSchedule(app.log).close()
         await redisConnections.destroy()
         await distributedLock(app.log).destroy()
-        await engineResponseWatcher(app.log).shutdown()
         await shutdownTelemetry()
     })
 
@@ -416,8 +407,8 @@ The application started on ${await domainHelper.getPublicApiUrl({ path: '' })}, 
     const pieces = process.env.AP_DEV_PIECES
 
     systemSnapshot.start({ log: app.log })
-    await migrateQueuesAndRunConsumers(app)
-    app.log.info('Queues migrated and consumers run')
+    // await migrateQueuesAndRunConsumers(app)
+    // app.log.info('Queues migrated and consumers run')
     if (environment === ApEnvironment.DEVELOPMENT) {
         app.log.warn(
             `[WARNING]: The application is running in ${environment} mode.`,

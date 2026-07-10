@@ -1,4 +1,4 @@
-import { Alert } from '@activepieces/shared'
+import { Alert } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import {
     ApIdSchema,

@@ -1,5 +1,5 @@
-import { Permission } from '@activepieces/core-utils'
-import { PrincipalType } from '@activepieces/shared'
+import { Permission } from '@inboxfm-connect/core-utils'
+import { PrincipalType } from '@inboxfm-connect/shared'
 import { AuthorizationType, NoneAuthorization, PlatformAuthorization, ProjectAuthorization, ProjectResource, PublicRoute, RouteKind, UnscopedAuthorization } from './common'
 
 type FastifySecurityAuthorization =

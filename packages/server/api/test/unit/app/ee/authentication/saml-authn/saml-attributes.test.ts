@@ -1,4 +1,4 @@
-import { ActivepiecesError, ErrorCode } from '@activepieces/core-utils'
+import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
 import { resolveSamlAttributes } from '../../../../../../src/app/ee/authentication/saml-authn/saml-attributes'
 
 describe('resolveSamlAttributes', () => {

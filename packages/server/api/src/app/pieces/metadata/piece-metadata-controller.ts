@@ -1,6 +1,6 @@
-import { ActivepiecesError, ErrorCode, isNil, LocalesEnum } from '@activepieces/core-utils'
-import { PieceMetadataModel, PieceMetadataModelSummary } from '@activepieces/pieces-framework'
-import { ALL_PRINCIPAL_TYPES, EngineResponse, GetPieceRequestParams, GetPieceRequestQuery, GetPieceRequestWithScopeParams, ListPiecesRequestQuery, PieceCategory, PieceOptionRequest, Principal, PrincipalType, RegistryPiecesRequestQuery, SampleDataFileType, WorkerJobType } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil, LocalesEnum } from '@inboxfm-connect/core-utils'
+import { PieceMetadataModel, PieceMetadataModelSummary } from '@inboxfm-connect/pieces-framework'
+import { ALL_PRINCIPAL_TYPES, EngineResponse, GetPieceRequestParams, GetPieceRequestQuery, GetPieceRequestWithScopeParams, ListPiecesRequestQuery, PieceCategory, PieceOptionRequest, Principal, PrincipalType, RegistryPiecesRequestQuery, SampleDataFileType, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
@@ -8,12 +8,12 @@ import { ProjectResourceType } from '../../core/security/authorization/common'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
 import { flowService } from '../../flows/flow/flow.service'
 import { sampleDataService } from '../../flows/step-run/sample-data.service'
-import { userInteractionWatcher } from '../../workers/user-interaction-watcher'
+import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
 import { pieceSyncService } from '../piece-sync-service'
 import { getPiecePackageWithoutArchive, pieceMetadataService } from './piece-metadata-service'
 
 export const pieceModule: FastifyPluginAsyncZod = async (app) => {
-    await app.register(basePiecesController, { prefix: '/v1/pieces' })
+    await app.register(basePiecesController, { prefix: '/v1/integrations' })
 }
 
 const basePiecesController: FastifyPluginAsyncZod = async (app) => {

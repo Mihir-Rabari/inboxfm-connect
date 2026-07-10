@@ -1,5 +1,5 @@
-import { apId, ProjectRole } from '@activepieces/core-utils'
-import { DefaultProjectRole, PiecesFilterType, PieceType } from '@activepieces/shared'
+import { apId, ProjectRole } from '@inboxfm-connect/core-utils'
+import { DefaultProjectRole, PiecesFilterType, PieceType } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { Redis } from 'ioredis'

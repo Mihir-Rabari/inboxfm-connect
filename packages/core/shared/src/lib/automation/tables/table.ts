@@ -1,4 +1,4 @@
-import { BaseModelSchema, Nullable, NullableEnum } from '@activepieces/core-utils'
+import { BaseModelSchema, Nullable, NullableEnum } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { Field } from './field'
 
@@ -30,3 +30,4 @@ export const PopulatedTable = Table.extend({
 })
 
 export type PopulatedTable = z.infer<typeof PopulatedTable>
+

@@ -1,4 +1,4 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export const McpOAuthClient = z.object({
@@ -46,3 +46,4 @@ export const McpOAuthAuthorizationCode = z.object({
 })
 
 export type McpOAuthAuthorizationCode = z.infer<typeof McpOAuthAuthorizationCode>
+

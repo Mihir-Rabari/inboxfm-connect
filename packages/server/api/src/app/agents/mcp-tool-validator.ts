@@ -1,5 +1,5 @@
-import { safeHttp } from '@activepieces/server-utils'
-import { AgentMcpTool, buildAuthHeaders, ValidateAgentMcpToolResponse } from '@activepieces/shared'
+import { safeHttp } from '@inboxfm-connect/server-utils'
+import { AgentMcpTool, buildAuthHeaders, ValidateAgentMcpToolResponse } from '@inboxfm-connect/shared'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 

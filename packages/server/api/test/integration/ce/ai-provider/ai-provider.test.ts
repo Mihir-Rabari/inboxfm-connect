@@ -1,5 +1,5 @@
-import { AIProviderName, apId } from '@activepieces/core-utils'
-import { PrincipalType } from '@activepieces/shared'
+import { AIProviderName, apId } from '@inboxfm-connect/core-utils'
+import { PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { generateMockToken } from '../../../helpers/auth'

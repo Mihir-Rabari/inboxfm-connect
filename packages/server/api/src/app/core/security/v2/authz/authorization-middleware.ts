@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { PrincipalType } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyRequest } from 'fastify'
 import { AuthorizationRouteSecurity } from '../../authorization/authorization'
 import { AuthorizationType, ProjectResourceType, RouteKind } from '../../authorization/common'

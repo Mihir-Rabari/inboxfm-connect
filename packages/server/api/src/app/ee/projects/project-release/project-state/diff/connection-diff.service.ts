@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { ConnectionOperation, ConnectionOperationType, ProjectState } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { ConnectionOperation, ConnectionOperationType, ProjectState } from '@inboxfm-connect/shared'
 
 export const connectionDiffService = {
     diff({ newState, currentState }: DiffParams): ConnectionOperation[] {

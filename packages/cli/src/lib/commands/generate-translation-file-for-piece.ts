@@ -5,8 +5,8 @@ import { buildPackage, findPiece, findPieces } from '../utils/piece-utils';
 import { makeFolderRecursive, readPackageJson } from '../utils/files';
 import { join } from 'node:path';
 import { exec } from '../utils/exec';
-import { pieceTranslation } from '@activepieces/pieces-framework';
-import { MAX_KEY_LENGTH_FOR_CORWDIN } from '@activepieces/shared';
+import { pieceTranslation } from '@inboxfm-connect/pieces-framework';
+import { MAX_KEY_LENGTH_FOR_CORWDIN } from '@inboxfm-connect/shared';
 
 const findPieceInModule= async (pieceOutputFile: string) => {
     const module = await import(pieceOutputFile);
@@ -110,3 +110,4 @@ export const generateTranslationFileForPieceCommand = new Command('generate-tran
     }
     console.log(chalk.yellow('✨'), `Total time taken to generate translation files for selected pieces: ${totalTime}s`)
   });
+

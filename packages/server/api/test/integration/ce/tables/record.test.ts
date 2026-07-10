@@ -1,5 +1,5 @@
-import { apId } from '@activepieces/core-utils'
-import { FieldType, FilterOperator } from '@activepieces/shared'
+import { apId } from '@inboxfm-connect/core-utils'
+import { FieldType, FilterOperator } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import qs from 'qs'

@@ -3,14 +3,14 @@ import {
     FlowActionType,
     flowStructureUtil,
     FlowVersion,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { Migration } from '.'
 
 export const migrateV15AgentProviderModel: Migration = {
     targetSchemaVersion: '15',
     migrate: async (flowVersion: FlowVersion): Promise<FlowVersion> => {
         const newVersion = flowStructureUtil.transferFlow(flowVersion, (step) => {
-            if (step.type !== FlowActionType.PIECE || step.settings.pieceName !== '@activepieces/piece-ai') {
+            if (step.type !== FlowActionType.PIECE || step.settings.pieceName !== '@inboxfm-connect/piece-ai') {
                 return step
             }
 

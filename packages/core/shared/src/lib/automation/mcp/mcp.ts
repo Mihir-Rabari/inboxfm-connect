@@ -1,10 +1,10 @@
-import { PopulatedFlow } from '@activepieces/core-execution'
-import { ApId, BaseModelSchema, Permission } from '@activepieces/core-utils'
+import { PopulatedFlow } from '@inboxfm-connect/core-execution'
+import { ApId, BaseModelSchema, Permission } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export type McpId = ApId
 
-export const MCP_TRIGGER_PIECE_NAME = '@activepieces/piece-mcp'
+export const MCP_TRIGGER_PIECE_NAME = '@inboxfm-connect/piece-mcp'
 
 export enum McpServerType {
     PLATFORM = 'PLATFORM',
@@ -60,3 +60,4 @@ export type McpToolResult = {
     structuredContent?: Record<string, unknown>
     isError?: boolean
 }
+

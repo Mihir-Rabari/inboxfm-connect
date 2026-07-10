@@ -1,4 +1,4 @@
-import { PiecePropertyMap } from '@activepieces/pieces-framework'
+import { PiecePropertyMap } from '@inboxfm-connect/pieces-framework'
 
 export const tsort = {
     sortPropertiesByDependencies(properties: PiecePropertyMap): Record<number, string[]> {

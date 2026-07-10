@@ -1,5 +1,5 @@
-import { Permission } from '@activepieces/core-utils'
-import { McpToolDefinition, ProjectScopedMcpServer } from '@activepieces/shared'
+import { Permission } from '@inboxfm-connect/core-utils'
+import { McpToolDefinition, ProjectScopedMcpServer } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { flowService } from '../../flows/flow/flow.service'

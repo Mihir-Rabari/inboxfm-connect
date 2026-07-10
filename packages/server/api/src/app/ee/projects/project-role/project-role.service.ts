@@ -1,5 +1,5 @@
-import { ActivepiecesError, apId, ApId, ErrorCode, isNil, PlatformId, ProjectRole, RoleType, SeekPage, spreadIfDefined } from '@activepieces/core-utils'
-import { CreateProjectRoleRequestBody } from '@activepieces/shared'
+import { ActivepiecesError, apId, ApId, ErrorCode, isNil, PlatformId, ProjectRole, RoleType, SeekPage, spreadIfDefined } from '@inboxfm-connect/core-utils'
+import { CreateProjectRoleRequestBody } from '@inboxfm-connect/shared'
 import { Brackets, Equal } from 'typeorm'
 import { repoFactory } from '../../../core/db/repo-factory'
 import { ProjectMemberEntity } from '../project-members/project-member.entity'

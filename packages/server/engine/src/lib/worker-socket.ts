@@ -2,11 +2,11 @@ import { inspect } from 'node:util'
 import {
     createNotifyClient,
     createRpcServer,
-    EngineContract,
-    EngineResponse,
     ERROR_MESSAGES_TO_REDACT,
+    RuntimeContract,
+    RuntimeResponse,
     WorkerNotifyContract,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { io, type ManagerOptions, type Socket, type SocketOptions } from 'socket.io-client'
 import { flowRunProgressReporter } from './helper/flow-run-progress-reporter'
 import { execute } from './operations'
@@ -82,12 +82,12 @@ export const workerSocket = {
             originalError.apply(console, sanitizedArgs)
         }
 
-        createRpcServer<EngineContract>(socket, {
-            executeOperation: async ({ operationType, operation }): Promise<EngineResponse<unknown>> => {
+        createRpcServer<RuntimeContract>(socket, {
+            executeOperation: async ({ operationType, operation }): Promise<RuntimeResponse<unknown>> => {
                 flowRunProgressReporter.init()
                 try {
                     const response = await execute(operationType, operation)
-                    return JSON.parse(JSON.stringify(response)) as EngineResponse<unknown>
+                    return JSON.parse(JSON.stringify(response)) as RuntimeResponse<unknown>
                 }
                 finally {
                     await flowRunProgressReporter.shutdown()

@@ -1,11 +1,11 @@
-import { ActivepiecesError, ErrorCode } from '@activepieces/core-utils'
-import { EngineResponseStatus } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
+import { EngineResponseStatus } from '@inboxfm-connect/shared'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const acquiredBoxIds: number[] = []
 
-vi.mock('@activepieces/server-utils', async (importActual) => {
-    const actual = await importActual<typeof import('@activepieces/server-utils')>()
+vi.mock('@inboxfm-connect/server-utils', async (importActual) => {
+    const actual = await importActual<typeof import('@inboxfm-connect/server-utils')>()
     return {
         ...actual,
         wideEvent: {

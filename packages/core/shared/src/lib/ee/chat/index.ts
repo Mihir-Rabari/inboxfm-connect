@@ -1,5 +1,5 @@
-import { ChatPromptOverride } from '@activepieces/core-execution'
-import { BaseModelSchema, Nullable } from '@activepieces/core-utils'
+import { ChatPromptOverride } from '@inboxfm-connect/core-execution'
+import { BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { formErrors } from '../../form-errors'
 
@@ -304,3 +304,4 @@ export { CHAT_ALLOWED_MIME_TYPES }
 export { chatToolClassification } from './tool-classification'
 export { chatToolPhases, type ChatPhase } from './tool-phases'
 export { chatVisibility, type ResolveChatEnabledParams } from './chat-visibility'
+

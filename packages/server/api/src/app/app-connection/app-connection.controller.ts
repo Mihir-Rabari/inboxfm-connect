@@ -1,6 +1,6 @@
-import { ApId, Permission, SeekPage } from '@activepieces/core-utils'
-import { wideEvent } from '@activepieces/server-utils'
-import { ActivepiecesError, AppConnectionOwners, AppConnectionScope, AppConnectionStatus, AppConnectionType, AppConnectionWithoutSensitiveData, ApplicationEventName, ErrorCode, GetOAuth2AuthorizationUrlRequestBody, GetOAuth2AuthorizationUrlResponse, ListAppConnectionOwnersRequestQuery, ListAppConnectionsRequestQuery, PLACEHOLDER_CONNECTION_TYPE, PrincipalType, ReplaceAppConnectionsRequestBody, SERVICE_KEY_SECURITY_OPENAPI, UpdateConnectionValueRequestBody, UpsertAppConnectionRequestBody } from '@activepieces/shared'
+import { ApId, Permission, SeekPage } from '@inboxfm-connect/core-utils'
+import { wideEvent } from '@inboxfm-connect/server-utils'
+import { ActivepiecesError, AppConnectionOwners, AppConnectionScope, AppConnectionStatus, AppConnectionType, AppConnectionWithoutSensitiveData, ApplicationEventName, ErrorCode, GetOAuth2AuthorizationUrlRequestBody, GetOAuth2AuthorizationUrlResponse, ListAppConnectionOwnersRequestQuery, ListAppConnectionsRequestQuery, PLACEHOLDER_CONNECTION_TYPE, PrincipalType, ReplaceAppConnectionsRequestBody, SERVICE_KEY_SECURITY_OPENAPI, UpdateConnectionValueRequestBody, UpsertAppConnectionRequestBody } from '@inboxfm-connect/shared'
 import { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
@@ -11,7 +11,7 @@ import { auditEvents } from '../helper/audit-events'
 import { securityHelper } from '../helper/security-helper'
 import { appConnectionService } from './app-connection-service/app-connection-service'
 import { oauth2Util } from './app-connection-service/oauth2/oauth2-util'
-import { AppConnectionEntity } from './app-connection.entity'
+import { ConnectionEntity } from './app-connection.entity'
 
 export const appConnectionController: FastifyPluginCallbackZod = (app, _opts, done) => {
     app.post('/', UpsertAppConnectionRequest, async (request, reply) => {
@@ -205,7 +205,7 @@ const UpdateConnectionValueRequest = {
             Permission.WRITE_APP_CONNECTION,
             {
                 type: ProjectResourceType.TABLE,
-                tableName: AppConnectionEntity,
+                tableName: ConnectionEntity,
             },
         ),
     },
@@ -268,7 +268,7 @@ const GetAppConnectionRequest = {
             Permission.READ_APP_CONNECTION,
             {
                 type: ProjectResourceType.TABLE,
-                tableName: AppConnectionEntity,
+                tableName: ConnectionEntity,
             },
         ),
     },
@@ -313,7 +313,7 @@ const DeleteAppConnectionRequest = {
             Permission.WRITE_APP_CONNECTION,
             {
                 type: ProjectResourceType.TABLE,
-                tableName: AppConnectionEntity,
+                tableName: ConnectionEntity,
             },
         ),
     },

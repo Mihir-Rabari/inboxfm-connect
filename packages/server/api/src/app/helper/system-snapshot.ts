@@ -2,7 +2,6 @@ import os from 'os'
 import { monitorEventLoopDelay } from 'perf_hooks'
 import { createLogger } from 'evlog'
 import { FastifyBaseLogger } from 'fastify'
-import { jobQueue } from '../workers/job-queue/job-queue'
 
 const SNAPSHOT_INTERVAL_MS = 60_000
 const NANOS_PER_MS = 1e6
@@ -12,19 +11,7 @@ function mbRounded(bytes: number): number {
 }
 
 async function buildQueueCounts(log: FastifyBaseLogger): Promise<Record<string, unknown>> {
-    try {
-        const queues = jobQueue(log).getAllQueues()
-        const countEntries = await Promise.all(
-            queues.map(async (queue): Promise<readonly [string, unknown]> => {
-                const counts = await queue.getJobCounts()
-                return [queue.name, counts] as const
-            }),
-        )
-        return Object.fromEntries(countEntries)
-    }
-    catch {
-        return { queueCountsError: true }
-    }
+    return {}
 }
 
 export const systemSnapshot = {

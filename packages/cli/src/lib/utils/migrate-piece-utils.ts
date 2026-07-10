@@ -35,7 +35,7 @@ function collectTsFiles(dir: string): string[] {
     return files
 }
 
-// A piece imports only from @activepieces/pieces-framework (which re-exports the foundation
+// A piece imports only from @inboxfm-connect/pieces-framework (which re-exports the foundation
 // symbols). Repoint every shared / core-* import specifier to the framework; a symbol the
 // framework does not re-export was server-only and will surface as a build error.
 function repointImports(content: string): string {
@@ -58,7 +58,7 @@ function migrateManifest({ piecePath, dryRun }: MigratePieceParams): boolean {
     const devDependencies: Record<string, string> = manifest.devDependencies ?? {}
     const scripts: Record<string, string> = manifest.scripts ?? {}
 
-    delete dependencies['@activepieces/shared']
+    delete dependencies['@inboxfm-connect/shared']
     for (const dep of REQUIRED_DEPENDENCIES) {
         dependencies[dep] = dependencies[dep] ?? 'workspace:*'
     }
@@ -119,27 +119,27 @@ function defaultEslintConfig(): Record<string, unknown> {
     }
 }
 
-const FRAMEWORK = '@activepieces/pieces-framework'
+const FRAMEWORK = '@inboxfm-connect/pieces-framework'
 const REPOINTED_MODULES = [
-    '@activepieces/shared',
-    '@activepieces/core-utils',
-    '@activepieces/core-piece-types',
-    '@activepieces/core-formula',
-    '@activepieces/core-execution',
+    '@inboxfm-connect/shared',
+    '@inboxfm-connect/core-utils',
+    '@inboxfm-connect/core-piece-types',
+    '@inboxfm-connect/core-formula',
+    '@inboxfm-connect/core-execution',
 ]
 const REQUIRED_DEPENDENCIES = [
-    '@activepieces/pieces-common',
-    '@activepieces/pieces-framework',
-    '@activepieces/core-piece-types',
-    '@activepieces/core-utils',
+    '@inboxfm-connect/pieces-common',
+    '@inboxfm-connect/pieces-framework',
+    '@inboxfm-connect/core-piece-types',
+    '@inboxfm-connect/core-utils',
 ]
 const IMPORT_BOUNDARY_PATTERNS = [
     'lodash',
     'lodash/*',
-    '@activepieces/core-*',
-    '@activepieces/server*',
-    '@activepieces/engine',
-    '@activepieces/shared',
+    '@inboxfm-connect/core-*',
+    '@inboxfm-connect/server*',
+    '@inboxfm-connect/engine',
+    '@inboxfm-connect/shared',
 ]
 const TSLIB_VERSION = '2.6.2'
 const BUNDLE_SCRIPT = 'node ../../../../dist/packages/cli/src/index.js pieces bundle'
@@ -159,3 +159,4 @@ type EslintOverride = {
     files: string[]
     rules?: Record<string, unknown>
 }
+

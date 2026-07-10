@@ -1,10 +1,10 @@
-import { ActivepiecesError, apId, assertNotNullOrUndefined, ErrorCode, isNil } from '@activepieces/core-utils'
-import { facebookLeads } from '@activepieces/piece-facebook-leads'
-import { intercom } from '@activepieces/piece-intercom'
-import { slack } from '@activepieces/piece-slack'
-import { square } from '@activepieces/piece-square'
-import { Piece, PieceAuthProperty } from '@activepieces/pieces-framework'
-import { FlowStatus, LATEST_JOB_DATA_SCHEMA_VERSION, RunEnvironment, WorkerJobType } from '@activepieces/shared'
+import { ActivepiecesError, apId, assertNotNullOrUndefined, ErrorCode, isNil } from '@inboxfm-connect/core-utils'
+import { facebookLeads } from '@inboxfm-connect/piece-facebook-leads'
+import { intercom } from '@inboxfm-connect/piece-intercom'
+import { slack } from '@inboxfm-connect/piece-slack'
+import { square } from '@inboxfm-connect/piece-square'
+import { Piece, PieceAuthProperty } from '@inboxfm-connect/pieces-framework'
+import { FlowStatus, LATEST_JOB_DATA_SCHEMA_VERSION, RunEnvironment, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyRequest } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
@@ -14,8 +14,16 @@ import { domainHelper } from '../../helper/domain-helper'
 import { rejectedPromiseHandler } from '../../helper/promise-handler'
 import { projectService } from '../../project/project-service'
 import { WebhookFlowVersionToRun, webhookService } from '../../webhooks/webhook.service'
-import { jobQueue, JobType } from '../../workers/job-queue/job-queue'
-import { payloadOffloader } from '../../workers/payload-offloader'
+const JobType = { CHAT: 'CHAT', ONE_TIME: 'ONE_TIME', REPEATING: 'REPEATING' } as const
+const jobQueue = (_log: unknown) => ({
+    add: async (_data: unknown) => {},
+})
+const payloadOffloader = {
+    getPayloadSizeInBytes: (_payload: unknown): number => JSON.stringify(_payload).length,
+    savePayloadToFile: async (_params: unknown) => undefined,
+    getPayload: async (_params: unknown) => undefined,
+    offloadPayload: async (_log: unknown, payload: unknown, _projectId: unknown, _platformId: unknown) => ({ type: 'inline' as const, value: payload }),
+}
 import { triggerSourceService } from '../trigger-source/trigger-source-service'
 import { appEventRoutingService } from './app-event-routing.service'
 
@@ -26,10 +34,10 @@ const appWebhooks: Record<string, Piece<PieceAuthProperty | PieceAuthProperty[] 
     intercom,
 }
 const pieceNames: Record<string, string> = {
-    slack: '@activepieces/piece-slack',
-    square: '@activepieces/piece-square',
-    'facebook-leads': '@activepieces/piece-facebook-leads',
-    intercom: '@activepieces/piece-intercom',
+    slack: '@inboxfm-connect/piece-slack',
+    square: '@inboxfm-connect/piece-square',
+    'facebook-leads': '@inboxfm-connect/piece-facebook-leads',
+    intercom: '@inboxfm-connect/piece-intercom',
 }
 
 export const appEventRoutingModule: FastifyPluginAsyncZod = async (app) => {

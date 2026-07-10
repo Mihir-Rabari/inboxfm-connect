@@ -1,4 +1,4 @@
-import { Platform, PlatformAnalyticsReport } from '@activepieces/shared'
+import { Platform, PlatformAnalyticsReport } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import {
     BaseColumnSchemaPart,

@@ -1,5 +1,5 @@
 {
-  "name": "@activepieces/core-formula",
+  "name": "@inboxfm-connect/core-formula",
   "version": "0.2.0",
   "type": "commonjs",
   "main": "./dist/src/index.js",
@@ -18,3 +18,4 @@
   },
   "typings": "./dist/src/index.d.ts"
 }
+

@@ -1,4 +1,4 @@
-import { ApId, BaseModelSchema } from '@activepieces/core-utils'
+import { ApId, BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export enum KeyAlgorithm {
@@ -17,3 +17,4 @@ export const SigningKey = z.object({
 })
 
 export type SigningKey = z.infer<typeof SigningKey>
+

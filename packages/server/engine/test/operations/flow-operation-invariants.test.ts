@@ -12,8 +12,8 @@ import {
     RunEnvironment,
     StepOutputStatus,
     StreamStepProgress,
-} from '@activepieces/shared'
-import type { BeginExecuteFlowOperation, FlowAction, FlowVersion, ResumeExecuteFlowOperation } from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
+import type { BeginExecuteFlowOperation, FlowAction, FlowVersion, ResumeExecuteFlowOperation } from '@inboxfm-connect/shared'
 import { describe, expect, it, vi } from 'vitest'
 
 const { mockSendUpdate, mockBackup } = vi.hoisted(() => ({
@@ -116,7 +116,7 @@ function makeFlowVersionWithTwoApprovals(): FlowVersion {
         valid: true,
         settings: {
             input: {},
-            pieceName: '@activepieces/piece-approval',
+            pieceName: '@inboxfm-connect/piece-approval',
             pieceVersion: '1.0.0',
             actionName: 'wait_for_approval',
             propertySettings: {},
@@ -130,7 +130,7 @@ function makeFlowVersionWithTwoApprovals(): FlowVersion {
         valid: true,
         settings: {
             input: {},
-            pieceName: '@activepieces/piece-approval',
+            pieceName: '@inboxfm-connect/piece-approval',
             pieceVersion: '1.0.0',
             actionName: 'wait_for_approval',
             propertySettings: {},

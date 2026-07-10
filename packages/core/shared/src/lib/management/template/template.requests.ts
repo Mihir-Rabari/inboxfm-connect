@@ -1,4 +1,4 @@
-import { Metadata, Nullable, OptionalArrayFromQuery } from '@activepieces/core-utils'
+import { Metadata, Nullable, OptionalArrayFromQuery } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { FlowVersionTemplate, TemplateStatus, TemplateTag, TemplateType } from './template'
 
@@ -43,3 +43,4 @@ export type ListFlowTemplatesRequestQuery = z.infer<typeof ListFlowTemplatesRequ
 
 export const ListTemplatesRequestQuery = ListFlowTemplatesRequestQuery
 export type ListTemplatesRequestQuery = z.infer<typeof ListTemplatesRequestQuery>
+

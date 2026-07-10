@@ -1,4 +1,4 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { Cell } from './cell'
 
@@ -17,3 +17,4 @@ export const PopulatedRecord = Record.extend({
 })
 
 export type PopulatedRecord = z.infer<typeof PopulatedRecord>
+

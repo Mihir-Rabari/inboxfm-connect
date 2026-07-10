@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import * as zMini from 'zod/mini'
-import { File } from '@activepieces/core-piece-types'
+import { File } from '@inboxfm-connect/core-piece-types'
 
 export enum SampleDataFileType {
     INPUT = 'INPUT',
@@ -70,4 +70,5 @@ export const DEFAULT_SAMPLE_DATA_SETTINGS: SampleDataSettings = {
 
 export const SaveSampleDataResponse = zMini.pick(File, { id: true, size: true, type: true })
 export type SaveSampleDataResponse = z.infer<typeof SaveSampleDataResponse>
+
 

@@ -1,1 +1,1 @@
-export { DatabaseType } from '@activepieces/server-utils'
+export { DatabaseType } from '@inboxfm-connect/server-utils'

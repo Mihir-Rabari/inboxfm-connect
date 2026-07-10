@@ -1,4 +1,4 @@
-import { ApId, BaseModelSchema } from '@activepieces/core-utils'
+import { ApId, BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export enum AlertChannel {
@@ -14,3 +14,4 @@ export const Alert = z.object({
 })
 
 export type Alert = z.infer<typeof Alert>
+

@@ -1,4 +1,4 @@
-import { BaseModel, BaseModelSchema, Metadata, Nullable } from '@activepieces/core-utils'
+import { BaseModel, BaseModelSchema, Metadata, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { UserWithMetaInformation } from '../../core/user'
 
@@ -30,3 +30,4 @@ export const VariableWithoutSensitiveData = z.object({
     metadata: Nullable(Metadata),
 }).describe('A project-scoped encrypted variable that flows can reference via {{variables[\'NAME\']}}.')
 export type VariableWithoutSensitiveData = z.infer<typeof VariableWithoutSensitiveData>
+

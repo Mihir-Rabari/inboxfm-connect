@@ -1,4 +1,4 @@
-import { File, KnowledgeBaseFile, Project } from '@activepieces/shared'
+import { File, KnowledgeBaseFile, Project } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import { ApIdSchema, BaseColumnSchemaPart } from '../database/database-common'
 

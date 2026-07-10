@@ -1,7 +1,7 @@
-import { FlowId } from '@activepieces/core-utils'
+import { FlowId } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
-import { ApId } from '@activepieces/core-utils'
-import { Cursor } from '@activepieces/core-utils'
+import { ApId } from '@inboxfm-connect/core-utils'
+import { Cursor } from '@inboxfm-connect/core-utils'
 
 export const ListTriggerEventsRequest = z.object({
     projectId: ApId,
@@ -22,3 +22,4 @@ export const SaveTriggerEventRequest = z.object({
 })
 
 export type SaveTriggerEventRequest = z.infer<typeof SaveTriggerEventRequest>
+

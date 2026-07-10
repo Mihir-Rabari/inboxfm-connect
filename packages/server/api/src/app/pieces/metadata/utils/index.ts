@@ -1,5 +1,5 @@
-import { PlatformId } from '@activepieces/core-utils'
-import { PieceCategory, PieceOrderBy, PieceSortBy, SuggestionType } from '@activepieces/shared'
+import { PlatformId } from '@inboxfm-connect/core-utils'
+import { PieceCategory, PieceOrderBy, PieceSortBy, SuggestionType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { enterpriseFilteringUtils } from '../../../ee/pieces/filters/piece-filtering-utils'
 import { PieceMetadataSchema } from '../piece-metadata-entity'

@@ -1,5 +1,5 @@
-import { isNil, PlatformId, tryCatch } from '@activepieces/core-utils'
-import { ApEdition, PrincipalType } from '@activepieces/shared'
+import { isNil, PlatformId, tryCatch } from '@inboxfm-connect/core-utils'
+import { ApEdition, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyRequest } from 'fastify'
 import { databaseConnection } from '../database/database-connection'
 import { networkUtils } from '../helper/network-utils'

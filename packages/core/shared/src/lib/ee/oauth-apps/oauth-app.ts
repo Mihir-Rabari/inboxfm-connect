@@ -1,4 +1,4 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export const OAuthApp = z.object({
@@ -24,3 +24,4 @@ export const ListOAuth2AppRequest = z.object({
 })
 
 export type ListOAuth2AppRequest = z.infer<typeof ListOAuth2AppRequest>
+

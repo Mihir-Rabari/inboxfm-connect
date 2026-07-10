@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { ApplicationEventName, ClaimTokenRequest, ThirdPartyAuthnProviderEnum } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { ApplicationEventName, ClaimTokenRequest, ThirdPartyAuthnProviderEnum } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { securityAccess } from '../../../core/security/authorization/fastify-security'

@@ -1,7 +1,7 @@
 {
    "$schema": "https://mintlify.com/docs.json",
    "theme": "mint",
-   "name": "Activepieces",
+   "name": "Inboxfm Connect",
    "colors": {
       "primary": "#9675FF",
       "light": "#9675FF",
@@ -11,17 +11,17 @@
       "links": [
          {
             "label": "GitHub",
-            "href": "https://github.com/activepieces/activepieces"
+            "href": "https://github.com/inboxfm-connect/inboxfm-connect"
          },
          {
-            "label": "Pieces",
-            "href": "https://www.activepieces.com/pieces"
+            "label": "Integrations",
+            "href": "https://www.inboxfm-connect.com/integrations"
          }
       ],
       "primary": {
          "type": "button",
          "label": "Get Started",
-         "href": "https://www.activepieces.com/plans"
+         "href": "https://www.inboxfm-connect.com/plans"
       }
    },
    "redirects": [
@@ -140,7 +140,7 @@
                   "group": "Guides",
                   "pages": [
                     "admin-guide/guides/structure-projects",
-                    "admin-guide/guides/manage-pieces",
+                    "admin-guide/guides/manage-integrations",
                     "admin-guide/guides/sso",
                   {
                      "group": "SCIM",
@@ -289,7 +289,7 @@
                      "install/architecture/durable-execution",
                      "install/architecture/waitpoints",
                      "install/architecture/network-security",
-                     "install/architecture/piece-syncing",
+                     "install/architecture/integration-syncing",
                      "install/architecture/benchmark",
                      "install/architecture/latency",
                      "install/architecture/autoscaling"
@@ -312,7 +312,7 @@
                {
                   "group": "Misc",
                   "pages": [
-                     "embedding/customize-pieces",
+                     "embedding/customize-integrations",
                      "embedding/embed-connections",
                      "embedding/embeddable-mcp",
                      "embedding/navigation",
@@ -324,71 +324,71 @@
             ]
          },
          {
-            "tab": "Build Pieces",
-            "description": "Learn how to build, test, and publish your own custom pieces in Activepieces.",
+            "tab": "Build Integrations",
+            "description": "Learn how to build, test, and publish your own custom integrations in Inboxfm Connect.",
             "groups": [
                {
-                  "group": "Build a Piece",
+                  "group": "Build a Integration",
                   "pages": [
-                     "build-pieces/building-pieces/overview",
-                     "build-pieces/building-pieces/start-building",
-                     "build-pieces/building-pieces/setup-fork",
-                     "build-pieces/building-pieces/development-setup",
-                     "build-pieces/building-pieces/piece-definition",
-                     "build-pieces/building-pieces/piece-authentication",
-                     "build-pieces/building-pieces/create-action",
-                     "build-pieces/building-pieces/create-trigger",
+                     "build-integrations/building-integrations/overview",
+                     "build-integrations/building-integrations/start-building",
+                     "build-integrations/building-integrations/setup-fork",
+                     "build-integrations/building-integrations/development-setup",
+                     "build-integrations/building-integrations/integration-definition",
+                     "build-integrations/building-integrations/integration-authentication",
+                     "build-integrations/building-integrations/create-action",
+                     "build-integrations/building-integrations/create-trigger",
                      {
-                        "group": "Sharing Pieces",
+                        "group": "Sharing Integrations",
                         "icon": "circle-7",
                         "pages": [
-                           "build-pieces/sharing-pieces/overview",
-                           "build-pieces/sharing-pieces/contribute",
-                           "build-pieces/sharing-pieces/community",
-                           "build-pieces/sharing-pieces/private"
+                           "build-integrations/sharing-integrations/overview",
+                           "build-integrations/sharing-integrations/contribute",
+                           "build-integrations/sharing-integrations/community",
+                           "build-integrations/sharing-integrations/private"
                         ]
                      }
                   ]
                },
                {
-                  "group": "Piece Reference",
+                  "group": "Integration Reference",
                   "pages": [
-                     "build-pieces/piece-reference/authentication",
+                     "build-integrations/integration-reference/authentication",
                      {
                         "group": "Triggers",
                         "icon": "bolt",
                         "pages": [
-                           "build-pieces/piece-reference/triggers/overview",
-                           "build-pieces/piece-reference/triggers/polling-trigger",
-                           "build-pieces/piece-reference/triggers/webhook-trigger"
+                           "build-integrations/integration-reference/triggers/overview",
+                           "build-integrations/integration-reference/triggers/polling-trigger",
+                           "build-integrations/integration-reference/triggers/webhook-trigger"
                         ]
                      },
-                     "build-pieces/piece-reference/properties",
-                     "build-pieces/piece-reference/properties-validation",
-                     "build-pieces/piece-reference/flow-control",
-                     "build-pieces/piece-reference/persistent-storage",
-                     "build-pieces/piece-reference/files",
-                     "build-pieces/piece-reference/external-libraries",
-                     "build-pieces/piece-reference/piece-versioning",
-                     "build-pieces/piece-reference/examples",
-                     "build-pieces/piece-reference/custom-api-calls",
-                     "build-pieces/piece-reference/output-schema",
-                     "build-pieces/piece-reference/i18n"
+                     "build-integrations/integration-reference/properties",
+                     "build-integrations/integration-reference/properties-validation",
+                     "build-integrations/integration-reference/flow-control",
+                     "build-integrations/integration-reference/persistent-storage",
+                     "build-integrations/integration-reference/files",
+                     "build-integrations/integration-reference/external-libraries",
+                     "build-integrations/integration-reference/integration-versioning",
+                     "build-integrations/integration-reference/examples",
+                     "build-integrations/integration-reference/custom-api-calls",
+                     "build-integrations/integration-reference/output-schema",
+                     "build-integrations/integration-reference/i18n"
                   ]
                },
                {
                   "group": "Misc",
                   "pages": [
-                     "build-pieces/misc/build-piece",
-                     "build-pieces/misc/bundling-pieces",
-                     "build-pieces/misc/publish-piece",
-                     "build-pieces/misc/pieces-ci-cd",
-                     "build-pieces/misc/migrate-nx-to-turbo",
-                     "build-pieces/misc/migrate-pieces-to-bundles",
-                     "build-pieces/misc/private-fork",
-                     "build-pieces/misc/testing-pieces",
-                     "build-pieces/misc/dev-container",
-                     "build-pieces/misc/codespaces"
+                     "build-integrations/misc/build-integration",
+                     "build-integrations/misc/bundling-integrations",
+                     "build-integrations/misc/publish-integration",
+                     "build-integrations/misc/integrations-ci-cd",
+                     "build-integrations/misc/migrate-nx-to-turbo",
+                     "build-integrations/misc/migrate-integrations-to-bundles",
+                     "build-integrations/misc/private-fork",
+                     "build-integrations/misc/testing-integrations",
+                     "build-integrations/misc/dev-container",
+                     "build-integrations/misc/codespaces"
                   ]
                }
             ]
@@ -485,11 +485,11 @@
                         ]
                      },
                      {
-                        "group": "Pieces",
+                        "group": "Integrations",
                         "icon": "plug",
                         "pages": [
-                           "endpoints/pieces/schema",
-                           "endpoints/pieces/install"
+                           "endpoints/integrations/schema",
+                           "endpoints/integrations/install"
                         ]
                      },
                      {
@@ -648,7 +648,7 @@
    "logo": {
       "light": "./resources/logo/light.svg",
       "dark": "./resources/logo/dark.svg",
-      "href": "https://www.activepieces.com"
+      "href": "https://www.inboxfm-connect.com"
    },
    "api": {
       "openapi": [
@@ -657,9 +657,9 @@
    },
    "footer": {
       "socials": {
-         "x": "https://x.com/activepieces",
-         "github": "https://github.com/activepieces/activepieces",
-         "linkedin": "https://linkedin.com/company/activepieces"
+         "x": "https://x.com/inboxfm-connect",
+         "github": "https://github.com/inboxfm-connect/inboxfm-connect",
+         "linkedin": "https://linkedin.com/company/inboxfm-connect"
       }
    }
 }

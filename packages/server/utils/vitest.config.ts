@@ -6,11 +6,11 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     pool: 'forks',
-    include: [path.resolve(__dirname, 'test/**/*.test.ts')],
+    include: [path.resolve(__dirname, 'test/**/*.test.ts').replaceAll('\\', '/')],
   },
   resolve: {
     alias: {
-      '@activepieces/shared': path.resolve(__dirname, '../../../packages/core/shared/src/index.ts'),
+      '@inboxfm-connect/shared': path.resolve(__dirname, '../../../packages/core/shared/src/index.ts'),
     },
   },
 })

@@ -22,7 +22,7 @@ declare module 'expr-eval' {
 }
 
 // Parser is a module-private singleton — exposing it would let any consumer
-// of @activepieces/shared mutate `parser.functions.X` and break formula
+// of @inboxfm-connect/shared mutate `parser.functions.X` and break formula
 // evaluation process-wide. Use `evaluateRaw` instead.
 const parser = new Parser()
 
@@ -455,3 +455,4 @@ export const MONTH_NAMES = [
 ]
 
 export const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+

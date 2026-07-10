@@ -1,10 +1,10 @@
-import { ApId, BaseModelSchema, DateOrString, Nullable } from '@activepieces/core-utils'
+import { ApId, BaseModelSchema, DateOrString, Nullable } from '@inboxfm-connect/core-utils'
 import * as z from 'zod/mini'
 import { PackageType, PieceType } from './piece'
 import { TriggerStrategy } from './trigger'
 
-// Contracts that the execution layer (@activepieces/core-execution) and the engine
-// need from @activepieces/shared. Hosted here (the piece-types contract package) so
+// Contracts that the execution layer (@inboxfm-connect/core-execution) and the engine
+// need from @inboxfm-connect/shared. Hosted here (the piece-types contract package) so
 // the engine can name them without importing shared. See SRE-163.
 
 // ── store-entry ────────────────────────────────────────────────────────────
@@ -155,3 +155,4 @@ export const UserWithMetaInformation = z.object({
     imageUrl: Nullable(z.string()),
 })
 export type UserWithMetaInformation = z.infer<typeof UserWithMetaInformation>
+

@@ -1,4 +1,4 @@
-import { formulaEvaluator } from '@activepieces/core-formula'
+import { formulaEvaluator } from '@inboxfm-connect/core-formula'
 import { describe, expect, it } from 'vitest'
 
 /**
@@ -100,3 +100,4 @@ describe('variable interpolation round-trip', () => {
         expect(result).toBe('A-B')
     })
 })
+

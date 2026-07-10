@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { FolderOperation, FolderOperationType, FolderState, ProjectState } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { FolderOperation, FolderOperationType, FolderState, ProjectState } from '@inboxfm-connect/shared'
 import deepEqual from 'deep-equal'
 
 export const folderDiffService = {

@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises'
-import { ActivepiecesError, ErrorCode, isNil } from '@activepieces/core-utils'
-import { ApEdition, ApEnvironment, PlatformWithoutFederatedAuth } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil } from '@inboxfm-connect/core-utils'
+import { ApEdition, ApEnvironment, PlatformWithoutFederatedAuth } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import Mustache from 'mustache'
 import nodemailer, { Transporter } from 'nodemailer'

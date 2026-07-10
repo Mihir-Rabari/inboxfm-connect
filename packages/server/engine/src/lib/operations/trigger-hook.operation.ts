@@ -1,6 +1,6 @@
 import { inspect } from 'util'
-import { formatPieceError } from '@activepieces/core-utils'
-import { EngineResponse, EngineResponseStatus, ExecuteTriggerOperation, ExecuteTriggerResponse, TriggerHookType } from '@activepieces/shared'
+import { formatPieceError } from '@inboxfm-connect/core-utils'
+import { EngineResponse, EngineResponseStatus, ExecuteTriggerOperation, ExecuteTriggerResponse, TriggerHookType } from '@inboxfm-connect/shared'
 import { EngineConstants, ResolvedExecuteTriggerOperation } from '../handler/context/engine-constants'
 import { triggerHelper } from '../helper/trigger-helper'
 import { utils } from '../utils'

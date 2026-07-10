@@ -1,4 +1,4 @@
-import { ConnectionKey, Project } from '@activepieces/shared'
+import { ConnectionKey, Project } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import {
     ApIdSchema,

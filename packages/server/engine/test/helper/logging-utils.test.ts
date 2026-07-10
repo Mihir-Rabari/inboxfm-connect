@@ -2,7 +2,7 @@ import {
     FlowActionType,
     GenericStepOutput,
     StepOutputStatus,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { loggingUtils } from '../../src/lib/helper/logging-utils'
 
 describe('loggingUtils.maybeTruncateInput', () => {

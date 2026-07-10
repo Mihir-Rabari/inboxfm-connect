@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Nullable } from '@activepieces/core-utils'
+import { Nullable } from '@inboxfm-connect/core-utils'
 export enum NoteColorVariant {
     ORANGE = 'orange',
     RED = 'red',
@@ -25,3 +25,4 @@ export const Note = z.object({
     updatedAt: z.string(),
 })
 export type Note = z.infer<typeof Note>
+

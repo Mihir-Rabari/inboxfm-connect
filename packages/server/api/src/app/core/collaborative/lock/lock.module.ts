@@ -1,4 +1,4 @@
-import { LockResourceRequest, PrincipalType, WebsocketClientEvent, WebsocketServerEvent } from '@activepieces/shared'
+import { LockResourceRequest, PrincipalType, WebsocketClientEvent, WebsocketServerEvent } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { userService } from '../../../user/user-service'

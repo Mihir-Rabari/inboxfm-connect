@@ -1,4 +1,4 @@
-import { StepOutputType } from '@activepieces/shared'
+import { StepOutputType } from '@inboxfm-connect/shared'
 import { utils } from '../utils'
 
 function recursiveSizeof(value: unknown): number {

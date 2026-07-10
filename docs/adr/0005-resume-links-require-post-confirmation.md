@@ -8,7 +8,7 @@ accepted
 
 Paused flows resume via an unauthenticated, single-use HTTP endpoint whose only
 access control is an unguessable `flowRunId` + `waitpointId`
-(`/api/v1/flow-runs/:id/waitpoints/:waitpointId`). The approval pieces embedded
+(`/api/v1/flow-runs/:id/waitpoints/:waitpointId`). The approval integrations embedded
 two bare `GET` links in an email (`?action=approve` / `?action=disapprove`).
 
 The first resume signal deletes the waitpoint and resumes; any later signal is
@@ -50,7 +50,7 @@ untouched:
   page (`${waitpoint.resumeUrl}/confirm`), replacing the two bare links, across
   every channel whose buttons are **browser `url:` links** — email (Gmail,
   Outlook), Telegram, Discord, and Microsoft Teams. Channel-specific context the
-  resumed piece needs (e.g. Telegram's `chat_id`, Slack's `channel`/`messageTs`)
+  resumed integration needs (e.g. Telegram's `chat_id`, Slack's `channel`/`messageTs`)
   is appended to the `/confirm` URL and preserved through to the resuming `POST`.
   **Slack is intentionally excluded:** its buttons are interactive Slack
   components (`action_id`/`value`) that resume via a **server-side `POST`** from
@@ -77,6 +77,6 @@ and is deliberately out of scope. The person who clicks still sees their specifi
 Approved/Disapproved result on the immediate `POST` response.
 
 The `/confirm` route recognizes the `approve`/`disapprove` query-param convention
-shared with the approval pieces (to render the two buttons); a future reader will
+shared with the approval integrations (to render the two buttons); a future reader will
 otherwise wonder why a generic waitpoint route knows those labels — the coupling
 is deliberate and minimal.

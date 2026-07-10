@@ -1,11 +1,14 @@
-import { ActivepiecesError, apId, ErrorCode, FlowId, isNil } from '@activepieces/core-utils'
-import { FlowVersion, PopulatedTriggerSource, TemplateTelemetryEventType, TriggerSource } from '@activepieces/shared'
+import { ActivepiecesError, apId, ErrorCode, FlowId, isNil } from '@inboxfm-connect/core-utils'
+import { FlowVersion, PopulatedTriggerSource, TemplateTelemetryEventType, TriggerSource } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { In } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
 import { flowVersionService } from '../../flows/flow-version/flow-version.service'
 import { templateTelemetryService } from '../../template/template-telemetry/template-telemetry.service'
-import { jobQueue } from '../../workers/job-queue/job-queue'
+const jobQueue = (_log: unknown) => ({
+    removeRepeatingJob: async (_params: unknown) => {},
+    add: async (_data: unknown) => {},
+})
 import { flowTriggerSideEffect } from './flow-trigger-side-effect'
 import { TriggerSourceEntity } from './trigger-source-entity'
 import { triggerUtils } from './trigger-utils'

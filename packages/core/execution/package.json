@@ -1,6 +1,6 @@
 {
-  "name": "@activepieces/core-execution",
-  "version": "0.8.0",
+  "name": "@inboxfm-connect/core-execution",
+  "version": "0.8.1",
   "type": "commonjs",
   "main": "./dist/src/index.js",
   "scripts": {
@@ -9,8 +9,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@activepieces/core-utils": "workspace:*",
-    "@activepieces/core-piece-types": "workspace:*",
+    "@inboxfm-connect/core-utils": "workspace:*",
+    "@inboxfm-connect/core-piece-types": "workspace:*",
     "dayjs": "1.11.9",
     "semver": "7.6.0",
     "socket.io-client": "4.8.1",
@@ -25,3 +25,4 @@
   },
   "typings": "./dist/src/index.d.ts"
 }
+

@@ -1,5 +1,5 @@
-import { PopulatedFlow } from '@activepieces/core-execution'
-import { Nullable, NullableEnum } from '@activepieces/core-utils'
+import { PopulatedFlow } from '@inboxfm-connect/core-execution'
+import { Nullable, NullableEnum } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { TableAutomationStatus, TableAutomationTrigger } from '../tables/table'
 
@@ -187,4 +187,5 @@ export const ProjectSyncPlan = z.object({
     errors: z.array(FlowSyncError),
 })
 export type ProjectSyncPlan = z.infer<typeof ProjectSyncPlan>
+
 

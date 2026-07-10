@@ -1,5 +1,5 @@
-import { unique } from '@activepieces/core-utils'
-import { AddAllowedEmbedOriginsRequestBody, AddAllowedEmbedOriginsResponse, EmbedSubdomain, GenerateEmbedSubdomainRequest, PrincipalType, SERVICE_KEY_SECURITY_OPENAPI } from '@activepieces/shared'
+import { unique } from '@inboxfm-connect/core-utils'
+import { AddAllowedEmbedOriginsRequestBody, AddAllowedEmbedOriginsResponse, EmbedSubdomain, GenerateEmbedSubdomainRequest, PrincipalType, SERVICE_KEY_SECURITY_OPENAPI } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { securityAccess } from '../../core/security/authorization/fastify-security'

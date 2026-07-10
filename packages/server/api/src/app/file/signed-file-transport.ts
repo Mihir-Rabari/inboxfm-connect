@@ -1,5 +1,5 @@
-import { assertNotNullOrUndefined, isNil } from '@activepieces/core-utils'
-import { File, FileLocation, FileType } from '@activepieces/shared'
+import { assertNotNullOrUndefined, isNil } from '@inboxfm-connect/core-utils'
+import { File, FileLocation, FileType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyReply } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { system } from '../helper/system/system'

@@ -1,4 +1,4 @@
-import { ApId, BaseModelSchema } from '@activepieces/core-utils'
+import { ApId, BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { OtpType } from './otp-type'
 
@@ -18,3 +18,4 @@ export const OtpModel = z.object({
 })
 
 export type OtpModel = z.infer<typeof OtpModel>
+

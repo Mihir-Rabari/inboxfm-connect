@@ -1,9 +1,9 @@
-import { FlowId, FlowVersionId, isNil, ProjectId } from '@activepieces/core-utils'
-import { EngineResponse, EngineResponseStatus, ExecuteTriggerResponse, TriggerHookType, TriggerPayload, TriggerSource, WebhookHandshakeConfiguration, WebhookHandshakeStrategy, WorkerJobType } from '@activepieces/shared'
+import { FlowId, FlowVersionId, isNil, ProjectId } from '@inboxfm-connect/core-utils'
+import { EngineResponse, EngineResponseStatus, ExecuteTriggerResponse, TriggerHookType, TriggerPayload, TriggerSource, WebhookHandshakeConfiguration, WebhookHandshakeStrategy, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { projectService } from '../project/project-service'
 import { triggerUtils } from '../trigger/trigger-source/trigger-utils'
-import { userInteractionWatcher } from '../workers/user-interaction-watcher'
+import { userInteractionWatcher } from '../helper/user-interaction/user-interaction-watcher'
 
 export const webhookHandshake = {
     async handleHandshakeRequest(params: HandleHandshakeRequestParams): Promise<WebhookHandshakeResponse | null> {

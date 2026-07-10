@@ -1,4 +1,4 @@
-import { ApiKey, Platform } from '@activepieces/shared'
+import { ApiKey, Platform } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import {
     ApIdSchema,

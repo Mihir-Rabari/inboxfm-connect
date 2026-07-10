@@ -1,4 +1,4 @@
-import { BaseModelSchema, Nullable, NullableEnum, ProjectRole } from '@activepieces/core-utils'
+import { BaseModelSchema, Nullable, NullableEnum, ProjectRole } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { PlatformRole } from '../../core/user/index'
 
@@ -64,3 +64,4 @@ export const ListUserInvitationsRequest = z.object({
 })
 
 export type ListUserInvitationsRequest = z.infer<typeof ListUserInvitationsRequest>
+

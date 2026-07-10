@@ -1,6 +1,7 @@
 import { inspect } from 'util'
-import { formatPieceError, tryCatch } from '@activepieces/core-utils'
-import { EngineOperation, EngineOperationType, EngineResponse, EngineResponseStatus, ExecuteExtractPieceMetadataOperation, ExecuteFlowOperation, ExecutePropsOptions, ExecuteRefreshTokenAuthOperation, ExecuteTriggerOperation, ExecuteValidateAuthOperation, ExecutionError, ExecutionErrorType, TriggerHookType } from '@activepieces/shared'
+import { formatPieceError, tryCatch } from '@inboxfm-connect/core-utils'
+import { EngineOperation, EngineOperationType, EngineResponse, EngineResponseStatus, ExecuteExtractPieceMetadataOperation, ExecuteFlowOperation, ExecutePropsOptions, ExecuteRefreshTokenAuthOperation, ExecuteToolOperation, ExecuteTriggerOperation, ExecuteValidateAuthOperation, ExecutionError, ExecutionErrorType, TriggerHookType } from '@inboxfm-connect/shared'
+import { pieceHelper } from '../helper/piece-helper'
 import { authRefreshOperation } from './auth-refresh.operation'
 import { authValidationOperation } from './auth-validation.operation'
 import { flowOperation } from './flow.operation'
@@ -29,6 +30,12 @@ export async function execute(operationType: EngineOperationType, operation: Eng
             }
             case EngineOperationType.EXECUTE_REFRESH_TOKEN_AUTH: {
                 return authRefreshOperation.execute(operation as ExecuteRefreshTokenAuthOperation)
+            }
+            case EngineOperationType.EXECUTE_TOOL: {
+                return pieceHelper.executeTool({
+                    params: operation as ExecuteToolOperation,
+                    devPieces: EngineConstants.DEV_PIECES,
+                })
             }
             default: {
                 throw new ExecutionError('Unsupported operation type', `Unsupported operation type: ${operationType}`, ExecutionErrorType.ENGINE)

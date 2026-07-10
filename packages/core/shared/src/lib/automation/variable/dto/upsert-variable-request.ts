@@ -1,4 +1,4 @@
-import { Metadata } from '@activepieces/core-utils'
+import { Metadata } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { VARIABLE_NAME_REGEX } from '../variable'
 
@@ -15,3 +15,4 @@ export const UpdateVariableRequestBody = z.object({
     metadata: z.optional(Metadata),
 })
 export type UpdateVariableRequestBody = z.infer<typeof UpdateVariableRequestBody>
+

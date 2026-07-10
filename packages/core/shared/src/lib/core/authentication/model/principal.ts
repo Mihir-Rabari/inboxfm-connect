@@ -1,4 +1,4 @@
-import type { ApId, PlatformId, ProjectId } from '@activepieces/core-utils'
+import type { ApId, PlatformId, ProjectId } from '@inboxfm-connect/core-utils'
 import { PrincipalType } from './principal-type'
 
 export type WorkerPrincipal = {
@@ -55,3 +55,4 @@ export type Principal =
     | UserPrincipal
     | EnginePrincipal
     | OnboardingPrincipal
+

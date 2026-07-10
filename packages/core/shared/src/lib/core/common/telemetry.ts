@@ -1,5 +1,5 @@
-import type { RunEnvironment } from '@activepieces/core-execution'
-import type { FlowId, ProjectId, UserId } from '@activepieces/core-utils'
+import type { RunEnvironment } from '@inboxfm-connect/core-execution'
+import type { FlowId, ProjectId, UserId } from '@inboxfm-connect/core-utils'
 import type { McpId } from '../../automation/mcp/mcp'
 
 type FlowCreated = {
@@ -305,3 +305,4 @@ export type TelemetryEvent =
   >
   | BaseTelemetryEvent<TelemetryEventName.SIGNED_IN, SignedIn>
   | BaseTelemetryEvent<TelemetryEventName.CHAT_PAGE_VIEWED, Record<string, never>>
+

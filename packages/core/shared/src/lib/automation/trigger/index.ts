@@ -1,4 +1,4 @@
-import { BaseModelSchema, Nullable } from '@activepieces/core-utils'
+import { BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export enum TriggerStrategy {
@@ -48,3 +48,4 @@ export const TriggerSource = z.object({
 })
 
 export type TriggerSource = z.infer<typeof TriggerSource>
+

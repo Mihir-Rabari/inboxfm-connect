@@ -1,4 +1,4 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { formErrors } from '../../form-errors'
 
@@ -79,3 +79,4 @@ export const GetEnabledAiToolsResponse = z.object({
     imageGeneration: ResolvedAiTool.optional(),
 })
 export type GetEnabledAiToolsResponse = z.infer<typeof GetEnabledAiToolsResponse>
+

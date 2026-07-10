@@ -1,4 +1,4 @@
-import { ApEdition, ExecutionType, JOB_PRIORITY, PlanName, RATE_LIMIT_PRIORITY, RunEnvironment, StreamStepProgress, WorkerJobType } from '@activepieces/shared'
+import { ApEdition, ExecutionType, JOB_PRIORITY, PlanName, RATE_LIMIT_PRIORITY, RunEnvironment, StreamStepProgress, WorkerJobType } from '@inboxfm-connect/shared'
 import { Job } from 'bullmq'
 import { FastifyBaseLogger } from 'fastify'
 import { Redis } from 'ioredis'

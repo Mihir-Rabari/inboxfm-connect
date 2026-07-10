@@ -1,5 +1,5 @@
-import { ssrfIpClassifier } from '@activepieces/core-utils'
-import { NetworkMode } from '@activepieces/shared'
+import { ssrfIpClassifier } from '@inboxfm-connect/core-utils'
+import { NetworkMode } from '@inboxfm-connect/shared'
 import { installDnsLookupGuard } from './dns-lookup-guard'
 import { installSocketConnectGuard } from './socket-connect-guard'
 

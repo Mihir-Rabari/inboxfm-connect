@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { ApEdition, ApFlagId, PrincipalType, ThirdPartyAuthnProviderEnum } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { ApEdition, ApFlagId, PrincipalType, ThirdPartyAuthnProviderEnum } from '@inboxfm-connect/shared'
 import { FlagsServiceHooks } from '../../flags/flags.hooks'
 import { domainHelper } from '../../helper/domain-helper'
 import { system } from '../../helper/system/system'

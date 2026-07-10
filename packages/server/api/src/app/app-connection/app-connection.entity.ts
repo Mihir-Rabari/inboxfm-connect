@@ -3,19 +3,19 @@ import {
     AppConnectionStatus,
     User,
     UserIdentity,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import {
     BaseColumnSchemaPart,
 } from '../database/database-common'
 import { EncryptedObject } from '../helper/encryption'
 
-export type AppConnectionSchema = Omit<AppConnection, 'value'> & {
+export type ConnectionSchema = Omit<AppConnection, 'value'> & {
     value: EncryptedObject
     owner?: (User & { identity?: UserIdentity })
 }
 
-export const AppConnectionEntity = new EntitySchema<AppConnectionSchema>({
+export const ConnectionEntity = new EntitySchema<ConnectionSchema>({
     name: 'app_connection',
     columns: {
         ...BaseColumnSchemaPart,
@@ -95,3 +95,6 @@ export const AppConnectionEntity = new EntitySchema<AppConnectionSchema>({
         },
     },
 })
+
+export type AppConnectionSchema = ConnectionSchema
+export const AppConnectionEntity = ConnectionEntity

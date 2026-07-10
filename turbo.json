@@ -35,19 +35,6 @@
       ],
       "cache": false
     },
-    "web#build": {
-      "dependsOn": ["^build"],
-      "outputs": ["../../dist/packages/web/**"],
-      "cache": false,
-      "inputs": [
-        "src/**",
-        "tsconfig*.json",
-        "package.json",
-        "vite.config.*",
-        "!src/**/*.spec.ts",
-        "!src/**/*.test.ts"
-      ]
-    },
     "api#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],
@@ -60,7 +47,7 @@
         "!src/**/*.test.ts"
       ]
     },
-    "@activepieces/engine#build": {
+    "@inboxfm-connect/engine#build": {
       "dependsOn": [],
       "outputs": ["../../../dist/packages/engine/**"],
       "cache": false,
@@ -85,17 +72,17 @@
       "cache": false
     },
     "bundle": {
-      "dependsOn": ["build", "@activepieces/cli#build"],
+      "dependsOn": ["build", "@inboxfm-connect/cli#build"],
       "inputs": ["src/**", "package.json"],
       "outputs": ["dist/index.bundle.js", "dist/package.json"]
     },
-    "@activepieces/engine#test": {
+    "@inboxfm-connect/engine#test": {
       "dependsOn": [
         "build",
-        "@activepieces/piece-http#build",
-        "@activepieces/piece-data-mapper#build",
-        "@activepieces/piece-approval#build",
-        "@activepieces/piece-webhook#build"
+        "@inboxfm-connect/piece-http#build",
+        "@inboxfm-connect/piece-data-mapper#build",
+        "@inboxfm-connect/piece-approval#build",
+        "@inboxfm-connect/piece-webhook#build"
       ],
       "inputs": ["src/**", "test/**", "tsconfig*.json", "vitest.config.*"],
       "outputs": ["coverage/**"]

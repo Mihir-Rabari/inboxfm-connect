@@ -1,4 +1,4 @@
-// @activepieces/core-execution — the execution layer extracted from @activepieces/shared
+// @inboxfm-connect/core-execution — the execution layer extracted from @inboxfm-connect/shared
 // (flows, flow-run, engine operations, agents, workers). See SRE-163.
 
 export * from './lib/flows/actions/action'
@@ -34,4 +34,5 @@ export * from './lib/workers/job-data'
 export * from './lib/workers/worker-contract'
 export * from './lib/workers'
 export * from './lib/agents'
+
 

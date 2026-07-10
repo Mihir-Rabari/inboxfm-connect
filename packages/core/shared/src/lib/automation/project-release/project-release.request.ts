@@ -1,4 +1,4 @@
-import { Nullable } from '@activepieces/core-utils'
+import { Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export enum ProjectReleaseType {
@@ -67,3 +67,4 @@ export const ListProjectReleasesRequest = z.object({
 })
 
 export type ListProjectReleasesRequest = z.infer<typeof ListProjectReleasesRequest>
+

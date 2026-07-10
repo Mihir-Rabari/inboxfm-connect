@@ -1,12 +1,12 @@
-import { isNil } from '@activepieces/core-utils'
-import { AgentPieceProps, FlowActionType, flowStructureUtil, FlowVersion } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { AgentPieceProps, FlowActionType, flowStructureUtil, FlowVersion } from '@inboxfm-connect/shared'
 import { Migration } from '.'
 
 export const migrateV20GoogleModelPrefix: Migration = {
     targetSchemaVersion: '20',
     migrate: async (flowVersion: FlowVersion): Promise<FlowVersion> => {
         const newVersion = flowStructureUtil.transferFlow(flowVersion, (step) => {
-            if (step.type !== FlowActionType.PIECE || step.settings.pieceName !== '@activepieces/piece-ai') {
+            if (step.type !== FlowActionType.PIECE || step.settings.pieceName !== '@inboxfm-connect/piece-ai') {
                 return step
             }
 

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Metadata } from '@activepieces/core-utils'
+import { Metadata } from '@inboxfm-connect/core-utils'
 
 export const CreateFlowRequest = z.object({
     displayName: z.string(),
@@ -12,3 +12,4 @@ export const CreateFlowRequest = z.object({
 })
 
 export type CreateFlowRequest = z.infer<typeof CreateFlowRequest>
+

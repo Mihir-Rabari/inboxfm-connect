@@ -1,4 +1,4 @@
-import { OtpType } from '@activepieces/shared'
+import { OtpType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { Mock } from 'vitest'

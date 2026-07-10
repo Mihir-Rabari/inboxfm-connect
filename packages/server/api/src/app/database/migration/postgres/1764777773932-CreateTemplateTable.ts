@@ -1,5 +1,5 @@
-import { apId, isNil } from '@activepieces/core-utils'
-import { FlowVersion } from '@activepieces/shared'
+import { apId, isNil } from '@inboxfm-connect/core-utils'
+import { FlowVersion } from '@inboxfm-connect/shared'
 import { MigrationInterface, QueryRunner } from 'typeorm'
 import { z } from 'zod'
 import { system } from '../../../helper/system/system'

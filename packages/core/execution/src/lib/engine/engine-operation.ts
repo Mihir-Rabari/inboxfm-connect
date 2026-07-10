@@ -1,12 +1,12 @@
-import { FlowRunId, PlatformId, ProjectId } from '@activepieces/core-utils'
+import { FlowRunId, PlatformId, ProjectId } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { ExecutionToolStatus, PredefinedInputsStructure } from '../agents'
-import { AppConnectionValue } from '@activepieces/core-piece-types'
+import { AppConnectionValue } from '@inboxfm-connect/core-piece-types'
 import { ExecutionType } from '../flow-run/execution/execution-output'
 import { RunEnvironment } from '../flow-run/flow-run'
 import { FlowVersion } from '../flows/flow-version'
-import { PiecePackage } from '@activepieces/core-piece-types'
-import { ScheduleOptions } from '@activepieces/core-piece-types'
+import { PiecePackage } from '@inboxfm-connect/core-piece-types'
+import { ScheduleOptions } from '@inboxfm-connect/core-piece-types'
 import { JobPayload } from '../workers/job-data'
 
 export enum EngineOperationType {
@@ -16,6 +16,7 @@ export enum EngineOperationType {
     EXECUTE_TRIGGER_HOOK = 'EXECUTE_TRIGGER_HOOK',
     EXECUTE_VALIDATE_AUTH = 'EXECUTE_VALIDATE_AUTH',
     EXECUTE_REFRESH_TOKEN_AUTH = 'EXECUTE_REFRESH_TOKEN_AUTH',
+    EXECUTE_TOOL = 'EXECUTE_TOOL',
 }
 
 export enum TriggerHookType {
@@ -75,11 +76,11 @@ export type ExecuteExtractPieceMetadata = PiecePackage & { platformId: PlatformI
 export type ExecuteExtractPieceMetadataOperation = ExecuteExtractPieceMetadata & { timeoutInSeconds: number, platformId: PlatformId }
 
 export type ExecuteToolOperation = BaseEngineOperation & {
-    actionName: string
     pieceName: string
     pieceVersion: string
-    predefinedInput?: PredefinedInputsStructure
-    instruction: string
+    actionName: string
+    input: Record<string, unknown>
+    auth?: AppConnectionValue
 }
 
 export type ExecutePropsOptions = BaseEngineOperation & {
@@ -305,3 +306,25 @@ export enum EngineResponseStatus {
     MEMORY_ISSUE = 'MEMORY_ISSUE',
     LOG_SIZE_EXCEEDED = 'LOG_SIZE_EXCEEDED',
 }
+
+// Runtime rebranded aliases
+export type RuntimeOperationType = EngineOperationType
+export const RuntimeOperationType = EngineOperationType
+
+export type RuntimeResponse<T = unknown> = EngineResponse<T>
+export type RuntimeResponseStatus = EngineResponseStatus
+export const RuntimeResponseStatus = EngineResponseStatus
+
+export type RuntimeOperation = EngineOperation
+export type BaseRuntimeOperation = BaseEngineOperation
+
+export const RuntimeStdout = EngineStdout
+export type RuntimeStdout = EngineStdout
+
+export const RuntimeStderr = EngineStderr
+export type RuntimeStderr = EngineStderr
+
+export const RuntimeHttpResponse = EngineHttpResponse
+export type RuntimeHttpResponse = EngineHttpResponse
+
+

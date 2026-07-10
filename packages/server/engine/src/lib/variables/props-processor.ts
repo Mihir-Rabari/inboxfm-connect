@@ -1,6 +1,6 @@
-import { isNil, isObject } from '@activepieces/core-utils'
-import { getAuthPropertyForValue, InputPropertyMap, PieceAuthProperty, PieceProperty, PiecePropertyMap, PropertyType, StaticPropsValue } from '@activepieces/pieces-framework'
-import { AppConnectionValue, AUTHENTICATION_PROPERTY_NAME, PropertySettings } from '@activepieces/shared'
+import { isNil, isObject } from '@inboxfm-connect/core-utils'
+import { getAuthPropertyForValue, InputPropertyMap, PieceAuthProperty, PieceProperty, PiecePropertyMap, PropertyType, StaticPropsValue } from '@inboxfm-connect/pieces-framework'
+import { AppConnectionValue, AUTHENTICATION_PROPERTY_NAME, PropertySettings } from '@inboxfm-connect/shared'
 import { processors } from './processors'
 import { arrayZipperProcessor } from './processors/array-zipper'
 
@@ -149,13 +149,13 @@ const validateProperty = (property: PieceProperty, value: unknown, originalValue
     }
 }
 
-function getAuthPropsToProcess(authValue: AppConnectionValue, auth: PieceAuthProperty | PieceAuthProperty[] | undefined): | null {
+function getAuthPropsToProcess(authValue: AppConnectionValue, auth: PieceAuthProperty | PieceAuthProperty[] | undefined): InputPropertyMap | null {
     if (isNil(auth)) {
         return null
     }
     const usedAuthProperty = getAuthPropertyForValue({
         authValueType: authValue.type,
-        pieceAuth: auth,
+        integrationAuth: auth,
     })
     const doesAuthHaveProps = usedAuthProperty?.type === PropertyType.CUSTOM_AUTH || usedAuthProperty?.type === PropertyType.OAUTH2 || usedAuthProperty?.type === PropertyType.OIDC
     if (doesAuthHaveProps && !isNil(usedAuthProperty?.props)) {

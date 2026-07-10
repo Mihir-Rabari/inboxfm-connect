@@ -1,5 +1,5 @@
-import { Cursor, isNil, SeekPage } from '@activepieces/core-utils'
-import { ApplicationEvent } from '@activepieces/shared'
+import { Cursor, isNil, SeekPage } from '@inboxfm-connect/core-utils'
+import { ApplicationEvent } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { In } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'

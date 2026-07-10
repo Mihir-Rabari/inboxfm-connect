@@ -1,6 +1,6 @@
 import { readFile, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { fileSystemUtils } from '@activepieces/server-utils'
+import { fileSystemUtils } from '@inboxfm-connect/server-utils'
 
 const COMPILED_CODE_FILENAME = 'index.js'
 

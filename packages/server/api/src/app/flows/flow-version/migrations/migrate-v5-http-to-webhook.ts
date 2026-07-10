@@ -1,9 +1,9 @@
-import { FlowActionType, flowStructureUtil, FlowVersion, PropertyExecutionType } from '@activepieces/shared'
+import { FlowActionType, flowStructureUtil, FlowVersion, PropertyExecutionType } from '@inboxfm-connect/shared'
 import semver from 'semver'
 import { Migration } from '.'
 
-const HTTP_PIECE_NAME = '@activepieces/piece-http'
-const WEBHOOK_PIECE_NAME = '@activepieces/piece-webhook'
+const HTTP_PIECE_NAME = '@inboxfm-connect/piece-http'
+const WEBHOOK_PIECE_NAME = '@inboxfm-connect/piece-webhook'
 const HTTP_RETURN_RESPONSE_ACTION = 'return_response'
 const WEBHOOK_RETURN_RESPONSE_ACTION = 'return_response'
 

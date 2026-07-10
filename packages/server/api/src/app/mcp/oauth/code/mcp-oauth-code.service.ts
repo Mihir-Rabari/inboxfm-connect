@@ -1,6 +1,6 @@
 import { randomBytes } from 'crypto'
-import { apId } from '@activepieces/core-utils'
-import { McpOAuthAuthorizationCode } from '@activepieces/shared'
+import { apId } from '@inboxfm-connect/core-utils'
+import { McpOAuthAuthorizationCode } from '@inboxfm-connect/shared'
 import { repoFactory } from '../../../core/db/repo-factory'
 import { McpOAuthAuthorizationCodeEntity } from './mcp-oauth-code.entity'
 

@@ -15,8 +15,8 @@ function createTriggerTemplate(displayName: string, description: string, techniq
     let triggerTemplate = ''
     if (technique === 'polling') {
         triggerTemplate = `
-import { createTrigger, TriggerStrategy, AppConnectionValueForAuthProperty  } from '@activepieces/pieces-framework';
-import { DedupeStrategy, Polling, pollingHelper } from '@activepieces/pieces-common';
+import { createTrigger, TriggerStrategy, AppConnectionValueForAuthProperty  } from '@inboxfm-connect/pieces-framework';
+import { DedupeStrategy, Polling, pollingHelper } from '@inboxfm-connect/pieces-common';
 import dayjs from 'dayjs';
 
 // replace auth with piece auth variable
@@ -60,7 +60,7 @@ async run(context) {
     }
     else {
         triggerTemplate = `
-import { createTrigger, TriggerStrategy } from '@activepieces/pieces-framework';
+import { createTrigger, TriggerStrategy } from '@inboxfm-connect/pieces-framework';
 export const ${camelCase} = createTrigger({
     // auth: check https://www.activepieces.com/docs/developers/piece-reference/authentication,
     name: '${camelCase}',
@@ -139,3 +139,4 @@ export const createTriggerCommand = new Command('create')
         const answers = await inquirer.prompt(questions);
         createTrigger(answers.pieceName, answers.triggerName, answers.triggerDescription, answers.triggerTechnique);
     });
+

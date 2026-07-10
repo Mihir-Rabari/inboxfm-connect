@@ -1,4 +1,4 @@
-import { BaseModelSchema, DateOrString, Nullable } from "@activepieces/core-utils";
+import { BaseModelSchema, DateOrString, Nullable } from "@inboxfm-connect/core-utils";
 import * as z from "zod/mini";
 
 export enum FlowStatus {
@@ -51,3 +51,4 @@ export type PopulatedFlow = {
         }
     }
 }
+

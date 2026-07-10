@@ -1,4 +1,4 @@
-import { Metadata, Nullable, OptionalArrayFromQuery, SAFE_STRING_PATTERN } from '@activepieces/core-utils'
+import { Metadata, Nullable, OptionalArrayFromQuery, SAFE_STRING_PATTERN } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { PiecesFilterType, ProjectIcon, ProjectType } from './project'
 
@@ -40,3 +40,4 @@ export const ListProjectRequestForPlatformQueryParams = z.object({
 })
 
 export type ListProjectRequestForPlatformQueryParams = z.infer<typeof ListProjectRequestForPlatformQueryParams>
+

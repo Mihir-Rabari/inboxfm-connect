@@ -1,4 +1,4 @@
-import { ApEdition } from '@activepieces/shared'
+import { ApEdition } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { system } from '../../../../src/app/helper/system/system'

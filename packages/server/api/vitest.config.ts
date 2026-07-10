@@ -12,16 +12,16 @@ export default defineConfig({
     testTimeout: 60000,
     hookTimeout: 60000,
     pool: 'forks',
-    setupFiles: [path.resolve(__dirname, 'vitest.setup.ts')],
-    include: [path.resolve(__dirname, 'test/**/*.test.ts')],
+    setupFiles: [path.resolve(__dirname, 'vitest.setup.ts').replaceAll('\\', '/')],
+    include: [path.resolve(__dirname, 'test/**/*.test.ts').replaceAll('\\', '/')],
   },
   resolve: {
     alias: {
       'isolated-vm': path.resolve(__dirname, '__mocks__/isolated-vm.js'),
-      '@activepieces/shared': path.resolve(__dirname, '../../../packages/core/shared/src/index.ts'),
-      '@activepieces/pieces-framework': path.resolve(__dirname, '../../../packages/pieces/framework/src/index.ts'),
-      '@activepieces/pieces-common': path.resolve(__dirname, '../../../packages/pieces/common/src/index.ts'),
-      '@activepieces/server-utils': path.resolve(__dirname, '../../../packages/server/utils/src/index.ts'),
+      '@inboxfm-connect/shared': path.resolve(__dirname, '../../../packages/core/shared/src/index.ts'),
+      '@inboxfm-connect/pieces-framework': path.resolve(__dirname, '../../../packages/integrations/framework/src/index.ts'),
+      '@inboxfm-connect/pieces-common': path.resolve(__dirname, '../../../packages/integrations/common/src/index.ts'),
+      '@inboxfm-connect/server-utils': path.resolve(__dirname, '../../../packages/server/utils/src/index.ts'),
 
     },
   },

@@ -1,5 +1,5 @@
-import { apId } from '@activepieces/core-utils'
-import { FlowActionType, FlowCreatorType, FlowRunStatus, McpServerType, PackageType, PieceType, ProjectScopedMcpServer, RunEnvironment, StepLocationRelativeToParent } from '@activepieces/shared'
+import { apId } from '@inboxfm-connect/core-utils'
+import { FlowActionType, FlowCreatorType, FlowRunStatus, McpServerType, PackageType, PieceType, ProjectScopedMcpServer, RunEnvironment, StepLocationRelativeToParent } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
@@ -43,7 +43,7 @@ beforeAll(async () => {
     // Save a shared piece needed by PIECE-step tests. No platformId = OFFICIAL (visible to all platforms).
     // In test environment the piece cache is bypassed, so DB records are read directly.
     const gmailPiece = createMockPieceMetadata({
-        name: '@activepieces/piece-test-email',
+        name: '@inboxfm-connect/piece-test-email',
         displayName: 'Test Email',
         version: '0.1.0',
         pieceType: PieceType.OFFICIAL,
@@ -85,7 +85,7 @@ beforeAll(async () => {
     await db.save('piece_metadata', gmailPiece)
 
     const arrayPiece = createMockPieceMetadata({
-        name: '@activepieces/piece-test-array',
+        name: '@inboxfm-connect/piece-test-array',
         displayName: 'Test Array',
         version: '0.1.0',
         pieceType: PieceType.OFFICIAL,
@@ -115,7 +115,7 @@ beforeAll(async () => {
     await db.save('piece_metadata', arrayPiece)
 
     const dynamicPiece = createMockPieceMetadata({
-        name: '@activepieces/piece-test-dynamic',
+        name: '@inboxfm-connect/piece-test-dynamic',
         displayName: 'Test Dynamic',
         version: '0.1.0',
         pieceType: PieceType.OFFICIAL,
@@ -229,7 +229,7 @@ describe('MCP Tools integration', () => {
             stepLocationRelativeToParent: StepLocationRelativeToParent.AFTER,
             stepType: FlowActionType.PIECE,
             displayName: 'Send Email',
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
         })
 
         expect(text(result)).toContain('✅')
@@ -251,7 +251,7 @@ describe('MCP Tools integration', () => {
             stepLocationRelativeToParent: StepLocationRelativeToParent.AFTER,
             stepType: FlowActionType.PIECE,
             displayName: 'Send Email',
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
         })
 
         // Update the step: set skip=true. The step is still invalid (no actionName configured)
@@ -369,7 +369,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             actionOrTriggerName: 'send_email',
             type: 'action',
         })
@@ -385,7 +385,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-nonexistent',
+            pieceName: '@inboxfm-connect/piece-nonexistent',
             actionOrTriggerName: 'fake_action',
             type: 'action',
         })
@@ -475,7 +475,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -509,7 +509,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -519,7 +519,7 @@ describe('MCP Tools integration', () => {
             stepLocationRelativeToParent: StepLocationRelativeToParent.AFTER,
             stepType: FlowActionType.PIECE,
             displayName: 'Unconfigured Piece',
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
         })
 
         const result = await apValidateFlowTool(mcp, mockLog).execute({ flowId })
@@ -538,7 +538,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -563,7 +563,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             actionOrTriggerName: 'send_email',
             type: 'action',
         })
@@ -579,7 +579,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             actionOrTriggerName: 'send_email',
             type: 'action',
         })
@@ -596,7 +596,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             actionOrTriggerName: 'new_email',
             type: 'trigger',
             auth: 'fake-connection-id',
@@ -612,7 +612,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-nonexistent',
+            pieceName: '@inboxfm-connect/piece-nonexistent',
             actionOrTriggerName: 'fake_action',
             type: 'action',
             auth: 'some-connection',
@@ -627,7 +627,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             actionOrTriggerName: 'nonexistent_action',
             type: 'action',
             auth: 'some-connection',
@@ -643,7 +643,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             actionOrTriggerName: 'send_email',
             type: 'action',
         })
@@ -694,7 +694,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -729,7 +729,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -738,7 +738,7 @@ describe('MCP Tools integration', () => {
 
         const renameResult = await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
             displayName: 'Renamed Trigger',
         })
@@ -756,14 +756,14 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
             input: { customField: 'should-be-discarded' },
         })
 
         const switchResult = await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_attachment',
         })
         expect(text(switchResult)).toContain('✅')
@@ -780,14 +780,14 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
             input: { folder: 'inbox' },
         })
 
         const addFieldResult = await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
             input: { label: 'important' },
         })
@@ -804,7 +804,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-dynamic',
+            pieceName: '@inboxfm-connect/piece-test-dynamic',
             actionOrTriggerName: 'test_action',
             type: 'action',
         })
@@ -821,7 +821,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-dynamic',
+            pieceName: '@inboxfm-connect/piece-test-dynamic',
             actionOrTriggerName: 'test_action',
             type: 'action',
             input: { unrelated_key: 'value' },
@@ -849,7 +849,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -880,7 +880,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -940,7 +940,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1023,7 +1023,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1058,7 +1058,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             actionOrTriggerName: 'send_email',
             type: 'action',
         })
@@ -1079,7 +1079,7 @@ describe('MCP Tools integration', () => {
 
         const result = await apValidateStepConfigTool(mcp, mockLog).execute({
             stepType: 'PIECE_ACTION',
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             actionName: 'send_email',
             input: {},
         })
@@ -1104,14 +1104,14 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
         for (let i = 0; i < 5; i++) {
             await apUpdateTriggerTool(mcp, mockLog).execute({
                 flowId,
-                pieceName: '@activepieces/piece-test-email',
+                pieceName: '@inboxfm-connect/piece-test-email',
                 triggerName: 'new_email',
                 displayName: `Attempt ${i + 1}`,
             })
@@ -1134,7 +1134,7 @@ describe('MCP Tools integration', () => {
         const result = await apBuildFlowTool({ mcp }, mockLog).execute({
             flowName: 'Build Test 1',
             trigger: {
-                pieceName: '@activepieces/piece-test-email',
+                pieceName: '@inboxfm-connect/piece-test-email',
                 triggerName: 'new_email',
             },
             steps: [
@@ -1159,7 +1159,7 @@ describe('MCP Tools integration', () => {
         const result = await apBuildFlowTool({ mcp }, mockLog).execute({
             flowName: 'Build Test 2',
             trigger: {
-                pieceName: '@activepieces/piece-test-email',
+                pieceName: '@inboxfm-connect/piece-test-email',
                 triggerName: 'new_email',
             },
             steps: [
@@ -1206,7 +1206,7 @@ describe('MCP Tools integration', () => {
         const result = await apBuildFlowTool({ mcp }, mockLog).execute({
             flowName: 'Build Test Partial',
             trigger: {
-                pieceName: '@activepieces/piece-test-email',
+                pieceName: '@inboxfm-connect/piece-test-email',
                 triggerName: 'new_email',
             },
             steps: [
@@ -1219,7 +1219,7 @@ describe('MCP Tools integration', () => {
                 {
                     type: FlowActionType.PIECE,
                     displayName: 'Invalid Piece',
-                    pieceName: '@activepieces/piece-test-email',
+                    pieceName: '@inboxfm-connect/piece-test-email',
                 },
             ],
         })
@@ -1236,7 +1236,7 @@ describe('MCP Tools integration', () => {
         const result = await apBuildFlowTool({ mcp }, mockLog).execute({
             flowName: 'Build Test Empty',
             trigger: {
-                pieceName: '@activepieces/piece-test-email',
+                pieceName: '@inboxfm-connect/piece-test-email',
                 triggerName: 'new_email',
             },
             steps: [],
@@ -1253,7 +1253,7 @@ describe('MCP Tools integration', () => {
         const result = await apBuildFlowTool({ mcp }, mockLog).execute({
             flowName: 'Build Test Lifecycle',
             trigger: {
-                pieceName: '@activepieces/piece-test-email',
+                pieceName: '@inboxfm-connect/piece-test-email',
                 triggerName: 'new_email',
             },
             steps: [
@@ -1284,7 +1284,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1319,7 +1319,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1350,7 +1350,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1392,7 +1392,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1459,7 +1459,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1480,7 +1480,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1529,7 +1529,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1571,7 +1571,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1604,7 +1604,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1635,7 +1635,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1665,7 +1665,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1695,7 +1695,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1725,7 +1725,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1754,7 +1754,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1812,7 +1812,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -1859,7 +1859,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-array',
+            pieceName: '@inboxfm-connect/piece-test-array',
             actionOrTriggerName: 'action_with_array',
             type: 'action',
         })
@@ -1952,7 +1952,7 @@ describe('MCP Tools integration', () => {
 
         await apUpdateTriggerTool(mcp, mockLog).execute({
             flowId,
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             triggerName: 'new_email',
         })
 
@@ -2286,7 +2286,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apRunActionTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-nonexistent',
+            pieceName: '@inboxfm-connect/piece-nonexistent',
             actionName: 'any_action',
             input: {},
         })
@@ -2301,7 +2301,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apRunActionTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-array',
+            pieceName: '@inboxfm-connect/piece-test-array',
             actionName: 'action_that_does_not_exist',
             input: {},
         })
@@ -2316,7 +2316,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apRunActionTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-array',
+            pieceName: '@inboxfm-connect/piece-test-array',
             actionName: 'action_with_array',
             input: {},
         })
@@ -2331,7 +2331,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apRunActionTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             actionName: 'send_email',
             input: { to: 'x@y.z', subject: 'hi' },
         })
@@ -2346,7 +2346,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apRunActionTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             actionName: 'send_email',
             input: { to: 'x@y.z', subject: 'hi' },
             connectionExternalId: 'bad\'; evil',
@@ -2361,7 +2361,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const result = await apRunActionTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-test-email',
+            pieceName: '@inboxfm-connect/piece-test-email',
             actionName: 'send_email',
             input: { to: 'x@y.z', subject: 'hi' },
             connectionExternalId: 'valid_external_id_123',
@@ -2380,7 +2380,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const privatePiece = createMockPieceMetadata({
-            name: '@activepieces/piece-private-custom',
+            name: '@inboxfm-connect/piece-private-custom',
             displayName: 'Private Custom Piece',
             version: '0.1.0',
             pieceType: PieceType.CUSTOM,
@@ -2404,7 +2404,7 @@ describe('MCP Tools integration', () => {
         })
 
         expect(text(result)).toContain('✅')
-        expect(text(result)).toContain('@activepieces/piece-private-custom')
+        expect(text(result)).toContain('@inboxfm-connect/piece-private-custom')
     })
 
     it('91. ap_get_piece_props — resolves CUSTOM pieces on the caller\'s platform via lookupPieceComponent', async () => {
@@ -2412,7 +2412,7 @@ describe('MCP Tools integration', () => {
         const mcp = makeMcp(ctx.project.id)
 
         const privatePiece = createMockPieceMetadata({
-            name: '@activepieces/piece-private-lookup',
+            name: '@inboxfm-connect/piece-private-lookup',
             displayName: 'Private Lookup Piece',
             version: '0.1.0',
             pieceType: PieceType.CUSTOM,
@@ -2434,7 +2434,7 @@ describe('MCP Tools integration', () => {
         await db.save('piece_metadata', privatePiece)
 
         const result = await apGetPiecePropsTool(mcp, mockLog).execute({
-            pieceName: '@activepieces/piece-private-lookup',
+            pieceName: '@inboxfm-connect/piece-private-lookup',
             actionOrTriggerName: 'do_thing',
             type: 'action',
         })
@@ -2453,7 +2453,7 @@ describe('MCP Tools integration', () => {
         const mcpA = makeMcp(ctxA.project.id)
 
         const privateOfB = createMockPieceMetadata({
-            name: '@activepieces/piece-private-only-b',
+            name: '@inboxfm-connect/piece-private-only-b',
             displayName: 'Private Piece Only for Platform B',
             version: '0.1.0',
             pieceType: PieceType.CUSTOM,
@@ -2480,7 +2480,7 @@ describe('MCP Tools integration', () => {
         // (which also wouldn't contain the piece name) would falsely pass. A cross-platform
         // piece is invisible here, so the correct successful result is "no pieces matched".
         expect(text(result)).not.toContain('❌')
-        expect(text(result)).not.toContain('@activepieces/piece-private-only-b')
+        expect(text(result)).not.toContain('@inboxfm-connect/piece-private-only-b')
     })
 
     // ── Flow attribution (createdBy / ownerId) ───────────────────────
@@ -2503,7 +2503,7 @@ describe('MCP Tools integration', () => {
 
         const result = await apBuildFlowTool({ mcp, userId: ctx.user.id }, mockLog).execute({
             flowName: 'Built Attributed Flow',
-            trigger: { pieceName: '@activepieces/piece-test-email', triggerName: 'new_email' },
+            trigger: { pieceName: '@inboxfm-connect/piece-test-email', triggerName: 'new_email' },
             steps: [],
         })
         const flowId = text(result).match(/\(id: (\S+?)\)/)?.[1]

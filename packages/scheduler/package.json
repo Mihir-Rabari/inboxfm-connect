@@ -1,0 +1,18 @@
+{
+  "name": "@inboxfm-connect/scheduler",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "./dist/src/index.js",
+  "typings": "./dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "lint": "eslint 'src/**/*.ts'"
+  },
+  "dependencies": {
+    "node-cron": "3.0.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.11.0",
+    "@types/node-cron": "3.0.11"
+  }
+}

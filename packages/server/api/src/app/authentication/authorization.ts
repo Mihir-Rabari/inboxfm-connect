@@ -1,5 +1,5 @@
-import { ActivepiecesError, ErrorCode, isNil, isObject } from '@activepieces/core-utils'
-import { PrincipalType } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil, isObject } from '@inboxfm-connect/core-utils'
+import { PrincipalType } from '@inboxfm-connect/shared'
 import { preSerializationHookHandler } from 'fastify'
 
 export function extractResourceName(url: string): string | undefined {

@@ -1,9 +1,11 @@
 import path from 'path'
-import { isNil } from '@activepieces/core-utils'
+import { isNil } from '@inboxfm-connect/core-utils'
 import {
+    backwardCompatabilityContextUtils,
     DropdownProperty,
     DynamicProperties,
     ExecutePropsResult,
+    ExecutionType,
     getAuthPropertyForValue,
     MultiSelectDropdownProperty,
     PieceAuthProperty,
@@ -11,16 +13,34 @@ import {
     PiecePropertyMap,
     pieceTranslation,
     PropertyType,
-    StaticPropsValue } from '@activepieces/pieces-framework'
-import { AppConnectionType, AppConnectionValue, EngineGenericError, ExecuteExtractPieceMetadata, ExecutePropsOptions, ExecuteRefreshTokenAuthOperation, ExecuteRefreshTokenAuthResponse, ExecuteValidateAuthOperation, ExecuteValidateAuthResponse } from '@activepieces/shared'
+    StaticPropsValue,
+} from '@inboxfm-connect/pieces-framework'
+import {
+    AppConnectionType,
+    AppConnectionValue,
+    AUTHENTICATION_PROPERTY_NAME,
+    EngineGenericError,
+    EngineResponse,
+    EngineResponseStatus,
+    ExecuteExtractPieceMetadata,
+    ExecutePropsOptions,
+    ExecuteRefreshTokenAuthOperation,
+    ExecuteRefreshTokenAuthResponse,
+    ExecuteToolOperation,
+    ExecuteValidateAuthOperation,
+    ExecuteValidateAuthResponse,
+} from '@inboxfm-connect/shared'
 import { EngineConstants } from '../handler/context/engine-constants'
-
-const DEFAULT_REFRESH_EXPIRES_IN_SECONDS = 3300
 import { testExecutionContext } from '../handler/context/test-execution-context'
+import { createFileUploader } from '../piece-context/file-uploader'
 import { createFlowsContext } from '../piece-context/flows'
+import { createContextStore } from '../piece-context/store'
 import { utils } from '../utils'
+import { propsProcessor } from '../variables/props-processor'
 import { createPropsResolver } from '../variables/props-resolver'
 import { pieceLoader } from './piece-loader'
+
+const DEFAULT_REFRESH_EXPIRES_IN_SECONDS = 3300
 
 export const pieceHelper = {
     async executeProps( operation: ExecutePropsParams): Promise<ExecutePropsResult<PropertyType.DROPDOWN | PropertyType.MULTI_SELECT_DROPDOWN | PropertyType.DYNAMIC>> {
@@ -150,7 +170,7 @@ export const pieceHelper = {
             return { skipped: true }
         }
 
-        const pieceAuth = getAuthPropertyForValue({ authValueType: params.auth.type, pieceAuth: piece.auth })
+        const pieceAuth = getAuthPropertyForValue({ authValueType: params.auth.type, integrationAuth: piece.auth })
 
         if (isNil(pieceAuth) || pieceAuth.type !== PropertyType.CUSTOM_AUTH || isNil(pieceAuth.refresh)) {
             return { skipped: true }
@@ -187,6 +207,86 @@ export const pieceHelper = {
             i18n,
         }
     },
+
+    async executeTool(
+        { params, devPieces }: { params: ExecuteToolOperation, devPieces: string[] },
+    ): Promise<EngineResponse<unknown>> {
+        const { pieceAction, piece } = await pieceLoader.getPieceAndActionOrThrow({
+            pieceName: params.pieceName,
+            pieceVersion: params.pieceVersion,
+            actionName: params.actionName,
+            devPieces,
+        })
+
+        const rawInput = {
+            ...params.input,
+            ...(params.auth ? { [AUTHENTICATION_PROPERTY_NAME]: params.auth } : {}),
+        }
+
+        const { processedInput, errors } = await propsProcessor.applyProcessorsAndValidators(
+            rawInput,
+            pieceAction.props,
+            piece.auth,
+            pieceAction.requireAuth,
+            {},
+        )
+        if (Object.keys(errors).length > 0) {
+            throw new Error(JSON.stringify(errors, null, 2))
+        }
+
+        const context = {
+            executionType: ExecutionType.BEGIN,
+            store: createContextStore({
+                apiUrl: params.internalApiUrl,
+                prefix: '',
+                flowId: 'headless',
+                flowVersionId: 'headless',
+            }),
+            step: {
+                name: params.actionName,
+            },
+            auth: processedInput[AUTHENTICATION_PROPERTY_NAME],
+            files: createFileUploader({
+                apiUrl: params.internalApiUrl,
+                engineToken: params.engineToken,
+            }),
+            server: {
+                token: params.engineToken,
+                apiUrl: params.internalApiUrl,
+                publicUrl: params.publicApiUrl,
+            },
+            propsValue: processedInput,
+            tags: {
+                add: async () => {},
+            },
+            connections: {
+                get: async () => null,
+            },
+            run: {
+                id: 'headless',
+                stop: () => {},
+                respond: () => {},
+                createWaitpoint: async () => ({ id: 'dummy', token: 'dummy' }),
+                waitForWaitpoint: async () => {},
+            },
+            project: {
+                id: params.projectId,
+                externalId: params.projectId,
+            },
+        }
+
+        const backwardCompatibleContext = backwardCompatabilityContextUtils.makeActionContextBackwardCompatible({
+            contextVersion: piece.getContextInfo?.().version,
+            context,
+        })
+
+        const output = await pieceAction.run(backwardCompatibleContext)
+
+        return {
+            status: EngineResponseStatus.OK,
+            response: output,
+        }
+    },
 }
 
 type ExecutePropsParams = Omit<ExecutePropsOptions, 'piece'> & { pieceName: string, pieceVersion: string }
@@ -211,7 +311,7 @@ const validateAuth = async ({
     }
     const usedPieceAuth = getAuthPropertyForValue({
         authValueType: authValue.type,
-        pieceAuth,
+        integrationAuth: pieceAuth,
     })
 
     if (isNil(usedPieceAuth)) {

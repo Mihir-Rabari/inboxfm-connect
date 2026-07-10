@@ -1,4 +1,4 @@
-import { BranchExecutionType, FlowAction, FlowActionType, flowStructureUtil, FlowVersion, RouterAction, RouterExecutionType } from '@activepieces/shared'
+import { BranchExecutionType, FlowAction, FlowActionType, flowStructureUtil, FlowVersion, RouterAction, RouterExecutionType } from '@inboxfm-connect/shared'
 import { Migration } from '.'
 
 export const migrateBranchToRouter: Migration = {

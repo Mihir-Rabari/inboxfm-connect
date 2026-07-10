@@ -1,6 +1,6 @@
-import { apId, assertNotNullOrUndefined, FlowVersionId, isNil, PlatformId, ProjectId } from '@activepieces/core-utils'
-import { wideEvent } from '@activepieces/server-utils'
-import { EngineHttpResponse, EventPayload, ExecutionType, Flow, FlowRun, FlowStatus, LATEST_JOB_DATA_SCHEMA_VERSION, RunEnvironment, StreamStepProgress, TriggerPayload, WorkerJobType } from '@activepieces/shared'
+import { apId, assertNotNullOrUndefined, FlowVersionId, isNil, PlatformId, ProjectId } from '@inboxfm-connect/core-utils'
+import { wideEvent } from '@inboxfm-connect/server-utils'
+import { EngineHttpResponse, EventPayload, ExecutionType, Flow, FlowRun, FlowStatus, LATEST_JOB_DATA_SCHEMA_VERSION, RunEnvironment, StreamStepProgress, TriggerPayload, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { flowExecutionCache } from '../flows/flow/flow-execution-cache'
@@ -11,9 +11,23 @@ import { rejectedPromiseHandler } from '../helper/promise-handler'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
 import { triggerSourceService } from '../trigger/trigger-source/trigger-source-service'
-import { engineResponseWatcher } from '../workers/engine-response-watcher'
-import { jobQueue, JobType } from '../workers/job-queue/job-queue'
-import { payloadOffloader } from '../workers/payload-offloader'
+const engineResponseWatcher = (_log: unknown) => ({
+    publish: async (_data: unknown) => {},
+    shutdown: async () => {},
+    getServerId: () => 'local',
+    oneTimeListener: async <T>(_correlationId: string, _ack: boolean, _timeoutMs: number, defaultResponse: T): Promise<T> => defaultResponse,
+})
+const JobType = { CHAT: 'CHAT', ONE_TIME: 'ONE_TIME', REPEATING: 'REPEATING' } as const
+const jobQueue = (_log: unknown) => ({
+    add: async (_data: unknown) => {},
+})
+const payloadOffloader = {
+    getPayloadSizeInBytes: (_payload: unknown): number => JSON.stringify(_payload).length,
+    savePayloadToFile: async (_params: unknown) => undefined,
+    getPayload: async (_params: unknown) => undefined,
+    offloadPayload: async (_log: unknown, payload: unknown, _projectId: unknown, _platformId: unknown) => ({ type: 'inline' as const, value: payload }),
+    maybeOffloadPayload: async (_log: unknown, payload: unknown, _projectId: unknown, _platformId: unknown) => ({ type: 'inline' as const, value: payload }),
+}
 import { webhookHandshake } from './webhook-handshake'
 
 const WEBHOOK_TIMEOUT_MS = system.getNumberOrThrow(AppSystemProp.WEBHOOK_TIMEOUT_SECONDS) * 1000

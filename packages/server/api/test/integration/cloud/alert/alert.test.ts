@@ -1,4 +1,4 @@
-import { AlertChannel, PlatformRole, PrincipalType, ProjectType } from '@activepieces/shared'
+import { AlertChannel, PlatformRole, PrincipalType, ProjectType } from '@inboxfm-connect/shared'
 import { faker } from '@faker-js/faker'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'

@@ -1,7 +1,7 @@
 import fs from 'fs'
 import os from 'os'
-import { tryCatch } from '@activepieces/core-utils';
-import { MachineInformation } from '@activepieces/shared';
+import { tryCatch } from '@inboxfm-connect/core-utils';
+import { MachineInformation } from '@inboxfm-connect/shared';
 import checkDiskSpace from 'check-disk-space'
 import si from 'systeminformation'
 import { fileSystemUtils } from './file-system-utils'

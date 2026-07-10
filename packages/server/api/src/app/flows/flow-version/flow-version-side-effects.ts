@@ -1,5 +1,5 @@
-import { isNil, ProjectId } from '@activepieces/core-utils'
-import { FileType, FlowOperationRequest, FlowOperationType, flowStructureUtil, FlowVersion } from '@activepieces/shared'
+import { isNil, ProjectId } from '@inboxfm-connect/core-utils'
+import { FileType, FlowOperationRequest, FlowOperationType, flowStructureUtil, FlowVersion } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { exceptionHandler } from '../../helper/exception-handler'
 import { triggerSourceService } from '../../trigger/trigger-source/trigger-source-service'

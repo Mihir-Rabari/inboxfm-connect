@@ -1,5 +1,5 @@
-import { ActivepiecesError, ErrorCode, isNil, PlatformId } from '@activepieces/core-utils'
-import { DefaultProjectRole, PiecesFilterType, SigningKey, SigningKeyId } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil, PlatformId } from '@inboxfm-connect/core-utils'
+import { DefaultProjectRole, PiecesFilterType, SigningKey, SigningKeyId } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { JwtSignAlgorithm, jwtUtils } from '../../../helper/jwt-utils'

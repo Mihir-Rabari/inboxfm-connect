@@ -1,4 +1,4 @@
-import { DefaultProjectRole } from '@activepieces/shared'
+import { DefaultProjectRole } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'

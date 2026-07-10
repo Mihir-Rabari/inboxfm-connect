@@ -1,6 +1,6 @@
 import dns from 'node:dns'
-import { ssrfIpClassifier } from '@activepieces/core-utils'
-import { SSRFBlockedError } from '@activepieces/shared'
+import { ssrfIpClassifier } from '@inboxfm-connect/core-utils'
+import { SSRFBlockedError } from '@inboxfm-connect/shared'
 import type { GuardPolicy, UninstallFn } from './ssrf-guard'
 
 export function installDnsLookupGuard(policy: GuardPolicy): UninstallFn {

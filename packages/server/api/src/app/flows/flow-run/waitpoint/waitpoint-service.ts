@@ -1,5 +1,5 @@
-import { apId, isNil } from '@activepieces/core-utils'
-import { FlowRunStatus, PauseType } from '@activepieces/shared'
+import { apId, isNil } from '@inboxfm-connect/core-utils'
+import { FlowRunStatus, PauseType } from '@inboxfm-connect/shared'
 import dayjs from 'dayjs'
 import { FastifyBaseLogger } from 'fastify'
 import { repoFactory } from '../../../core/db/repo-factory'

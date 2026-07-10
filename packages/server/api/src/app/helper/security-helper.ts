@@ -1,4 +1,4 @@
-import { PrincipalType } from '@activepieces/shared'
+import { PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyRequest } from 'fastify'
 import { platformService } from '../platform/platform.service'
 

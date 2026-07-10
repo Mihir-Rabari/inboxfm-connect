@@ -1,5 +1,5 @@
-import { apId, Cursor, ProjectId, SeekPage } from '@activepieces/core-utils'
-import { AppCredential, AppCredentialId, UpsertAppCredentialRequest } from '@activepieces/shared'
+import { apId, Cursor, ProjectId, SeekPage } from '@inboxfm-connect/core-utils'
+import { AppCredential, AppCredentialId, UpsertAppCredentialRequest } from '@inboxfm-connect/shared'
 import { repoFactory } from '../../core/db/repo-factory'
 import { buildPaginator } from '../../helper/pagination/build-paginator'
 import { paginationHelper } from '../../helper/pagination/pagination-utils'

@@ -1,5 +1,5 @@
-import { assertNotNullOrUndefined } from '@activepieces/core-utils'
-import { AlertChannel, ApEdition, InvitationType, OtpType, UserIdentity, UserInvitation } from '@activepieces/shared'
+import { assertNotNullOrUndefined } from '@inboxfm-connect/core-utils'
+import { AlertChannel, ApEdition, InvitationType, OtpType, UserIdentity, UserInvitation } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { domainHelper } from '../../../helper/domain-helper'
 import { system } from '../../../helper/system/system'

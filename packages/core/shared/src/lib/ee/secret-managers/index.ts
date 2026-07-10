@@ -1,4 +1,4 @@
-import { BaseModelSchema, Nullable } from '@activepieces/core-utils'
+import { BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { AWSProviderConfigSchema, CyberarkConjurProviderConfigSchema, HashicorpProviderConfigSchema, OnePasswordProviderConfigSchema, SecretManagerConnectionScope, SecretManagerProviderId } from './dto'
 
@@ -235,3 +235,4 @@ export const SECRET_MANAGER_PROVIDERS_METADATA: SecretManagerProviderMetaData[] 
 ]
 
 export const SecretManagerFieldsSeparator = '|ap_sep_v1|'
+

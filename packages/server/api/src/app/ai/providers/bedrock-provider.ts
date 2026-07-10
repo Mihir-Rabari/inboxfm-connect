@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { AIProviderModel, AIProviderModelType, BedrockProviderAuthConfig, BedrockProviderConfig } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { AIProviderModel, AIProviderModelType, BedrockProviderAuthConfig, BedrockProviderConfig } from '@inboxfm-connect/shared'
 
 import {
     BedrockClient,

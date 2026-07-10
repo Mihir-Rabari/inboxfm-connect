@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { OptionalArrayFromQuery, OptionalBooleanFromQuery } from '@activepieces/core-utils'
-import { ApId } from '@activepieces/core-utils'
+import { OptionalArrayFromQuery, OptionalBooleanFromQuery } from '@inboxfm-connect/core-utils'
+import { ApId } from '@inboxfm-connect/core-utils'
 import { FlowRunStatus } from '../execution/flow-execution'
 
 export const ListFlowRunsRequestQuery = z.object({
@@ -38,3 +38,4 @@ export const CountFlowRunsByStatusResponse = z.object({
 export type CountFlowRunsByStatusRequest = z.infer<typeof CountFlowRunsByStatusRequest>
 export type FlowRunCountByStatus = z.infer<typeof FlowRunCountByStatus>
 export type CountFlowRunsByStatusResponse = z.infer<typeof CountFlowRunsByStatusResponse>
+

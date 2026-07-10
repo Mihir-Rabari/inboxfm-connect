@@ -6,7 +6,7 @@ import {
     FlowVersion,
     PropertyExecutionType,
     SampleDataDataType,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { fileService } from '../../../file/file.service'
 import { Migration, MigrationContext } from '.'
 

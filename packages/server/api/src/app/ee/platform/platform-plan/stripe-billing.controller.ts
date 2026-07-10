@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { ApSubscriptionStatus, PlanName, STANDARD_CLOUD_PLAN } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { ApSubscriptionStatus, PlanName, STANDARD_CLOUD_PLAN } from '@inboxfm-connect/shared'
 import { FastifyRequest } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'

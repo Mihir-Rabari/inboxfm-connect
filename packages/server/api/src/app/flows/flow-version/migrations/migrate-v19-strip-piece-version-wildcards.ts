@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { FlowActionType, flowPieceUtil, flowStructureUtil, FlowTriggerType, FlowVersion } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { FlowActionType, flowPieceUtil, flowStructureUtil, FlowTriggerType, FlowVersion } from '@inboxfm-connect/shared'
 import { system } from '../../../helper/system/system'
 import { pieceMetadataService } from '../../../pieces/metadata/piece-metadata-service'
 import { projectService } from '../../../project/project-service'

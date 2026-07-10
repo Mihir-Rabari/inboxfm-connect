@@ -1,6 +1,6 @@
-import { ActivepiecesError, ApId, apId, ErrorCode, SeekPage } from '@activepieces/core-utils'
-import { apDayjsDuration } from '@activepieces/server-utils'
-import { Alert, AlertChannel, ApEdition, FailedStep, flowStructureUtil, ListAlertsParams, ProjectType } from '@activepieces/shared'
+import { ActivepiecesError, ApId, apId, ErrorCode, SeekPage } from '@inboxfm-connect/core-utils'
+import { apDayjsDuration } from '@inboxfm-connect/server-utils'
+import { Alert, AlertChannel, ApEdition, FailedStep, flowStructureUtil, ListAlertsParams, ProjectType } from '@inboxfm-connect/shared'
 
 import dayjs from 'dayjs'
 import timezone from 'dayjs/plugin/timezone'

@@ -1,4 +1,4 @@
-import { StepOutput } from '@activepieces/shared'
+import { StepOutput } from '@inboxfm-connect/shared'
 import { utils } from '../utils'
 import { sizeofUtils } from './sizeof'
 

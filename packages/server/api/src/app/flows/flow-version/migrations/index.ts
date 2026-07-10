@@ -1,5 +1,5 @@
-import { ProjectId } from '@activepieces/core-utils'
-import { FlowVersion, FlowVersionState, FlowVersionTemplate } from '@activepieces/shared'
+import { ProjectId } from '@inboxfm-connect/core-utils'
+import { FlowVersion, FlowVersionState, FlowVersionTemplate } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { migrateBranchToRouter } from './migrate-v0-branch-to-router'
 import { migrateConnectionIds } from './migrate-v1-connection-ids'

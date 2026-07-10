@@ -13,7 +13,7 @@ import {
     TableWebhook,
     TriggerEvent,
     User,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import {
     ApIdSchema,

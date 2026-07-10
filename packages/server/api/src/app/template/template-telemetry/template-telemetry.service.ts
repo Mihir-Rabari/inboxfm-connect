@@ -1,5 +1,5 @@
-import { isNil, tryCatch } from '@activepieces/core-utils'
-import { ApEdition, TemplateTelemetryEvent, TemplateTelemetryEventType } from '@activepieces/shared'
+import { isNil, tryCatch } from '@inboxfm-connect/core-utils'
+import { ApEdition, TemplateTelemetryEvent, TemplateTelemetryEventType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { rejectedPromiseHandler } from '../../helper/promise-handler'
 import { system } from '../../helper/system/system'

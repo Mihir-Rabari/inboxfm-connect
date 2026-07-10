@@ -1,4 +1,4 @@
-import { Flow, Project, TriggerSource } from '@activepieces/shared'
+import { Flow, Project, TriggerSource } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import { BaseColumnSchemaPart } from '../../database/database-common'
 

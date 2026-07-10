@@ -1,9 +1,9 @@
-import { PieceMetadata } from '@activepieces/pieces-framework'
+import { PieceMetadata } from '@inboxfm-connect/pieces-framework'
 import {
     EngineResponse,
     EngineResponseStatus,
     ExecuteExtractPieceMetadataOperation,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { EngineConstants } from '../handler/context/engine-constants'
 import { pieceHelper } from '../helper/piece-helper'
 

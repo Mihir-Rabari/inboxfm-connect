@@ -1,5 +1,5 @@
-import { ActivepiecesError, assertNotNullOrUndefined, ErrorCode, Permission, SeekPage } from '@activepieces/core-utils'
-import { CreatePlatformProjectRequest, ListProjectRequestForPlatformQueryParams, PlatformRole, Principal, PrincipalType, ProjectType, ProjectWithLimits, SERVICE_KEY_SECURITY_OPENAPI, TeamProjectsLimit, UpdateProjectPlatformRequest } from '@activepieces/shared'
+import { ActivepiecesError, assertNotNullOrUndefined, ErrorCode, Permission, SeekPage } from '@inboxfm-connect/core-utils'
+import { CreatePlatformProjectRequest, ListProjectRequestForPlatformQueryParams, PlatformRole, Principal, PrincipalType, ProjectType, ProjectWithLimits, SERVICE_KEY_SECURITY_OPENAPI, TeamProjectsLimit, UpdateProjectPlatformRequest } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
@@ -9,7 +9,6 @@ import { securityAccess } from '../../core/security/authorization/fastify-securi
 import { platformService } from '../../platform/platform.service'
 import { projectService } from '../../project/project-service'
 import { userService } from '../../user/user-service'
-import { machineService } from '../../workers/machine/machine-service'
 import { platformProjectService } from './platform-project-service'
 
 const DEFAULT_LIMIT_SIZE = 50
@@ -38,16 +37,10 @@ export const platformProjectController: FastifyPluginAsyncZod = async (app) => {
     })
 
     app.get('/worker-groups', ListWorkerGroupsRequest, async (request) => {
-        const platform = await platformService(request.log).getOneWithPlanOrThrow(request.principal.platform.id)
-        if (!platform.plan.workerGroupsEnabled) {
-            throw new ActivepiecesError({
-                code: ErrorCode.FEATURE_DISABLED,
-                params: {
-                    message: 'Isolated workers are not enabled for this platform',
-                },
-            })
+        return {
+            groups: [],
+            sharedSlots: 0,
         }
-        return machineService(request.log).listProjectWorkerGroups()
     })
 
     app.get('/', ListProjectRequestForPlatform, async (request, _reply) => {

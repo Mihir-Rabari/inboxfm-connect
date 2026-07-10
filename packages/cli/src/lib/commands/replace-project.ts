@@ -10,7 +10,7 @@ import {
     RequiredPiece,
     SeekPage,
     TableState,
-} from '@activepieces/shared';
+} from '@inboxfm-connect/shared';
 import axios, { AxiosError } from 'axios';
 import chalk from 'chalk';
 import { Command } from 'commander';
@@ -345,3 +345,4 @@ type ReplaceResult = {
     status: number;
     body: unknown;
 };
+

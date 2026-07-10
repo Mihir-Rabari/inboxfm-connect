@@ -1,5 +1,5 @@
-import { apId, isNil, Permission } from '@activepieces/core-utils'
-import { FlowOperationRequest, FlowOperationType, McpToolDefinition, NoteColorVariant, ProjectScopedMcpServer } from '@activepieces/shared'
+import { apId, isNil, Permission } from '@inboxfm-connect/core-utils'
+import { FlowOperationRequest, FlowOperationType, McpToolDefinition, NoteColorVariant, ProjectScopedMcpServer } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { flowService } from '../../flows/flow/flow.service'

@@ -4,7 +4,7 @@ import {
     GetOrDeleteConnectionFromTokenRequest,
     ListConnectionKeysRequest,
     PrincipalType,
-    UpsertConnectionFromToken, UpsertSigningKeyConnection } from '@activepieces/shared'
+    UpsertConnectionFromToken, UpsertSigningKeyConnection } from '@inboxfm-connect/shared'
 import { FastifyRequest } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
@@ -24,7 +24,7 @@ const DEFAULT_LIMIT_SIZE = 10
 
 const connectionKeyController: FastifyPluginAsyncZod = async (fastify) => {
     fastify.delete(
-        '/app-connections',
+        '/connections',
         {
             config: {
                 security: securityAccess.public(),
@@ -50,7 +50,7 @@ const connectionKeyController: FastifyPluginAsyncZod = async (fastify) => {
     )
 
     fastify.get(
-        '/app-connections',
+        '/connections',
         {
             config: {
                 security: securityAccess.public(),
@@ -69,7 +69,7 @@ const connectionKeyController: FastifyPluginAsyncZod = async (fastify) => {
     )
 
     fastify.post(
-        '/app-connections',
+        '/connections',
         {
             config: {
                 security: securityAccess.public(),

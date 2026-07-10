@@ -1,5 +1,5 @@
-import { PlatformId, ProjectRole } from '@activepieces/core-utils'
-import { ProjectMember } from '@activepieces/shared'
+import { PlatformId, ProjectRole } from '@inboxfm-connect/core-utils'
+import { ProjectMember } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import { BaseColumnSchemaPart } from '../../../database/database-common'
 

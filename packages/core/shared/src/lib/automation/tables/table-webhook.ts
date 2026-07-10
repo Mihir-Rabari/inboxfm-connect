@@ -1,4 +1,4 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export enum TableWebhookEventType {
@@ -16,3 +16,4 @@ export const TableWebhook = z.object({
 })
 
 export type TableWebhook = z.infer<typeof TableWebhook>
+

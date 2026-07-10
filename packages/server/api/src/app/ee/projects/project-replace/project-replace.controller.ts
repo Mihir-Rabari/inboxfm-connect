@@ -1,5 +1,5 @@
-import { ApId } from '@activepieces/core-utils'
-import { ApplicationEventName, PieceInstallFailure, PrincipalType, ProjectReplacePreflightError, ProjectReplaceRequest, ProjectReplaceResponse, SERVICE_KEY_SECURITY_OPENAPI } from '@activepieces/shared'
+import { ApId } from '@inboxfm-connect/core-utils'
+import { ApplicationEventName, PieceInstallFailure, PrincipalType, ProjectReplacePreflightError, ProjectReplaceRequest, ProjectReplaceResponse, SERVICE_KEY_SECURITY_OPENAPI } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'

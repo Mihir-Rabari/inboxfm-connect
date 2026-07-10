@@ -1,5 +1,5 @@
-import { Permission } from '@activepieces/core-utils'
-import { PrincipalType } from '@activepieces/shared'
+import { Permission } from '@inboxfm-connect/core-utils'
+import { PrincipalType } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 
 export enum AuthorizationType {

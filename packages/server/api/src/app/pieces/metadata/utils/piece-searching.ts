@@ -1,9 +1,9 @@
-import { ActionBase, TriggerBase } from '@activepieces/pieces-framework'
+import { ActionBase, TriggerBase } from '@inboxfm-connect/pieces-framework'
 
 import {
     PieceCategory,
     SuggestionType,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import Fuse from 'fuse.js'
 import { PieceMetadataSchema } from '../piece-metadata-entity'
 

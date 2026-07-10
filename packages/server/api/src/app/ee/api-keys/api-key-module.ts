@@ -1,5 +1,5 @@
-import { ApId, assertNotNullOrUndefined, SeekPage } from '@activepieces/core-utils'
-import { ApiKeyResponseWithoutValue, ApiKeyResponseWithValue, CreateApiKeyRequest, PrincipalType } from '@activepieces/shared'
+import { ApId, assertNotNullOrUndefined, SeekPage } from '@inboxfm-connect/core-utils'
+import { ApiKeyResponseWithoutValue, ApiKeyResponseWithValue, CreateApiKeyRequest, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'

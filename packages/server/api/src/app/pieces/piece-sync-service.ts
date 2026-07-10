@@ -1,6 +1,6 @@
-import { groupBy, tryCatch } from '@activepieces/core-utils'
-import { apVersionUtil } from '@activepieces/server-utils'
-import { PieceSyncMode, PieceType } from '@activepieces/shared'
+import { groupBy, tryCatch } from '@inboxfm-connect/core-utils'
+import { apVersionUtil } from '@inboxfm-connect/server-utils'
+import { PieceSyncMode, PieceType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import semver from 'semver'
 import { rejectedPromiseHandler } from '../helper/promise-handler'
@@ -21,22 +21,22 @@ const syncMode = system.get<PieceSyncMode>(AppSystemProp.PIECES_SYNC_MODE)
 
 export const pieceSyncService = (log: FastifyBaseLogger) => ({
     async setup(): Promise<void> {
-        pieceBundle(log).registerJobHandler()
-        systemJobHandlers.registerJobHandler(SystemJobName.PIECES_SYNC, async function syncPiecesJobHandler(): Promise<void> {
-            await pieceSyncService(log).sync({ publishCacheRefresh: true })
-        })
+        // pieceBundle(log).registerJobHandler()
+        // systemJobHandlers.registerJobHandler(SystemJobName.PIECES_SYNC, async function syncPiecesJobHandler(): Promise<void> {
+        //     await pieceSyncService(log).sync({ publishCacheRefresh: true })
+        // })
         rejectedPromiseHandler(pieceSyncService(log).sync({ publishCacheRefresh: false }), log)
-        await systemJobsSchedule(log).upsertJob({
-            job: {
-                name: SystemJobName.PIECES_SYNC,
-                data: {},
-                jobId: SystemJobName.PIECES_SYNC,
-            },
-            schedule: {
-                type: 'repeated',
-                cron: `${Math.floor(Math.random() * 5)} */1 * * *`,
-            },
-        })
+        // await systemJobsSchedule(log).upsertJob({
+        //     job: {
+        //         name: SystemJobName.PIECES_SYNC,
+        //         data: {},
+        //         jobId: SystemJobName.PIECES_SYNC,
+        //     },
+        //     schedule: {
+        //         type: 'repeated',
+        //         cron: `${Math.floor(Math.random() * 5)} */1 * * *`,
+        //     },
+        // })
     },
     async sync({ publishCacheRefresh }: { publishCacheRefresh: boolean }): Promise<void> {
         if (syncMode !== PieceSyncMode.OFFICIAL_AUTO) {

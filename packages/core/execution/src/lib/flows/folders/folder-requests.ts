@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { Cursor } from '@activepieces/core-utils'
+import { Cursor } from '@inboxfm-connect/core-utils'
 
 export const CreateFolderRequest = z.object({
     displayName: z.string(),
@@ -28,3 +28,4 @@ export const ListFolderRequest = z.object({
 })
 
 export type ListFolderRequest = Omit<z.infer<typeof ListFolderRequest>, 'cursor'> & { cursor: Cursor | undefined }
+

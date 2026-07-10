@@ -1,4 +1,4 @@
-import { McpOAuthToken } from '@activepieces/shared'
+import { McpOAuthToken } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import { ApIdSchema, BaseColumnSchemaPart } from '../../../database/database-common'
 

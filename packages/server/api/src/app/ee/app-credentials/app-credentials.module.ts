@@ -1,5 +1,5 @@
-import { SeekPage } from '@activepieces/core-utils'
-import { AppCredential, AppCredentialType, ListAppCredentialsRequest, PrincipalType, UpsertAppCredentialRequest } from '@activepieces/shared'
+import { SeekPage } from '@inboxfm-connect/core-utils'
+import { AppCredential, AppCredentialType, ListAppCredentialsRequest, PrincipalType, UpsertAppCredentialRequest } from '@inboxfm-connect/shared'
 import { FastifyRequest } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'

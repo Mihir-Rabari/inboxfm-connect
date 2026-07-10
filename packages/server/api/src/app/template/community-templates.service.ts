@@ -1,5 +1,5 @@
-import { ActivepiecesError, ErrorCode, isNil, SeekPage } from '@activepieces/core-utils'
-import { ListTemplatesRequestQuery, Template } from '@activepieces/shared'
+import { ActivepiecesError, ErrorCode, isNil, SeekPage } from '@inboxfm-connect/core-utils'
+import { ListTemplatesRequestQuery, Template } from '@inboxfm-connect/shared'
 
 const TEMPLATES_SOURCE_URL = 'https://cloud.activepieces.com/api/v1/templates'
 

@@ -1,5 +1,5 @@
-import { ApId, BaseModel } from '@activepieces/core-utils'
-import { PieceMetadataModel } from '@activepieces/pieces-framework'
+import { ApId, BaseModel } from '@inboxfm-connect/core-utils'
+import { PieceMetadataModel } from '@inboxfm-connect/pieces-framework'
 import { EntitySchema } from 'typeorm'
 import {
     ApIdSchema,
@@ -7,11 +7,11 @@ import {
     COLLATION,
 } from '../../database/database-common'
 
-export type PieceMetadataSchema = BaseModel<ApId> & PieceMetadataModel
+export type IntegrationMetadataSchema = BaseModel<ApId> & PieceMetadataModel
 
-export const PieceMetadataEntity =
-  new EntitySchema<PieceMetadataSchema>({
-      name: 'piece_metadata',
+export const IntegrationMetadataEntity =
+  new EntitySchema<IntegrationMetadataSchema>({
+      name: 'integration_metadata',
       columns: {
           ...BaseColumnSchemaPart,
           name: {
@@ -114,3 +114,6 @@ export const PieceMetadataEntity =
           },
       },
   })
+
+export type PieceMetadataSchema = IntegrationMetadataSchema
+export const PieceMetadataEntity = IntegrationMetadataEntity

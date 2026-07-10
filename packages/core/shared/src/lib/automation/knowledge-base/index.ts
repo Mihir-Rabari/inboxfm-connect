@@ -1,4 +1,4 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 const KnowledgeBaseFile = z.object({
@@ -9,3 +9,4 @@ const KnowledgeBaseFile = z.object({
 })
 
 export type KnowledgeBaseFile = z.infer<typeof KnowledgeBaseFile>
+

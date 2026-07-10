@@ -1,5 +1,5 @@
-import { FlowStatus } from '@activepieces/core-execution'
-import { BaseModelSchema, DateOrString, Nullable } from '@activepieces/core-utils'
+import { FlowStatus } from '@inboxfm-connect/core-execution'
+import { BaseModelSchema, DateOrString, Nullable } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { UserWithMetaInformation } from '../../core/user'
 
@@ -50,3 +50,4 @@ export const AnalyticsReportRequest = z.object({
     timePeriod: z.nativeEnum(AnalyticsTimePeriod).optional(),
 })
 export type AnalyticsReportRequest = z.infer<typeof AnalyticsReportRequest>
+

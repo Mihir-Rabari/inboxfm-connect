@@ -1,7 +1,7 @@
 import { z } from 'zod'
-import { ErrorCode } from '@activepieces/core-utils'
-import { BaseModelSchema, Nullable } from '@activepieces/core-utils'
-import { isNil, truncateString } from '@activepieces/core-utils'
+import { ErrorCode } from '@inboxfm-connect/core-utils'
+import { BaseModelSchema, Nullable } from '@inboxfm-connect/core-utils'
+import { isNil, truncateString } from '@inboxfm-connect/core-utils'
 import { ExecutionState, RunInternalError } from './execution/execution-output'
 import { FlowRunStatus } from './execution/flow-execution'
 
@@ -94,3 +94,4 @@ export type FlowRun = z.infer<typeof FlowRun> & ExecutionState
 export type FlowRunWithRetryError = FlowRun & {
     error?: { errorCode: ErrorCode, errorMessage: string }
 }
+

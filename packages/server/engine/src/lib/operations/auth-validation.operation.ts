@@ -3,7 +3,7 @@ import {
     EngineResponseStatus,
     ExecuteValidateAuthOperation,
     ExecuteValidateAuthResponse,
-} from '@activepieces/shared'
+} from '@inboxfm-connect/shared'
 import { EngineConstants } from '../handler/context/engine-constants'
 import { pieceHelper } from '../helper/piece-helper'
 

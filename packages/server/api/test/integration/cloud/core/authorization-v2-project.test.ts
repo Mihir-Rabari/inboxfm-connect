@@ -1,6 +1,6 @@
 
-import { ActivepiecesError, apId, ErrorCode, Permission, ProjectRole, RoleType } from '@activepieces/core-utils'
-import { DefaultProjectRole, PlatformRole, Principal, PrincipalType } from '@activepieces/shared'
+import { ActivepiecesError, apId, ErrorCode, Permission, ProjectRole, RoleType } from '@inboxfm-connect/core-utils'
+import { DefaultProjectRole, PlatformRole, Principal, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyInstance } from 'fastify'
 import { AuthorizationRouteSecurity } from '../../../../src/app/core/security/authorization/authorization'
 import { AuthorizationType, RouteKind } from '../../../../src/app/core/security/authorization/common'

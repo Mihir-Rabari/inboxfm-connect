@@ -11,10 +11,10 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@activepieces/core-utils": [
+      "@inboxfm-connect/core-utils": [
         "../utils/dist/index.d.ts"
       ],
-      "@activepieces/core-piece-types": [
+      "@inboxfm-connect/core-piece-types": [
         "../piece-types/dist/index.d.ts"
       ]
     }
@@ -27,3 +27,4 @@
     }
   ]
 }
+

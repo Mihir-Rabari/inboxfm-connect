@@ -1,4 +1,4 @@
-import { BaseModelSchema } from '@activepieces/core-utils'
+import { BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
 export const Cell = z.object({
@@ -10,3 +10,4 @@ export const Cell = z.object({
 })
 
 export type Cell = z.infer<typeof Cell>
+

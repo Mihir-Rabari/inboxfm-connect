@@ -1,6 +1,6 @@
 import { Readable } from 'stream'
-import { apId, isNil, ProjectId, tryCatch } from '@activepieces/core-utils'
-import { FileType } from '@activepieces/shared'
+import { apId, isNil, ProjectId, tryCatch } from '@inboxfm-connect/core-utils'
+import { FileType } from '@inboxfm-connect/shared'
 import { DeleteObjectsCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3, S3ClientConfig } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 import { NodeHttpHandler } from '@smithy/node-http-handler'

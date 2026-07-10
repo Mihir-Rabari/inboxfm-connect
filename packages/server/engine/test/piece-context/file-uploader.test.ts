@@ -1,4 +1,4 @@
-import { EngineGenericError, FileSizeError } from '@activepieces/shared'
+import { EngineGenericError, FileSizeError } from '@inboxfm-connect/shared'
 import { createFileUploader } from '../../src/lib/piece-context/file-uploader'
 
 const SERVICE_PARAMS = {

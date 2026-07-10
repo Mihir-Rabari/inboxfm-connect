@@ -1,5 +1,5 @@
-import { isNil } from '@activepieces/core-utils'
-import { ApEdition } from '@activepieces/shared'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { ApEdition } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { lru, LRU } from 'tiny-lru'
 import { embedSubdomainService } from '../ee/embed-subdomain/embed-subdomain.service'

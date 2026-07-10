@@ -1,4 +1,4 @@
-import { AppConnectionStatus, isNil, SuggestionType, tryCatch } from '@activepieces/shared'
+import { AppConnectionStatus, isNil, SuggestionType, tryCatch } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { appConnectionService } from '../app-connection/app-connection-service/app-connection-service'
 import { databaseConnection } from '../database/database-connection'

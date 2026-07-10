@@ -1,9 +1,9 @@
-import { ActivepiecesError, assertNotNullOrUndefined, ErrorCode } from '@activepieces/core-utils'
+import { ActivepiecesError, assertNotNullOrUndefined, ErrorCode } from '@inboxfm-connect/core-utils'
 
 /**
- * @param {string} pieceName - starts with `@activepieces/piece-`
+ * @param {string} pieceName - starts with `@inboxfm-connect/piece-`
  * @param {string} pieceVersion - the version of the piece
- * @returns {string} the package alias for the piece, e.g. `@activepieces/piece-activepieces-0.0.1`
+ * @returns {string} the package alias for the piece, e.g. `@inboxfm-connect/piece-activepieces-0.0.1`
  */
 export const getPackageAliasForPiece = (params: GetPackageAliasForPieceParams): string => {
     const { pieceName, pieceVersion } = params
@@ -24,8 +24,8 @@ export const getPieceNameFromAlias = (alias: string): string => {
 }
 
 /**
- * @param {string} alias - e.g. `@activepieces/piece-activepieces-0.0.1`
- * @returns {string} the piece name, e.g. `@activepieces/piece-activepieces`
+ * @param {string} alias - e.g. `@inboxfm-connect/piece-activepieces-0.0.1`
+ * @returns {string} the piece name, e.g. `@inboxfm-connect/piece-activepieces`
  */
 export const trimVersionFromAlias = (alias: string): string => {
     return alias.split('-').slice(0, -1).join('-')
@@ -38,7 +38,7 @@ export const extractPieceFromModule = <T>(params: ExtractPieceFromModuleParams):
     const exports = Object.values(module)
     const constructors = []
     for (const e of exports) {
-        if (e !== null && e !== undefined && e.constructor.name === 'Piece') {
+        if (e !== null && e !== undefined && (e.constructor.name === 'Piece' || e.constructor.name === 'Integration')) {
             return e as T
         }
         constructors.push(e?.constructor?.name)
@@ -68,3 +68,4 @@ type ExtractPieceFromModuleParams = {
     pieceVersion: string
 }
 export const MAX_KEY_LENGTH_FOR_CORWDIN = 512
+

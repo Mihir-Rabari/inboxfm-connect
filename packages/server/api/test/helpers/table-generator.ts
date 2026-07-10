@@ -1,5 +1,5 @@
-import { apId } from '@activepieces/core-utils'
-import { Field, FieldState, FieldType, PopulatedTable, TableAutomationStatus } from '@activepieces/shared'
+import { apId } from '@inboxfm-connect/core-utils'
+import { Field, FieldState, FieldType, PopulatedTable, TableAutomationStatus } from '@inboxfm-connect/shared'
 import { faker } from '@faker-js/faker'
 
 export const tableGenerator = {

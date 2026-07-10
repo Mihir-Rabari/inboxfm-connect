@@ -1,5 +1,5 @@
-import { assertNotNullOrUndefined, isNil, parseToJsonIfPossible } from '@activepieces/core-utils'
-import { FlowVersion } from '@activepieces/shared'
+import { assertNotNullOrUndefined, isNil, parseToJsonIfPossible } from '@inboxfm-connect/core-utils'
+import { FlowVersion } from '@inboxfm-connect/shared'
 
 let webhookSecrets:
 | Record<string, { webhookSecret: string | Record<string, string> }>

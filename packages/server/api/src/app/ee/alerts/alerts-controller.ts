@@ -1,5 +1,5 @@
-import { ApId, Permission } from '@activepieces/core-utils'
-import { CreateAlertParams, ListAlertsParams, PrincipalType } from '@activepieces/shared'
+import { ApId, Permission } from '@inboxfm-connect/core-utils'
+import { CreateAlertParams, ListAlertsParams, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { ProjectResourceType } from '../../core/security/authorization/common'

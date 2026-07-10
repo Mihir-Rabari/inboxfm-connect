@@ -1,4 +1,4 @@
-import { EventDestination, EventDestinationScope, Platform, Project } from '@activepieces/shared'
+import { EventDestination, EventDestinationScope, Platform, Project } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import { ApIdSchema, BaseColumnSchemaPart } from '../database/database-common'
 

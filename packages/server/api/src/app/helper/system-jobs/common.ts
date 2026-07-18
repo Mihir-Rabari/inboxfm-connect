@@ -1,5 +1,4 @@
-import { FlowId, FlowRunId, PlatformId, ProjectId, UserId } from '@inboxfm-connect/core-utils'
-import { Flow } from '@inboxfm-connect/shared'
+import { PlatformId, ProjectId, UserId } from '@inboxfm-connect/core-utils'
 // BullMQ types replaced with minimal local stubs — the scheduler now runs in-process
 type Job<T = unknown> = { data: T, updateData(data: T): Promise<void>, isFailed(): Promise<boolean>, retry(): Promise<void> }
 type JobsOptions = Record<string, unknown>
@@ -10,13 +9,9 @@ export enum SystemJobName {
     PIECES_SYNC = 'pieces-sync',
     FILE_CLEANUP_TRIGGER = 'file-cleanup-trigger',
     TRIAL_TRACKER = 'trial-tracker',
-    RUN_TELEMETRY = 'run-telemetry',
-    DELETE_FLOW = 'delete-flow',
     AI_CREDIT_UPDATE_CHECK = 'ai-credit-update-check',
     HARD_DELETE_PROJECT = 'hard-delete-project',
     HARD_DELETE_PLATFORM = 'hard-delete-platform',
-    FLOW_RUN_TRACKING = 'flow-run-tracking',
-    RESUME_DELAY_WAITPOINT = 'resume-delay-waitpoint',
     TOOL_SEARCH_REINDEX = 'tool-search-reindex',
     BUNDLE_PIECE = 'bundle-piece',
 }
@@ -24,11 +19,6 @@ export enum SystemJobName {
 type BundlePieceSystemJobData = {
     name: string
     version: string
-}
-
-type DeleteFlowDurableSystemJobData =  {
-    flow: Flow
-    preDeleteDone: boolean
 }
 
 type AiCreditUpdateCheckSystemJobData = {
@@ -39,19 +29,12 @@ type AiCreditUpdateCheckSystemJobData = {
 type HardDeleteProjectSystemJobData = {
     projectId: ProjectId
     platformId: PlatformId
-    preDeletedFlowIds: FlowId[]
 }
 
 type HardDeletePlatformSystemJobData = {
     platformId: PlatformId
     userId: UserId
     identityId: string
-}
-
-type ResumeDelayWaitpointSystemJobData = {
-    flowRunId: FlowRunId
-    projectId: ProjectId
-    waitpointId: string
 }
 
 // Scope shape kept inline (structurally equal to tool-search's ReindexScope) so this generic
@@ -64,14 +47,10 @@ type SystemJobDataMap = {
     [SystemJobName.PIECES_ANALYTICS]: Record<string, never>
     [SystemJobName.PIECES_SYNC]: Record<string, never>
     [SystemJobName.FILE_CLEANUP_TRIGGER]: Record<string, never>
-    [SystemJobName.RUN_TELEMETRY]: Record<string, never>
     [SystemJobName.TRIAL_TRACKER]: Record<string, never>
-    [SystemJobName.DELETE_FLOW]: DeleteFlowDurableSystemJobData
     [SystemJobName.AI_CREDIT_UPDATE_CHECK]: AiCreditUpdateCheckSystemJobData
     [SystemJobName.HARD_DELETE_PROJECT]: HardDeleteProjectSystemJobData
     [SystemJobName.HARD_DELETE_PLATFORM]: HardDeletePlatformSystemJobData
-    [SystemJobName.FLOW_RUN_TRACKING]: Record<string, never>
-    [SystemJobName.RESUME_DELAY_WAITPOINT]: ResumeDelayWaitpointSystemJobData
     [SystemJobName.TOOL_SEARCH_REINDEX]: ToolSearchReindexSystemJobData
     [SystemJobName.BUNDLE_PIECE]: BundlePieceSystemJobData
 }

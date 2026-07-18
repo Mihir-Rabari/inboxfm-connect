@@ -233,7 +233,6 @@ export const platformProjectService = (log: FastifyBaseLogger) => ({
                 data: {
                     projectId: id,
                     platformId,
-                    preDeletedFlowIds: [],
                 },
                 jobId: `hard-delete-project-${id}`,
             },

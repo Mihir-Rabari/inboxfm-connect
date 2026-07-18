@@ -15,13 +15,12 @@
  *    any dispatchable execution events (such as `FLOW_RUN_STARTED` or `FLOW_RUN_FINISHED`).
  */
 
-import { apId, Cursor, isNil, PlatformId, ProjectId, SeekPage, tryCatchSync } from '@inboxfm-connect/core-utils'
-import { ApplicationEvent, ApplicationEventName, buildMockEvent, CreatePlatformEventDestinationRequestBody, EventDestination, EventDestinationScope, FlowRunEvent, LATEST_JOB_DATA_SCHEMA_VERSION, UpdatePlatformEventDestinationRequestBody, WorkerJobType } from '@inboxfm-connect/shared'
+import { apId, Cursor, isNil, PlatformId, ProjectId, SeekPage } from '@inboxfm-connect/core-utils'
+import { ApplicationEvent, ApplicationEventName, buildMockEvent, CreatePlatformEventDestinationRequestBody, EventDestination, EventDestinationScope, LATEST_JOB_DATA_SCHEMA_VERSION, UpdatePlatformEventDestinationRequestBody, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { ArrayContains, FindOptionsWhere } from 'typeorm'
 import { repoFactory } from '../core/db/repo-factory'
 import { applicationEvents } from '../helper/application-events'
-import { domainHelper } from '../helper/domain-helper'
 import { buildPaginator } from '../helper/pagination/build-paginator'
 import { paginationHelper } from '../helper/pagination/pagination-utils'
 
@@ -38,15 +37,6 @@ import {
 const eventDestinationRepo = repoFactory<EventDestinationSchema>(
     EventDestinationEntity,
 )
-
-const PROJECT_SCOPE_EVENTS = [ ApplicationEventName.FLOW_RUN_FINISHED ]
-
-const FLOW_RUN_EVENT_ACTIONS: ReadonlySet<ApplicationEventName> = new Set([
-    ApplicationEventName.FLOW_RUN_STARTED,
-    ApplicationEventName.FLOW_RUN_FINISHED,
-    ApplicationEventName.FLOW_RUN_RESUMED,
-    ApplicationEventName.FLOW_RUN_RETRIED,
-])
 
 export const eventDestinationService = (log: FastifyBaseLogger): {
     setup(): void
@@ -123,36 +113,21 @@ export const eventDestinationService = (log: FastifyBaseLogger): {
 
         return paginationHelper.createPage<EventDestination>(data, cursor)
     },
-    trigger: async ({ projectId, event }: TriggerParams): Promise<void> => {
+    trigger: async ({ event }: TriggerParams): Promise<void> => {
         const platformId = event.platformId
         const conditions: FindOptionsWhere<EventDestinationSchema>[] = [{
             platformId,
             events: ArrayContains([event.action]),
             scope: EventDestinationScope.PLATFORM,
         }]
-        const broadcastToProject = !isNil(projectId) && PROJECT_SCOPE_EVENTS.includes(event.action)
-        if (broadcastToProject) {
-            conditions.push({
-                platformId,
-                projectId,
-                events: ArrayContains([event.action]),
-                scope: EventDestinationScope.PROJECT,
-            })
-        }
         const destinations = await eventDestinationRepo().findBy(conditions)
-        const destinationsToDispatch = await skipInternalDestinationsOnFlowCycle({
-            destinations,
-            event,
-            log,
-        })
-        await Promise.all(destinationsToDispatch.map(destination =>
+        await Promise.all(destinations.map(destination =>
             jobQueue(log).add({
                 type: JobType.ONE_TIME,
                 id: apId(),
                 data: {
                     schemaVersion: LATEST_JOB_DATA_SCHEMA_VERSION,
                     platformId,
-                    projectId,
                     webhookId: destination.id,
                     webhookUrl: destination.url,
                     payload: event,
@@ -162,7 +137,7 @@ export const eventDestinationService = (log: FastifyBaseLogger): {
         ))
     },
     test: async ({ platformId, projectId, url, event }: TestParams): Promise<void> => {
-        const eventToTest = event ?? ApplicationEventName.FLOW_CREATED
+        const eventToTest = event ?? ApplicationEventName.CONNECTION_UPSERTED
         const mockEvent = buildMockEvent({ event: eventToTest, platformId, projectId })
         await jobQueue(log).add({
             type: JobType.ONE_TIME,
@@ -175,70 +150,10 @@ export const eventDestinationService = (log: FastifyBaseLogger): {
                 webhookUrl: url,
                 payload: mockEvent,
                 jobType: WorkerJobType.EVENT_DESTINATION,
-            },
+                },
         })
     },
 })
-
-
-const skipInternalDestinationsOnFlowCycle = async ({
-    destinations,
-    event,
-    log,
-}: SkipDestinationsParams): Promise<EventDestinationSchema[]> => {
-    if (destinations.length === 0 || !isFlowRunEvent(event)) {
-        return destinations
-    }
-    const webhookUrlPrefix = await domainHelper.getPublicApiUrl({
-        path: 'v1/webhooks',
-    })
-    const destinationsWithFlowIds = destinations.map((destination) => ({
-        destination,
-        flowId: extractFlowIdFromWebhookUrl({
-            destinationUrl: destination.url,
-            webhookUrlPrefix,
-        }),
-    }))
-    const internalFlowIds = new Set(
-        destinationsWithFlowIds
-            .map(({ flowId }) => flowId)
-            .filter((flowId): flowId is string => !isNil(flowId)),
-    )
-    const eventFlowId = event.data.flowRun.flowId
-    if (!internalFlowIds.has(eventFlowId)) {
-        return destinations
-    }
-    log.warn({
-        flow: { id: eventFlowId },
-        action: event.action,
-    }, '[eventDestinationService#trigger] Source flow is wired as an internal webhook target; dropping internal destinations to break the cycle, external destinations will still fire')
-    return destinationsWithFlowIds
-        .filter(({ flowId }) => isNil(flowId))
-        .map(({ destination }) => destination)
-}
-
-const isFlowRunEvent = (
-    event: Pick<ApplicationEvent, 'action' | 'data'>,
-): event is Pick<FlowRunEvent, 'action' | 'data'> => FLOW_RUN_EVENT_ACTIONS.has(event.action)
-
-const extractFlowIdFromWebhookUrl = ({
-    destinationUrl,
-    webhookUrlPrefix,
-}: ExtractFlowIdParams): string | null => {
-    const { data: destination } = tryCatchSync(() => new URL(destinationUrl))
-    const { data: prefix } = tryCatchSync(() => new URL(webhookUrlPrefix))
-    if (isNil(destination) || isNil(prefix) || destination.origin !== prefix.origin) {
-        return null
-    }
-    const prefixPath = prefix.pathname + '/'
-    if (!destination.pathname.startsWith(prefixPath)) {
-        return null
-    }
-    const destinationWithoutPrefix = destination.pathname.slice(prefixPath.length)
-    const slashIndex = destinationWithoutPrefix.indexOf('/')
-    const flowId = slashIndex === -1 ? destinationWithoutPrefix : destinationWithoutPrefix.slice(0, slashIndex)
-    return flowId || null
-}
 
 
 type DeleteParams = {
@@ -270,13 +185,3 @@ type TestParams = {
     event?: ApplicationEventName
 }
 
-type SkipDestinationsParams = {
-    destinations: EventDestinationSchema[]
-    event: ApplicationEvent
-    log: FastifyBaseLogger
-}
-
-type ExtractFlowIdParams = {
-    destinationUrl: string
-    webhookUrlPrefix: string
-}

@@ -75,5 +75,3 @@ const userInteractionWatcherImpl = {
 }
 
 export const userInteractionWatcher = userInteractionWatcherImpl
-export type UserInteractionWatcher = typeof userInteractionWatcherImpl
-export type UserInteractionWatcherType = typeof userInteractionWatcherImpl

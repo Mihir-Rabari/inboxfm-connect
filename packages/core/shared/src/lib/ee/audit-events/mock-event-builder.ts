@@ -1,20 +1,9 @@
-import { FlowOperationType, FlowStatus } from '@inboxfm-connect/core-execution'
 import { apId, PlatformId, ProjectId } from '@inboxfm-connect/core-utils'
 import {
     ApplicationEvent,
     ApplicationEventName,
     AuthenticationEvent,
     ConnectionEvent,
-    FlowActivatedEvent,
-    FlowCreatedEvent,
-    FlowDeactivatedEvent,
-    FlowDeletedEvent,
-    FlowPublishedEvent,
-    FlowRunEvent,
-    FlowUpdatedEvent,
-    FolderEvent,
-    ProjectReleaseEvent,
-    ProjectReplacedEvent,
     ProjectRoleEvent,
     SigningKeyEvent,
     SignUpEvent,
@@ -33,14 +22,6 @@ export const buildMockEvent = ({ event, platformId, projectId }: BuildMockEventP
         userId: apId(),
     }
     const project = { displayName: 'Dream Department' }
-    const flow = { id: apId(), externalId: apId(), created: isoNow, updated: isoNow }
-    const flowVersion = {
-        id: apId(),
-        displayName: 'Sample flow',
-        flowId: flow.id,
-        created: isoNow,
-        updated: isoNow,
-    }
     const user = {
         id: apId(),
         email: 'sample@example.com',
@@ -49,104 +30,6 @@ export const buildMockEvent = ({ event, platformId, projectId }: BuildMockEventP
     }
 
     switch (event) {
-        case ApplicationEventName.FLOW_RUN_STARTED:
-        case ApplicationEventName.FLOW_RUN_FINISHED:
-        case ApplicationEventName.FLOW_RUN_RESUMED:
-        case ApplicationEventName.FLOW_RUN_RETRIED: {
-            const mock: FlowRunEvent = {
-                ...baseEnvelope,
-                action: event,
-                data: {
-                    flowRun: {
-                        id: apId(),
-                        startTime: isoNow,
-                        finishTime: isoNow,
-                        duration: 1234,
-                        environment: 'PRODUCTION',
-                        flowId: flow.id,
-                        flowVersionId: flowVersion.id,
-                        flowDisplayName: flowVersion.displayName,
-                        status: event === ApplicationEventName.FLOW_RUN_FINISHED ? 'FAILED' : 'RUNNING',
-                    },
-                    project,
-                },
-            }
-            return mock
-        }
-        case ApplicationEventName.FLOW_CREATED: {
-            const mock: FlowCreatedEvent = {
-                ...baseEnvelope,
-                action: ApplicationEventName.FLOW_CREATED,
-                data: { flow, project },
-            }
-            return mock
-        }
-        case ApplicationEventName.FLOW_DELETED: {
-            const mock: FlowDeletedEvent = {
-                ...baseEnvelope,
-                action: ApplicationEventName.FLOW_DELETED,
-                data: { flow, flowVersion, project },
-            }
-            return mock
-        }
-        case ApplicationEventName.FLOW_UPDATED: {
-            const mock: FlowUpdatedEvent = {
-                ...baseEnvelope,
-                action: ApplicationEventName.FLOW_UPDATED,
-                data: {
-                    flow,
-                    flowVersion,
-                    request: {
-                        type: FlowOperationType.LOCK_AND_PUBLISH,
-                        request: { status: FlowStatus.ENABLED },
-                    },
-                    project,
-                },
-            }
-            return mock
-        }
-        case ApplicationEventName.FLOW_PUBLISHED: {
-            const mock: FlowPublishedEvent = {
-                ...baseEnvelope,
-                action: ApplicationEventName.FLOW_PUBLISHED,
-                data: { flow, flowVersion, project },
-            }
-            return mock
-        }
-        case ApplicationEventName.FLOW_ACTIVATED: {
-            const mock: FlowActivatedEvent = {
-                ...baseEnvelope,
-                action: ApplicationEventName.FLOW_ACTIVATED,
-                data: { flow, flowVersion, project },
-            }
-            return mock
-        }
-        case ApplicationEventName.FLOW_DEACTIVATED: {
-            const mock: FlowDeactivatedEvent = {
-                ...baseEnvelope,
-                action: ApplicationEventName.FLOW_DEACTIVATED,
-                data: { flow, flowVersion, project },
-            }
-            return mock
-        }
-        case ApplicationEventName.FOLDER_CREATED:
-        case ApplicationEventName.FOLDER_UPDATED:
-        case ApplicationEventName.FOLDER_DELETED: {
-            const mock: FolderEvent = {
-                ...baseEnvelope,
-                action: event,
-                data: {
-                    folder: {
-                        id: apId(),
-                        displayName: 'Sample folder',
-                        created: isoNow,
-                        updated: isoNow,
-                    },
-                    project,
-                },
-            }
-            return mock
-        }
         case ApplicationEventName.CONNECTION_UPSERTED:
         case ApplicationEventName.CONNECTION_DELETED: {
             const mock: ConnectionEvent = {
@@ -238,51 +121,6 @@ export const buildMockEvent = ({ event, platformId, projectId }: BuildMockEventP
             }
             return mock
         }
-        case ApplicationEventName.PROJECT_RELEASE_CREATED: {
-            const mock: ProjectReleaseEvent = {
-                ...baseEnvelope,
-                action: ApplicationEventName.PROJECT_RELEASE_CREATED,
-                data: {
-                    release: {
-                        name: 'v1.0.0',
-                        description: 'Sample release',
-                        type: 'PROJECT',
-                        projectId: projectId ?? apId(),
-                    },
-                },
-            }
-            return mock
-        }
-        case ApplicationEventName.PROJECT_REPLACED: {
-            const mock: ProjectReplacedEvent = {
-                ...baseEnvelope,
-                action: ApplicationEventName.PROJECT_REPLACED,
-                data: {
-                    sourceActivepiecesVersion: '0.0.0',
-                    applied: {
-                        flowsCreated: 1,
-                        flowsUpdated: 0,
-                        flowsDeleted: 0,
-                        flowsUnchanged: 0,
-                        tablesCreated: 0,
-                        tablesUpdated: 0,
-                        tablesDeleted: 0,
-                        tablesUnchanged: 0,
-                        foldersCreated: 0,
-                        foldersUpdated: 0,
-                        foldersDeleted: 0,
-                        foldersUnchanged: 0,
-                        connectionsCreated: 0,
-                        connectionsUpdated: 0,
-                        connectionsUnchanged: 0,
-                    },
-                    failedCount: 0,
-                    outcome: 'SUCCESS',
-                    durationMs: 1234,
-                },
-            }
-            return mock
-        }
     }
 }
 
@@ -291,4 +129,5 @@ export type BuildMockEventParams = {
     platformId: PlatformId
     projectId?: ProjectId
 }
+
 

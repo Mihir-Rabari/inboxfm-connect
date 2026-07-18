@@ -1,7 +1,7 @@
 import { AIProviderName, apId, assertNotNullOrUndefined, ProjectRole, RoleType } from '@inboxfm-connect/core-utils'
 import { LATEST_CONTEXT_VERSION, PieceMetadata } from '@inboxfm-connect/pieces-framework'
 import { apDayjs } from '@inboxfm-connect/server-utils'
-import { AiCreditsAutoTopUpState, AIProvider, ApiKey, AppConnection, AppConnectionScope, AppConnectionStatus, AppConnectionType, ApplicationEvent, ApplicationEventName, Cell, ColorName, EventDestinationScope, Field, FieldType, File, FileCompression, FileLocation, FileType, FilteredPieceBehavior, Flow, FlowOperationStatus, FlowRun, FlowRunStatus, FlowStatus, FlowTriggerType, FlowVersion, FlowVersionState, Folder, GitBranchType, GitRepo, InvitationStatus, InvitationType, KeyAlgorithm, LATEST_FLOW_SCHEMA_VERSION, OAuthApp, OtpModel, OtpState, OtpType, PackageType, PiecesFilterType, PieceType, Platform, PlatformPlan, PlatformRole, Project, ProjectIcon, ProjectMember, ProjectPlan, ProjectRelease, ProjectReleaseType, ProjectType, Record, RunEnvironment, SigningKey, Table, TeamProjectsLimit, Template, TemplateStatus, TemplateType, User, UserIdentity, UserIdentityProvider, UserInvitation, UserStatus } from '@inboxfm-connect/shared'
+import { AiCreditsAutoTopUpState, AIProvider, ApiKey, AppConnection, AppConnectionScope, AppConnectionStatus, AppConnectionType, ApplicationEvent, ApplicationEventName, Cell, ColorName, EventDestinationScope, Field, FieldType, File, FileCompression, FileLocation, FileType, FilteredPieceBehavior, InvitationStatus, InvitationType, KeyAlgorithm, OAuthApp, OtpModel, OtpState, OtpType, PackageType, PiecesFilterType, PieceType, Platform, PlatformPlan, PlatformRole, Project, ProjectIcon, ProjectMember, ProjectPlan, ProjectType, Record, RunEnvironment, SigningKey, Table, TeamProjectsLimit, User, UserIdentity, UserIdentityProvider, UserInvitation, UserStatus } from '@inboxfm-connect/shared'
 import { faker } from '@faker-js/faker'
 import bcrypt from 'bcrypt'
 import dayjs from 'dayjs'
@@ -62,29 +62,6 @@ export const createMockOAuthApp = async (
         pieceName: oAuthApp?.pieceName ?? faker.lorem.word(),
         clientId: oAuthApp?.clientId ?? apId(),
         clientSecret: await encryptUtils.encryptString(faker.lorem.word()),
-    }
-}
-
-export const createMockTemplate = (
-    template?: Partial<Template>,
-): Template => {
-    return {
-        id: template?.id ?? apId(),
-        created: template?.created ?? faker.date.recent().toISOString(),
-        updated: template?.updated ?? faker.date.recent().toISOString(),
-        pieces: template?.pieces ?? [],
-        flows: template?.flows ?? [createMockFlowVersion()],
-        platformId: template?.platformId ?? apId(),
-        name: template?.name ?? faker.lorem.word(),
-        type: template?.type ?? TemplateType.CUSTOM,
-        description: template?.description ?? faker.lorem.sentence(),
-        summary: template?.summary ?? faker.lorem.sentence(),
-        tags: template?.tags ?? [],
-        blogUrl: template?.blogUrl ?? faker.internet.url(),
-        metadata: template?.metadata ?? null,
-        author: template?.author ?? faker.person.fullName(),
-        categories: template?.categories ?? [],
-        status: template?.status ?? TemplateStatus.PUBLISHED,
     }
 }
 
@@ -400,71 +377,7 @@ export const createMockOtp = (otp?: Partial<OtpModel>): OtpModel => {
     }
 }
 
-export const createMockFlowRun = (flowRun?: Partial<FlowRun>): FlowRun => {
-    return {
-        id: flowRun?.id ?? apId(),
-        created: flowRun?.created ?? faker.date.recent().toISOString(),
-        updated: flowRun?.updated ?? faker.date.recent().toISOString(),
-        projectId: flowRun?.projectId ?? apId(),
-        flowId: flowRun?.flowId ?? apId(),
-        tags: flowRun?.tags ?? [],
-        steps: {},
-        failParentOnFailure: flowRun?.failParentOnFailure ?? false,
-        parentRunId: flowRun?.parentRunId ?? undefined,
-        flowVersionId: flowRun?.flowVersionId ?? apId(),
-        flowVersion: flowRun?.flowVersion,
-        logsFileId: flowRun?.logsFileId ?? null,
-        status: flowRun?.status ?? faker.helpers.enumValue(FlowRunStatus),
-        startTime: flowRun?.startTime ?? faker.date.recent().toISOString(),
-        finishTime: flowRun?.finishTime ?? faker.date.recent().toISOString(),
-        environment:
-            flowRun?.environment ?? faker.helpers.enumValue(RunEnvironment),
-    }
-}
 
-export const createMockFlow = (flow?: Partial<Flow>): Flow => {
-    return {
-        id: flow?.id ?? apId(),
-        created: flow?.created ?? faker.date.recent().toISOString(),
-        updated: flow?.updated ?? faker.date.recent().toISOString(),
-        projectId: flow?.projectId ?? apId(),
-        status: flow?.status ?? faker.helpers.enumValue(FlowStatus),
-        folderId: flow?.folderId ?? null,
-        operationStatus: flow?.operationStatus ?? FlowOperationStatus.NONE,
-        publishedVersionId: flow?.publishedVersionId ?? null,
-        externalId: flow?.externalId ?? apId(),
-    }
-}
-
-export const createMockFlowVersion = (
-    flowVersion?: Partial<FlowVersion>,
-): FlowVersion => {
-    const emptyTrigger = {
-        type: FlowTriggerType.EMPTY,
-        name: 'trigger',
-        settings: {},
-        valid: false,
-        displayName: 'Select Trigger',
-        lastUpdatedDate: dayjs().toISOString(),
-    } as const
-
-    return {
-        id: flowVersion?.id ?? apId(),
-        created: flowVersion?.created ?? faker.date.recent().toISOString(),
-        updated: flowVersion?.updated ?? faker.date.recent().toISOString(),
-        displayName: flowVersion?.displayName ?? faker.word.words(),
-        flowId: flowVersion?.flowId ?? apId(),
-        agentIds: flowVersion?.agentIds ?? [],
-        trigger: flowVersion?.trigger ?? emptyTrigger,
-        connectionIds: flowVersion?.connectionIds ?? [],
-        state: flowVersion?.state ?? faker.helpers.enumValue(FlowVersionState),
-        updatedBy: flowVersion?.updatedBy,
-        valid: flowVersion?.valid ?? faker.datatype.boolean(),
-        notes: flowVersion?.notes ?? [],
-        schemaVersion: flowVersion?.schemaVersion ?? LATEST_FLOW_SCHEMA_VERSION,
-        backupFiles: flowVersion?.backupFiles ?? null,
-    }
-}
 
 export const createMockConnection = (connection: Partial<AppConnection>, ownerId: string): AppConnection<AppConnectionType.SECRET_TEXT> => {
     return {
@@ -694,19 +607,7 @@ export const createMockProjectRole = (projectRole?: Partial<ProjectRole>): Proje
     }
 }
 
-export const createMockProjectRelease = (projectRelease?: Partial<ProjectRelease>): ProjectRelease => {
-    return {
-        id: projectRelease?.id ?? apId(),
-        created: projectRelease?.created ?? faker.date.recent().toISOString(),
-        updated: projectRelease?.updated ?? faker.date.recent().toISOString(),
-        projectId: projectRelease?.projectId ?? apId(),
-        importedBy: projectRelease?.importedBy ?? apId(),
-        fileId: projectRelease?.fileId ?? apId(),
-        name: projectRelease?.name ?? faker.lorem.word(),
-        description: projectRelease?.description ?? faker.lorem.sentence(),
-        type: projectRelease?.type ?? faker.helpers.enumValue(ProjectReleaseType),
-    }
-}
+
 
 export const createMockAIProvider = async (aiProvider?: Partial<AIProvider>): Promise<Omit<AIProviderSchema, 'platform'>> => {
     return {
@@ -742,16 +643,7 @@ export const mockPieceMetadata = async (mockLog: FastifyBaseLogger): Promise<Pie
     return mockPieceMetadata
 }
 
-export const createMockFolder = (folder?: Partial<Folder>): Folder => {
-    return {
-        id: folder?.id ?? apId(),
-        created: folder?.created ?? faker.date.recent().toISOString(),
-        updated: folder?.updated ?? faker.date.recent().toISOString(),
-        projectId: folder?.projectId ?? apId(),
-        displayName: folder?.displayName ?? faker.lorem.word(),
-        displayOrder: folder?.displayOrder ?? faker.number.int({ min: 0, max: 100 }),
-    }
-}
+
 
 export const createMockEventDestination = (eventDestination?: Partial<{
     id: string

@@ -21,19 +21,12 @@ import { ConcurrencyPoolEntity } from '../ee/platform/concurrency-pool/concurren
 import { PlatformPlanEntity } from '../ee/platform/platform-plan/platform-plan.entity'
 import { ProjectMemberEntity } from '../ee/projects/project-members/project-member.entity'
 import { ProjectPlanEntity } from '../ee/projects/project-plan/project-plan.entity'
-import { GitRepoEntity } from '../ee/projects/project-release/git-sync/git-sync.entity'
-import { ProjectReleaseEntity } from '../ee/projects/project-release/project-release.entity'
 import { ProjectRoleEntity } from '../ee/projects/project-role/project-role.entity'
 import { SecretManagerEntity } from '../ee/secret-managers/secret-manager.entity'
 import { SigningKeyEntity } from '../ee/signing-key/signing-key-entity'
 import { EventDestinationEntity } from '../event-destinations/event-destinations.entity'
 import { FileEntity } from '../file/file.entity'
 import { FlagEntity } from '../flags/flag.entity'
-import { FlowEntity } from '../flows/flow/flow.entity'
-import { FlowRunEntity } from '../flows/flow-run/flow-run-entity'
-import { WaitpointEntity } from '../flows/flow-run/waitpoint/waitpoint-entity'
-import { FlowVersionEntity } from '../flows/flow-version/flow-version-entity'
-import { FolderEntity } from '../flows/folder/folder.entity'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
 import { KnowledgeBaseChunkEntity } from '../knowledge-base/knowledge-base-chunk.entity'
@@ -51,13 +44,8 @@ import { StoreEntryEntity } from '../store-entry/store-entry-entity'
 import { FieldEntity } from '../tables/field/field.entity'
 import { CellEntity } from '../tables/record/cell.entity'
 import { RecordEntity } from '../tables/record/record.entity'
-import { TableWebhookEntity } from '../tables/table/table-webhook.entity'
 import { TableEntity } from '../tables/table/table.entity'
-import { TemplateEntity } from '../template/template.entity'
 import { ToolSearchIndexEntity } from '../tool-search/tool-search-index.entity'
-import { AppEventRoutingEntity } from '../trigger/app-event-routing/app-event-routing.entity'
-import { TriggerEventEntity } from '../trigger/trigger-events/trigger-event.entity'
-import { TriggerSourceEntity } from '../trigger/trigger-source/trigger-source-entity'
 import { UserEntity } from '../user/user-entity'
 import { UserInvitationEntity } from '../user-invitations/user-invitation.entity'
 import { VariableEntity } from '../variable/variable.entity'
@@ -69,19 +57,13 @@ const databaseType = system.get(AppSystemProp.DB_TYPE)
 
 function getEntities(): EntitySchema<unknown>[] {
     return [
-        TriggerEventEntity,
-        AppEventRoutingEntity,
         FileEntity,
         FlagEntity,
-        FlowEntity,
-        FlowVersionEntity,
-        FlowRunEntity,
         ProjectEntity,
         StoreEntryEntity,
         UserEntity,
         ConnectionEntity,
         VariableEntity,
-        FolderEntity,
         IntegrationMetadataEntity,
         PlatformEntity,
         SecretManagerEntity,
@@ -96,7 +78,6 @@ function getEntities(): EntitySchema<unknown>[] {
         FieldEntity,
         RecordEntity,
         CellEntity,
-        TableWebhookEntity,
         UserIdentityEntity,
         McpServerEntity,
         McpOAuthClientEntity,
@@ -105,8 +86,6 @@ function getEntities(): EntitySchema<unknown>[] {
         KnowledgeBaseFileEntity,
         KnowledgeBaseChunkEntity,
         ToolSearchIndexEntity,
-        TriggerSourceEntity,
-        WaitpointEntity,
         // Enterprise
         ConcurrencyPoolEntity,
         ProjectMemberEntity,
@@ -115,10 +94,7 @@ function getEntities(): EntitySchema<unknown>[] {
         OAuthAppEntity,
         OtpEntity,
         ApiKeyEntity,
-        TemplateEntity,
-        GitRepoEntity,
         AuditEventEntity,
-        ProjectReleaseEntity,
         PlatformAnalyticsReportEntity,
         EmbedSubdomainEntity,
         // CLOUD

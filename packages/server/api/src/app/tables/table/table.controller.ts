@@ -1,5 +1,5 @@
 import { ApId, Permission, SeekPage } from '@inboxfm-connect/core-utils'
-import { CountTablesRequest, CreateTableRequest, ExportTableResponse, GitPushOperationType, ListTablesRequest, PrincipalType, SERVICE_KEY_SECURITY_OPENAPI, SharedTemplate, Table, UpdateTableRequest } from '@inboxfm-connect/shared'
+import { CountTablesRequest, CreateTableRequest, ExportTableResponse, ListTablesRequest, PrincipalType, SERVICE_KEY_SECURITY_OPENAPI, SharedTemplate, Table, UpdateTableRequest } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'

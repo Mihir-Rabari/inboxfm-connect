@@ -4,14 +4,10 @@ import {
     ConcurrencyPool,
     Field,
     File,
-    Flow,
-    Folder,
     Platform,
     Project,
     Record,
     Table,
-    TableWebhook,
-    TriggerEvent,
     User,
 } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
@@ -22,17 +18,13 @@ import {
 
 type ProjectSchema = Project & {
     owner: User
-    flows: Flow[]
     files: File[]
-    folders: Folder[]
-    events: TriggerEvent[]
     appConnections: AppConnection[]
     platform: Platform
     tables: Table[]
     fields: Field[]
     records: Record[]
     cells: Cell[]
-    tableWebhooks: TableWebhook[]
     pool?: ConcurrencyPool | null
 }
 
@@ -134,29 +126,14 @@ export const ProjectEntity = new EntitySchema<ProjectSchema>({
                 foreignKeyConstraintName: 'fk_project_platform_id',
             },
         },
-        folders: {
-            type: 'one-to-many',
-            target: 'folder',
-            inverseSide: 'project',
-        },
         appConnections: {
             type: 'one-to-many',
             target: 'app_connection',
             inverseSide: 'project',
         },
-        events: {
-            type: 'one-to-many',
-            target: 'trigger_event',
-            inverseSide: 'project',
-        },
         files: {
             type: 'one-to-many',
             target: 'file',
-            inverseSide: 'project',
-        },
-        flows: {
-            type: 'one-to-many',
-            target: 'flow',
             inverseSide: 'project',
         },
         tables: {
@@ -177,11 +154,6 @@ export const ProjectEntity = new EntitySchema<ProjectSchema>({
         cells: {
             type: 'one-to-many',
             target: 'cell',
-            inverseSide: 'project',
-        },
-        tableWebhooks: {
-            type: 'one-to-many',
-            target: 'table_webhook',
             inverseSide: 'project',
         },
         pool: {

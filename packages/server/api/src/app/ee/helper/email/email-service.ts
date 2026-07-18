@@ -1,17 +1,15 @@
 import { assertNotNullOrUndefined } from '@inboxfm-connect/core-utils'
-import { AlertChannel, ApEdition, InvitationType, OtpType, UserIdentity, UserInvitation } from '@inboxfm-connect/shared'
+import { ApEdition, InvitationType, OtpType, UserIdentity, UserInvitation } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { domainHelper } from '../../../helper/domain-helper'
 import { system } from '../../../helper/system/system'
 import { platformService } from '../../../platform/platform.service'
 import { projectService } from '../../../project/project-service'
-import { alertsService } from '../../alerts/alerts-service'
 import { projectRoleService } from '../../projects/project-role/project-role.service'
 import { emailSender, EmailTemplateData } from './email-sender/email-sender'
 
 const EDITION = system.getEdition()
 const EDITION_IS_NOT_PAID = ![ApEdition.CLOUD, ApEdition.ENTERPRISE].includes(EDITION)
-const MAX_ISSUES_EMAIL_LIMT = 50
 
 export const emailService = (log: FastifyBaseLogger) => ({
     async sendInvitation({ userInvitation, invitationLink }: SendInvitationArgs): Promise<void> {
@@ -96,51 +94,8 @@ export const emailService = (log: FastifyBaseLogger) => ({
         })
     },
 
-    async sendIssueCreatedNotification({
-        projectId,
-        projectName,
-        flowName,
-        platformId,
-        runUrl,
-        createdAt,
-        failedStepDisplayName,
-        failedStepNumber,
-        failedStepMessage,
-    }: IssueCreatedArgs): Promise<void> {
-        if (EDITION_IS_NOT_PAID) {
-            return
-        }
-
-        log.info({
-            name: '[emailService#sendIssueCreatedNotification]',
-            project: { id: projectId },
-            flowName,
-            createdAt,
-        })
-
-        const alerts = await alertsService(log).list({ projectId, cursor: undefined, limit: MAX_ISSUES_EMAIL_LIMT })
-        const emails = alerts.data.filter((alert) => alert.channel === AlertChannel.EMAIL).map((alert) => alert.receiver)
-
-        if (emails.length === 0) {
-            return
-        }
-
-        await emailSender(log).send({
-            emails,
-            platformId,
-            templateData: {
-                name: 'issue-created',
-                vars: {
-                    projectName,
-                    flowName,
-                    createdAt,
-                    runUrl,
-                    failedStepDisplayName,
-                    failedStepNumber: failedStepNumber ? `${failedStepNumber}` : '',
-                    failedStepMessage: failedStepMessage ?? '',
-                },
-            },
-        })
+    async sendIssueCreatedNotification(): Promise<void> {
+        // no-op (alerts service removed)
     },
 
     async sendOtp({ platformId, userIdentity, otp, type }: SendOtpArgs): Promise<void> {

@@ -1,11 +1,21 @@
 import { Nullable, OptionalArrayFromQuery } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { formErrors } from '../../../form-errors'
-import { FieldState } from '../../project-release/project-state'
 import { TableAutomationStatus, TableAutomationTrigger } from '../table'
 import { TableWebhookEventType } from '../table-webhook'
 
 const SAFE_EXTERNAL_ID_PATTERN = /^(?!\.{1,2}$)[A-Za-z0-9._-]{1,128}$/
+
+import { FieldType } from '../field'
+
+export const FieldState = z.object({
+    id: z.string().optional(),
+    name: z.string(),
+    type: z.nativeEnum(FieldType),
+    data: z.record(z.string(), z.unknown()).nullable().optional(),
+    externalId: z.string().optional(),
+})
+export type FieldState = z.infer<typeof FieldState>
 
 export const CreateTableRequest = z.object({
     projectId: z.string(),

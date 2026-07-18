@@ -8,7 +8,6 @@ import { AiToolConfigEntity } from '../ai/ai-tool-config-entity'
 import { PlatformAnalyticsReportEntity } from '../analytics/platform-analytics-report.entity'
 import { ConnectionEntity } from '../app-connection/app-connection.entity'
 import { UserIdentityEntity } from '../authentication/user-identity/user-identity-entity'
-import { AlertEntity } from '../ee/alerts/alerts-entity'
 import { ApiKeyEntity } from '../ee/api-keys/api-key-entity'
 import { AppCredentialEntity } from '../ee/app-credentials/app-credentials.entity'
 import { AppSumoEntity } from '../ee/appsumo/appsumo.entity'
@@ -29,8 +28,6 @@ import { FileEntity } from '../file/file.entity'
 import { FlagEntity } from '../flags/flag.entity'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
-import { KnowledgeBaseChunkEntity } from '../knowledge-base/knowledge-base-chunk.entity'
-import { KnowledgeBaseFileEntity } from '../knowledge-base/knowledge-base-file.entity'
 import { McpServerEntity } from '../mcp/mcp-entity'
 import { McpOAuthClientEntity } from '../mcp/oauth/client/mcp-oauth-client.entity'
 import { McpOAuthAuthorizationCodeEntity } from '../mcp/oauth/code/mcp-oauth-code.entity'
@@ -48,7 +45,6 @@ import { TableEntity } from '../tables/table/table.entity'
 import { ToolSearchIndexEntity } from '../tool-search/tool-search-index.entity'
 import { UserEntity } from '../user/user-entity'
 import { UserInvitationEntity } from '../user-invitations/user-invitation.entity'
-import { VariableEntity } from '../variable/variable.entity'
 import { DatabaseType } from './database-type'
 import { createPGliteDataSource } from './pglite-connection'
 import { createPostgresDataSource } from './postgres-connection'
@@ -63,13 +59,11 @@ function getEntities(): EntitySchema<unknown>[] {
         StoreEntryEntity,
         UserEntity,
         ConnectionEntity,
-        VariableEntity,
         IntegrationMetadataEntity,
         PlatformEntity,
         SecretManagerEntity,
         TagEntity,
         PieceTagEntity,
-        AlertEntity,
         UserInvitationEntity,
         AIProviderEntity,
         AiToolConfigEntity,
@@ -83,8 +77,6 @@ function getEntities(): EntitySchema<unknown>[] {
         McpOAuthClientEntity,
         McpOAuthAuthorizationCodeEntity,
         McpOAuthTokenEntity,
-        KnowledgeBaseFileEntity,
-        KnowledgeBaseChunkEntity,
         ToolSearchIndexEntity,
         // Enterprise
         ConcurrencyPoolEntity,

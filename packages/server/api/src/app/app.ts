@@ -3,7 +3,7 @@ import swagger from '@fastify/swagger'
 import { isNil, spreadIfDefined } from '@inboxfm-connect/core-utils'
 import { PieceMetadata } from '@inboxfm-connect/pieces-framework'
 import { wideEvent } from '@inboxfm-connect/server-utils'
-import { AddAllowedEmbedOriginsRequestBody, ApEdition, ApEnvironment, AppConnectionWithoutSensitiveData, ApplicationEventName, ConnectionDeletedEvent, ConnectionUpsertedEvent, Flow, FlowActivatedEvent, FlowCreatedEvent, FlowDeactivatedEvent, FlowDeletedEvent, FlowPublishedEvent, FlowRun, FlowRunFinishedEvent, FlowRunRetriedEvent, FlowRunStartedEvent, FlowUpdatedEvent, Folder, FolderCreatedEvent, FolderDeletedEvent, FolderUpdatedEvent, GitRepoWithoutSensitiveData, ProjectMember, ProjectRelease, ProjectReleaseEvent, ProjectRoleEvent, ProjectWithLimits, SigningKeyEvent, SignUpEvent, Template, UserEmailVerifiedEvent, UserInvitation, UserPasswordResetEvent, UserSignedInEvent, UserWithMetaInformation } from '@inboxfm-connect/shared'
+import { AddAllowedEmbedOriginsRequestBody, ApEdition, ApEnvironment, AppConnectionWithoutSensitiveData, ApplicationEventName, ConnectionDeletedEvent, ConnectionUpsertedEvent, ProjectMember, ProjectRoleEvent, ProjectWithLimits, SigningKeyEvent, SignUpEvent, UserEmailVerifiedEvent, UserInvitation, UserPasswordResetEvent, UserSignedInEvent, UserWithMetaInformation } from '@inboxfm-connect/shared'
 import { createAdapter } from '@socket.io/redis-adapter'
 import { FastifyInstance, FastifyRequest, HTTPMethods } from 'fastify'
 import { jsonSchemaTransform, jsonSchemaTransformObject } from 'fastify-type-provider-zod'
@@ -42,7 +42,6 @@ import { managedAuthnModule } from './ee/managed-authn/managed-authn-module'
 import { oauthAppModule } from './ee/oauth-apps/oauth-app.module'
 import { platformPieceModule } from './ee/pieces/platform-piece-module'
 import { adminPlatformModule } from './ee/platform/admin/admin-platform.controller'
-import { adminPlatformTemplatesCloudModule } from './ee/platform/admin/templates/admin-platform-templates-cloud.module'
 import { platformAiCreditsService } from './ee/platform/platform-plan/platform-ai-credits.service'
 import { platformPlanModule } from './ee/platform/platform-plan/platform-plan.module'
 import { platformWebhooksModule } from './ee/platform-webhooks/platform-webhooks.module'
@@ -261,7 +260,6 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     switch (edition) {
         case ApEdition.CLOUD:
             await app.register(adminPlatformModule)
-            await app.register(adminPlatformTemplatesCloudModule)
             await app.register(appCredentialModule)
             await app.register(connectionKeyModule)
             await app.register(platformProjectModule)
@@ -393,39 +391,20 @@ function extractProjectId(principal: { projectId?: string } | null | undefined):
 }
 
 function registerOpenApiSchemas() {
-    globalRegistry.add(FlowCreatedEvent, { id: ApplicationEventName.FLOW_CREATED })
-    globalRegistry.add(FlowUpdatedEvent, { id: ApplicationEventName.FLOW_UPDATED })
-    globalRegistry.add(FlowDeletedEvent, { id: ApplicationEventName.FLOW_DELETED })
-    globalRegistry.add(FlowPublishedEvent, { id: ApplicationEventName.FLOW_PUBLISHED })
-    globalRegistry.add(FlowActivatedEvent, { id: ApplicationEventName.FLOW_ACTIVATED })
-    globalRegistry.add(FlowDeactivatedEvent, { id: ApplicationEventName.FLOW_DEACTIVATED })
     globalRegistry.add(ConnectionUpsertedEvent, { id: ApplicationEventName.CONNECTION_UPSERTED })
     globalRegistry.add(ConnectionDeletedEvent, { id: ApplicationEventName.CONNECTION_DELETED })
-    globalRegistry.add(FolderCreatedEvent, { id: ApplicationEventName.FOLDER_CREATED })
-    globalRegistry.add(FolderUpdatedEvent, { id: ApplicationEventName.FOLDER_UPDATED })
-    globalRegistry.add(FolderDeletedEvent, { id: ApplicationEventName.FOLDER_DELETED })
-    globalRegistry.add(FlowRunStartedEvent, { id: ApplicationEventName.FLOW_RUN_STARTED })
-    globalRegistry.add(FlowRunFinishedEvent, { id: ApplicationEventName.FLOW_RUN_FINISHED })
-    globalRegistry.add(FlowRunRetriedEvent, { id: ApplicationEventName.FLOW_RUN_RETRIED })
     globalRegistry.add(SignUpEvent, { id: ApplicationEventName.USER_SIGNED_UP })
     globalRegistry.add(UserSignedInEvent, { id: ApplicationEventName.USER_SIGNED_IN })
     globalRegistry.add(UserPasswordResetEvent, { id: ApplicationEventName.USER_PASSWORD_RESET })
     globalRegistry.add(UserEmailVerifiedEvent, { id: ApplicationEventName.USER_EMAIL_VERIFIED })
     globalRegistry.add(SigningKeyEvent, { id: ApplicationEventName.SIGNING_KEY_CREATED })
     globalRegistry.add(ProjectRoleEvent, { id: ApplicationEventName.PROJECT_ROLE_CREATED })
-    globalRegistry.add(ProjectReleaseEvent, { id: ApplicationEventName.PROJECT_RELEASE_CREATED })
-    globalRegistry.add(Template, { id: 'template' })
-    globalRegistry.add(Folder, { id: 'folder' })
     globalRegistry.add(UserWithMetaInformation, { id: 'user' })
     globalRegistry.add(UserInvitation, { id: 'user-invitation' })
     globalRegistry.add(ProjectMember, { id: 'project-member' })
     globalRegistry.add(ProjectWithLimits, { id: 'project' })
-    globalRegistry.add(Flow, { id: 'flow' })
-    globalRegistry.add(FlowRun, { id: 'flow-run' })
     globalRegistry.add(AppConnectionWithoutSensitiveData, { id: 'app-connection' })
     globalRegistry.add(PieceMetadata, { id: 'piece' })
-    globalRegistry.add(GitRepoWithoutSensitiveData, { id: 'git-repo' })
-    globalRegistry.add(ProjectRelease, { id: 'project-release' })
     globalRegistry.add(AddAllowedEmbedOriginsRequestBody, { id: 'embedding' })
 }
 

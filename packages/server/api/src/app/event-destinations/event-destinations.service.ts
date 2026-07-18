@@ -15,7 +15,7 @@
  *    any dispatchable execution events (such as `FLOW_RUN_STARTED` or `FLOW_RUN_FINISHED`).
  */
 
-import { apId, Cursor, isNil, PlatformId, ProjectId, SeekPage } from '@inboxfm-connect/core-utils'
+import { apId, Cursor, PlatformId, ProjectId, SeekPage } from '@inboxfm-connect/core-utils'
 import { ApplicationEvent, ApplicationEventName, buildMockEvent, CreatePlatformEventDestinationRequestBody, EventDestination, EventDestinationScope, LATEST_JOB_DATA_SCHEMA_VERSION, UpdatePlatformEventDestinationRequestBody, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { ArrayContains, FindOptionsWhere } from 'typeorm'
@@ -150,7 +150,7 @@ export const eventDestinationService = (log: FastifyBaseLogger): {
                 webhookUrl: url,
                 payload: mockEvent,
                 jobType: WorkerJobType.EVENT_DESTINATION,
-                },
+            },
         })
     },
 })

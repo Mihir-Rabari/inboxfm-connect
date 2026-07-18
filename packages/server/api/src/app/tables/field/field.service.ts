@@ -30,7 +30,7 @@ export const fieldService = {
                         name: field.name,
                         type: field.type,
                         tableId,
-                        data: field.data as any,
+                        data: field.data as Record<string, unknown>,
                         externalId: field.externalId,
                     },
                 })

@@ -1,4 +1,4 @@
-import { BaseModelSchema, DateOrString, Nullable, OptionalArrayFromQuery, ProjectRole } from '@inboxfm-connect/core-utils'
+import { BaseModelSchema, DateOrString, OptionalArrayFromQuery, ProjectRole } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import * as zMini from 'zod/mini'
 import { UserWithMetaInformation } from '../../core/user/user'

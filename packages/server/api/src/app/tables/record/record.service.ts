@@ -8,7 +8,6 @@ import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 import { FieldEntity } from '../field/field.entity'
 import { fieldService } from '../field/field.service'
-import { tableService } from '../table/table.service'
 import { CellEntity } from './cell.entity'
 import { RecordEntity, RecordSchema } from './record.entity'
 
@@ -288,12 +287,12 @@ export const recordService = {
     },
 
     async triggerWebhooks({
-        projectId,
-        tableId,
-        eventType,
-        data,
-        logger,
-        authorization,
+        projectId: _projectId,
+        tableId: _tableId,
+        eventType: _eventType,
+        data: _data,
+        logger: _logger,
+        authorization: _authorization,
     }: TriggerWebhooksParams): Promise<void> {
         // No-op: Flow table webhooks are deprecated in headless platform.
     },

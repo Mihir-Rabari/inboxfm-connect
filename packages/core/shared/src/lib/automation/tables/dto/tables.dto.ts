@@ -1,12 +1,11 @@
 import { Nullable, OptionalArrayFromQuery } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 import { formErrors } from '../../../form-errors'
+import { FieldType } from '../field'
 import { TableAutomationStatus, TableAutomationTrigger } from '../table'
 import { TableWebhookEventType } from '../table-webhook'
 
 const SAFE_EXTERNAL_ID_PATTERN = /^(?!\.{1,2}$)[A-Za-z0-9._-]{1,128}$/
-
-import { FieldType } from '../field'
 
 export const FieldState = z.object({
     id: z.string().optional(),

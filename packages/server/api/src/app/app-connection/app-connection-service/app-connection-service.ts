@@ -1,4 +1,4 @@
-import { ActivepiecesError, apId, Cursor, ErrorCode, isNil, Metadata, PlatformId, ProjectId, SeekPage, spreadIfDefined, unique, UserId } from '@inboxfm-connect/core-utils'
+import { ActivepiecesError, apId, Cursor, ErrorCode, isNil, Metadata, PlatformId, ProjectId, SeekPage, spreadIfDefined, unique } from '@inboxfm-connect/core-utils'
 import { ApEdition, ApEnvironment, AppConnection, AppConnectionId, AppConnectionOwners, AppConnectionScope, AppConnectionStatus, AppConnectionType, AppConnectionValue, AppConnectionWithoutSensitiveData, EngineResponse, EngineResponseStatus, ExecuteValidateAuthResponse, MAX_PLATFORM_APP_CONNECTION_OWNERS, OAuth2GrantType, PlatformAppConnectionOwner, PlatformAppConnectionOwnersResponse, PlatformAppConnectionProjectInfo, PlatformAppConnectionsListItem, PlatformRole, UpsertAppConnectionRequestBody, User, UserIdentity, UserWithMetaInformation, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import semver from 'semver'
@@ -176,7 +176,7 @@ export const appConnectionService = (log: FastifyBaseLogger) => ({
         return this.getOneOrThrowWithoutValue(params)
     },
 
-    async getManyConnectionStates(params: GetManyParams): Promise<{ externalId: string; pieceName: string; displayName: string }[]> {
+    async getManyConnectionStates(params: GetManyParams): Promise<{ externalId: string, pieceName: string, displayName: string }[]> {
         const connections = await appConnectionsRepo().find({
             where: {
                 projectIds: ArrayContains([params.projectId]),

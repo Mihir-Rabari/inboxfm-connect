@@ -1,5 +1,5 @@
 import { apId, isNil, tryCatch } from '@inboxfm-connect/core-utils'
-import { FlowTriggerType, FlowVersionState, MCP_TRIGGER_PIECE_NAME, McpServer as McpServerSchema, McpServerType, PopulatedFlow, PopulatedMcpServer } from '@inboxfm-connect/shared'
+import { McpServer as McpServerSchema, McpServerType, PopulatedFlow, PopulatedMcpServer } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { repoFactory } from '../core/db/repo-factory'
 import { McpServerEntity } from './mcp-entity'

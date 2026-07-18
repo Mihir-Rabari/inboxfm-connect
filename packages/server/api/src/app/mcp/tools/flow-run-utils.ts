@@ -1,12 +1,11 @@
-import { isNil } from '@inboxfm-connect/core-utils'
-import { McpToolResult } from '@inboxfm-connect/shared'
 import { HeadlessRuntime } from '@inboxfm-connect/runtime'
+import { McpToolResult } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { ArrayContains } from 'typeorm'
 import { appConnectionService, appConnectionsRepo } from '../../app-connection/app-connection-service/app-connection-service'
-import { projectService } from '../../project/project-service'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
+import { projectService } from '../../project/project-service'
 
 const runtime = new HeadlessRuntime({
     basePath: process.cwd(),
@@ -38,10 +37,10 @@ const runtime = new HeadlessRuntime({
         if (!projectId) {
             throw new Error(`Connection has no projectIds: ${connection.id}`)
         }
-        return appConnectionService(console as any).decryptAndRefreshConnection(
+        return appConnectionService({ info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, trace: () => {}, child: () => ({ info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, trace: () => {} }) } as unknown as FastifyBaseLogger).decryptAndRefreshConnection(
             connection,
             projectId,
-            console as any,
+            { info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, trace: () => {}, child: () => ({ info: () => {}, error: () => {}, warn: () => {}, debug: () => {}, trace: () => {} }) } as unknown as FastifyBaseLogger,
         )
     },
 })
@@ -96,7 +95,7 @@ export async function executeAdhocAction({
         throw new Error('A connection must be created first before executing a tool.')
     }
 
-    const publicUrl = await system.get(AppSystemProp.FRONTEND_URL) || 'http://localhost:3000'
+    const publicUrl = system.get(AppSystemProp.FRONTEND_URL) || 'http://localhost:3000'
     const result = await runtime.execute({
         integration: pieceName,
         tool: actionName,

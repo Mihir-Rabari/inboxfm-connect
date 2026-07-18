@@ -1,11 +1,10 @@
 import { ActivepiecesError, apId, ErrorCode, isNil, SeekPage, spreadIfDefined } from '@inboxfm-connect/core-utils'
-import { CreateTableRequest, ExportTableResponse, PopulatedTable, SharedTemplate, Table, TableDataState, TableImportDataType, TableTemplate, TemplateStatus, TemplateType, UncategorizedFolderId, UpdateTableRequest, UserWithMetaInformation } from '@inboxfm-connect/shared'
+import { CreateTableRequest, ExportTableResponse, SharedTemplate, Table, TableDataState, TableImportDataType, TableTemplate, TemplateStatus, TemplateType, UncategorizedFolderId, UpdateTableRequest, UserWithMetaInformation } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { ArrayContains, ILike, In, IsNull } from 'typeorm'
+import { ILike, In, IsNull } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
 import { buildPaginator } from '../../helper/pagination/build-paginator'
 import { paginationHelper } from '../../helper/pagination/pagination-utils'
-import { system } from '../../helper/system/system'
 import { fieldService } from '../field/field.service'
 import { RecordEntity } from '../record/record.entity'
 import { TableEntity } from './table.entity'
@@ -118,7 +117,7 @@ export const tableService = {
         tableId,
         userMetadata,
         projectId,
-        log,
+        log: _log,
     }: GetTemplateParams): Promise<SharedTemplate> {
         const table = await this.getOneOrThrow({
             id: tableId,

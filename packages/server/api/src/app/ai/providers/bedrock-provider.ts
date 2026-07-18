@@ -1,12 +1,12 @@
-import { isNil } from '@inboxfm-connect/core-utils'
-import { AIProviderModel, AIProviderModelType, BedrockProviderAuthConfig, BedrockProviderConfig } from '@inboxfm-connect/shared'
-
 import {
     BedrockClient,
     ListFoundationModelsCommand,
     ListInferenceProfilesCommand,
     ModelModality,
 } from '@aws-sdk/client-bedrock'
+import { isNil } from '@inboxfm-connect/core-utils'
+import { AIProviderModel, AIProviderModelType, BedrockProviderAuthConfig, BedrockProviderConfig } from '@inboxfm-connect/shared'
+
 
 import { FastifyBaseLogger } from 'fastify'
 import { AIProviderStrategy } from './ai-provider'

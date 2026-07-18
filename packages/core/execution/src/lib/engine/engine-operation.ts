@@ -11,7 +11,6 @@ import { JobPayload } from '../workers/job-data'
 
 export enum EngineOperationType {
     EXTRACT_PIECE_METADATA = 'EXTRACT_PIECE_METADATA',
-    EXECUTE_FLOW = 'EXECUTE_FLOW',
     EXECUTE_PROPERTY = 'EXECUTE_PROPERTY',
     EXECUTE_TRIGGER_HOOK = 'EXECUTE_TRIGGER_HOOK',
     EXECUTE_VALIDATE_AUTH = 'EXECUTE_VALIDATE_AUTH',
@@ -30,7 +29,6 @@ export enum TriggerHookType {
 
 export type EngineOperation =
     | ExecuteToolOperation
-    | ExecuteFlowOperation
     | ExecutePropsOptions
     | ExecuteTriggerOperation<TriggerHookType>
     | ExecuteExtractPieceMetadataOperation
@@ -93,35 +91,10 @@ export type ExecutePropsOptions = BaseEngineOperation & {
     searchValue?: string
 }
 
-type BaseExecuteFlowOperation<T extends ExecutionType> = BaseEngineOperation & {
-    flowVersion: FlowVersion
-    flowRunId: FlowRunId
-    executionType: T
-    runEnvironment: RunEnvironment
-    workerHandlerId: string | null
-    httpRequestId: string | null
-    streamStepProgress: StreamStepProgress
-    stepNameToTest: string | null
-    sampleData?: Record<string, unknown>
-    logsFileId?: string
-}
-
 export enum StreamStepProgress {
     WEBSOCKET = 'WEBSOCKET',
     NONE = 'NONE',
 }
-
-export type BeginExecuteFlowOperation = BaseExecuteFlowOperation<ExecutionType.BEGIN> & {
-    triggerPayload: JobPayload
-    executeTrigger: boolean
-}
-
-export type ResumeExecuteFlowOperation = BaseExecuteFlowOperation<ExecutionType.RESUME> & {
-    resumePayload: JobPayload
-    resumeReason: ResumeReason
-}
-
-export type ExecuteFlowOperation = BeginExecuteFlowOperation | ResumeExecuteFlowOperation
 
 export enum ResumeReason {
     WAITPOINT = 'WAITPOINT',

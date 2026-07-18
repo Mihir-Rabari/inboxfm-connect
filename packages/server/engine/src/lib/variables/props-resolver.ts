@@ -4,7 +4,7 @@ import { ContextVersion } from '@inboxfm-connect/pieces-framework'
 import { FormulaEvaluationError } from '@inboxfm-connect/shared'
 
 import { initCodeSandbox } from '../core/code/code-sandbox'
-import { FlowExecutorContext } from '../handler/context/flow-execution-context'
+import { ExecutionContext } from '../handler/context/execution-context'
 import { createConnectionResolver } from '../piece-context/connection-resolver'
 import { createVariableResolver } from '../piece-context/variable-resolver'
 import { utils } from '../utils'
@@ -39,8 +39,7 @@ export const createPropsResolver = ({ engineToken, projectId, apiUrl, contextVer
                     censoredInput: unresolvedInput,
                 }
             }
-            const referencedStepNames = extractReferencedStepNames(unresolvedInput, stepNames)
-            const currentState = await executionState.currentState(Array.from(referencedStepNames))
+            const currentState = executionState.outputs
             const resolveOptions = {
                 engineToken,
                 projectId,
@@ -337,7 +336,7 @@ type ResolveInputInternalParams = {
 
 type ResolveInputParams = {
     unresolvedInput: unknown
-    executionState: FlowExecutorContext
+    executionState: ExecutionContext
 }
 
 type ResolveResult<T = unknown> = {

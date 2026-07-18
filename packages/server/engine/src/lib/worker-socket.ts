@@ -8,7 +8,6 @@ import {
     WorkerNotifyContract,
 } from '@inboxfm-connect/shared'
 import { io, type ManagerOptions, type Socket, type SocketOptions } from 'socket.io-client'
-import { flowRunProgressReporter } from './helper/flow-run-progress-reporter'
 import { execute } from './operations'
 
 const INITIAL_CONNECT_TIMEOUT_MS = 60_000
@@ -84,14 +83,8 @@ export const workerSocket = {
 
         createRpcServer<RuntimeContract>(socket, {
             executeOperation: async ({ operationType, operation }): Promise<RuntimeResponse<unknown>> => {
-                flowRunProgressReporter.init()
-                try {
-                    const response = await execute(operationType, operation)
-                    return JSON.parse(JSON.stringify(response)) as RuntimeResponse<unknown>
-                }
-                finally {
-                    await flowRunProgressReporter.shutdown()
-                }
+                const response = await execute(operationType, operation)
+                return JSON.parse(JSON.stringify(response)) as RuntimeResponse<unknown>
             },
         })
 

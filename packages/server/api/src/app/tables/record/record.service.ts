@@ -6,7 +6,6 @@ import { repoFactory } from '../../core/db/repo-factory'
 import { transaction } from '../../core/db/transaction'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
-import { WebhookFlowVersionToRun, webhookService } from '../../webhooks/webhook.service'
 import { FieldEntity } from '../field/field.entity'
 import { fieldService } from '../field/field.service'
 import { tableService } from '../table/table.service'
@@ -296,34 +295,7 @@ export const recordService = {
         logger,
         authorization,
     }: TriggerWebhooksParams): Promise<void> {
-        const webhooks = await tableService.getWebhooks({
-            projectId,
-            id: tableId,
-            events: [eventType],
-        })
-
-        if (webhooks.length === 0) {
-            return
-        }
-        await Promise.all(webhooks.map((webhook) => {
-            return webhookService.handleWebhook({
-                async: true,
-                flowId: webhook.flowId,
-                flowVersionToRun: WebhookFlowVersionToRun.LOCKED_FALL_BACK_TO_LATEST,
-                saveSampleData: false,
-                data: async (_projectId: string) => ({
-                    method: 'POST',
-                    headers: {
-                        authorization,
-                    },
-                    body: data,
-                    queryParams: {},
-                }),
-                execute: true,
-                logger,
-                failParentOnFailure: true,
-            })
-        }))
+        // No-op: Flow table webhooks are deprecated in headless platform.
     },
 
     async count({ projectId, tableId }: CountParams): Promise<number> {

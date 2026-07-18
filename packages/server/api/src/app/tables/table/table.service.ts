@@ -1,21 +1,17 @@
 import { ActivepiecesError, apId, ErrorCode, isNil, SeekPage, spreadIfDefined } from '@inboxfm-connect/core-utils'
-import { CreateTableRequest, CreateTableWebhookRequest, ExportTableResponse, PopulatedTable, SharedTemplate, Table, TableDataState, TableImportDataType, TableTemplate, TableWebhook, TableWebhookEventType, TemplateStatus, TemplateType, UncategorizedFolderId, UpdateTableRequest, UserWithMetaInformation } from '@inboxfm-connect/shared'
+import { CreateTableRequest, ExportTableResponse, PopulatedTable, SharedTemplate, Table, TableDataState, TableImportDataType, TableTemplate, TemplateStatus, TemplateType, UncategorizedFolderId, UpdateTableRequest, UserWithMetaInformation } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { ArrayContains, ILike, In, IsNull } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
-import { projectStateService } from '../../ee/projects/project-release/project-state/project-state.service'
-import { getFolderIdFromRequest } from '../../flows/flow/flow.service'
 import { buildPaginator } from '../../helper/pagination/build-paginator'
 import { paginationHelper } from '../../helper/pagination/pagination-utils'
 import { system } from '../../helper/system/system'
 import { fieldService } from '../field/field.service'
 import { RecordEntity } from '../record/record.entity'
-import { TableWebhookEntity } from './table-webhook.entity'
 import { TableEntity } from './table.entity'
 
 export const tableRepo = repoFactory(TableEntity)
 export const recordRepo = repoFactory(RecordEntity)
-const tableWebhookRepo = repoFactory(TableWebhookEntity)
 const tablePieceName = '@inboxfm-connect/piece-tables'
 
 export const tableService = {
@@ -23,7 +19,7 @@ export const tableService = {
         projectId,
         request,
     }: CreateParams): Promise<Table> {
-        const folderId = await getFolderIdFromRequest({ projectId, folderId: request.folderId, folderName: request.folderName, log: system.globalLogger() })
+        const folderId = request.folderId ?? null
         const table = await tableRepo().save({
             id: apId(),
             externalId: request.externalId ?? apId(),
@@ -131,13 +127,6 @@ export const tableService = {
 
         const fields = await fieldService.getAll({ projectId, tableId })
 
-        const populatedTable: PopulatedTable = {
-            ...table,
-            fields,
-        }
-
-        const tableState = projectStateService(log).getTableState(populatedTable)
-
         const records = await recordRepo().find({
             where: { tableId: table.id, projectId },
             relations: ['cells'],
@@ -156,7 +145,16 @@ export const tableService = {
         })
 
         const tableTemplate: TableTemplate = {
-            ...tableState,
+            name: table.name,
+            externalId: table.externalId,
+            fields: fields.map((f) => ({
+                name: f.name,
+                type: f.type,
+                data: 'data' in f ? f.data : undefined,
+                externalId: f.externalId,
+            })),
+            status: null,
+            trigger: null,
             data: {
                 type: TableImportDataType.CSV,
                 rows,
@@ -223,41 +221,6 @@ export const tableService = {
         }
     },
 
-    async createWebhook({
-        projectId,
-        id,
-        request,
-    }: CreateWebhookParams): Promise<TableWebhook> {
-        return tableWebhookRepo().save({
-            id: apId(),
-            projectId,
-            tableId: id,
-            events: request.events,
-            flowId: request.flowId,
-        })
-    },
-
-    async deleteWebhook({
-        projectId,
-        id,
-        webhookId,
-    }: DeleteWebhookParams): Promise<void> {
-        await tableWebhookRepo().delete({
-            projectId,
-            tableId: id,
-            id: webhookId,
-        })
-    },
-
-    async getWebhooks({
-        projectId,
-        id,
-        events,
-    }: GetWebhooksParams): Promise<TableWebhook[]> {
-        return tableWebhookRepo().find({
-            where: { projectId, tableId: id, events: ArrayContains(events) },
-        })
-    },
 
     async update({
         projectId,
@@ -321,23 +284,7 @@ type ExportTableParams = {
     id: string
 }
 
-type CreateWebhookParams = {
-    projectId: string
-    id: string
-    request: CreateTableWebhookRequest
-}
 
-type DeleteWebhookParams = {
-    projectId: string
-    id: string
-    webhookId: string
-}
-
-type GetWebhooksParams = {
-    projectId: string
-    id: string
-    events: TableWebhookEventType[]
-}
 
 type UpdateParams = {
     projectId: string

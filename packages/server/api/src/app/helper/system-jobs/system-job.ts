@@ -1,7 +1,7 @@
 import { scheduler } from '@inboxfm-connect/scheduler'
 import { apDayjs } from '@inboxfm-connect/server-utils'
 import { FastifyBaseLogger } from 'fastify'
-import { SystemJobName, SystemJobSchedule } from './common'
+import { SystemJobSchedule } from './common'
 import { systemJobHandlers } from './job-handlers'
 
 const activeJobIds = new Map<string, string>()
@@ -23,7 +23,8 @@ const systemJobsScheduleImpl = (log: FastifyBaseLogger): SystemJobSchedule => ({
             log.debug({ jobName: job.name, jobId: job.jobId }, '[systemJob#inProcessWorker] Executing job')
             try {
                 await jobHandler(job.data)
-            } catch (err) {
+            }
+            catch (err) {
                 log.error(err, `[systemJob#inProcessWorker] Job execution failed: ${job.name}`)
             }
         }
@@ -35,7 +36,8 @@ const systemJobsScheduleImpl = (log: FastifyBaseLogger): SystemJobSchedule => ({
                 fn: runTask,
             })
             activeJobIds.set(job.jobId, taskId)
-        } else if (schedule.type === 'one-time') {
+        }
+        else if (schedule.type === 'one-time') {
             const delayMs = schedule.date.diff(apDayjs(), 'milliseconds')
             const taskId = await scheduler.once({
                 name: job.name,
@@ -49,7 +51,9 @@ const systemJobsScheduleImpl = (log: FastifyBaseLogger): SystemJobSchedule => ({
     async getJob(jobId: string) {
         return {
             async updateData() {},
-            async isFailed() { return false },
+            async isFailed() {
+                return false 
+            },
             async retry() {},
         } as any
     },

@@ -4,9 +4,9 @@ import { AddPieceRequestBody, EngineResponse, EngineResponseStatus, ExecuteExtra
 import { FastifyBaseLogger } from 'fastify'
 import { fileService } from '../file/file.service'
 import { rejectedPromiseHandler } from '../helper/promise-handler'
+import { userInteractionWatcher } from '../helper/user-interaction/user-interaction-watcher'
 import { isToolSearchEnabled } from '../tool-search/tool-search-flag'
 import { toolSearchReindexJob } from '../tool-search/tool-search-reindex.job'
-import { userInteractionWatcher } from '../helper/user-interaction/user-interaction-watcher'
 import { pieceMetadataService } from './metadata/piece-metadata-service'
 
 export const pieceInstallService = (log: FastifyBaseLogger) => ({

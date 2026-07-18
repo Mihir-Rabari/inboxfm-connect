@@ -65,8 +65,6 @@ export const Project = z.object({
 const projectAnalytics = z.object({
     totalUsers: z.number(),
     activeUsers: z.number(),
-    totalFlows: z.number(),
-    activeFlows: z.number(),
 })
 export type Project = z.infer<typeof Project>
 

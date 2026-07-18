@@ -1,6 +1,6 @@
 import { ensureTrailingSlash, PlatformId, ProjectId } from '@inboxfm-connect/core-utils'
 import { ContextVersion } from '@inboxfm-connect/pieces-framework'
-import { BeginExecuteFlowOperation, DEFAULT_MCP_DATA, EngineGenericError, ExecutePropsOptions, ExecuteToolOperation, ExecuteTriggerOperation, ExecutionState, ExecutionType, flowStructureUtil, FlowVersionState, Project, ResumeExecuteFlowOperation, ResumePayload, RunEnvironment, StreamStepProgress, TriggerHookType } from '@inboxfm-connect/shared'
+import { DEFAULT_MCP_DATA, EngineGenericError, ExecutePropsOptions, ExecuteToolOperation, ExecuteTriggerOperation, flowStructureUtil, FlowVersionState, Project, ResumePayload, StreamStepProgress, TriggerHookType } from '@inboxfm-connect/shared'
 import { createPropsResolver, PropsResolver } from '../../variables/props-resolver'
 
 type RetryConstants = {
@@ -115,31 +115,7 @@ export class EngineConstants {
         this.timeoutInSeconds = params.timeoutInSeconds
         this.stepNames = params.stepNames
     }
-  
-    public static fromExecuteFlowInput(input: ResolvedExecuteFlowOperation): EngineConstants {
-        return new EngineConstants({
-            flowId: input.flowVersion.flowId,
-            flowVersionId: input.flowVersion.id,
-            flowVersionState: input.flowVersion.state,
-            triggerPieceName: input.flowVersion.trigger.settings.pieceName,
-            flowRunId: input.flowRunId,
-            publicApiUrl: input.publicApiUrl,
-            internalApiUrl: input.internalApiUrl,
-            retryConstants: DEFAULT_RETRY_CONSTANTS,
-            engineToken: input.engineToken,
-            projectId: input.projectId,
-            streamStepProgress: input.streamStepProgress,
-            workerHandlerId: input.workerHandlerId ?? null,
-            httpRequestId: input.httpRequestId ?? null,
-            resumePayload: input.executionType === ExecutionType.RESUME ? input.resumePayload : undefined,
-            runEnvironment: input.runEnvironment,
-            stepNameToTest: input.stepNameToTest ?? undefined,
-            logsFileId: input.logsFileId,
-            timeoutInSeconds: input.timeoutInSeconds,
-            platformId: input.platformId,
-            stepNames: flowStructureUtil.getAllSteps(input.flowVersion.trigger).map((step) => step.name),
-        })
-    }
+
 
     public static fromExecuteActionInput(input: ExecuteToolOperation): EngineConstants {
         return new EngineConstants({
@@ -244,17 +220,6 @@ export class EngineConstants {
     }
 }
 
-export type ResolvedBeginExecuteFlowOperation = Omit<BeginExecuteFlowOperation, 'triggerPayload'> & {
-    triggerPayload: unknown
-}
-
 export type ResolvedExecuteTriggerOperation<HT extends TriggerHookType> = Omit<ExecuteTriggerOperation<HT>, 'triggerPayload'> & {
     triggerPayload?: unknown
 }
-
-export type ResolvedResumeExecuteFlowOperation = Omit<ResumeExecuteFlowOperation, 'resumePayload'> & {
-    resumePayload: ResumePayload
-    executionState: ExecutionState
-}
-
-export type ResolvedExecuteFlowOperation = ResolvedBeginExecuteFlowOperation | ResolvedResumeExecuteFlowOperation

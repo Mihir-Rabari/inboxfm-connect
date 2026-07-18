@@ -1,11 +1,10 @@
 import { isNil } from '@inboxfm-connect/core-utils'
 import { AiMetadata, Audience, ErrorHandlingOptionsParam, type OutputSchema, PieceMetadata, PieceMetadataModel, WebhookRenewConfiguration } from '@inboxfm-connect/pieces-framework'
-import { AdminRetryRunsRequestBody, ApplyLicenseKeyByEmailRequestBody, ChatConversation, ExactVersionType, IncreaseAICreditsForPlatformRequestBody, PackageType, PieceCategory, PieceType, TriggerStrategy, TriggerTestStrategy, WebhookHandshakeConfiguration } from '@inboxfm-connect/shared'
+import { ApplyLicenseKeyByEmailRequestBody, ExactVersionType, IncreaseAICreditsForPlatformRequestBody, PackageType, PieceCategory, PieceType, TriggerStrategy, TriggerTestStrategy, WebhookHandshakeConfiguration } from '@inboxfm-connect/shared'
 import { FastifyReply, FastifyRequest } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
-import { repoFactory } from '../../../core/db/repo-factory'
 import { securityAccess } from '../../../core/security/authorization/fastify-security'
 import { system } from '../../../helper/system/system'
 import { AppSystemProp } from '../../../helper/system/system-props'
@@ -47,10 +46,6 @@ const adminPlatformController: FastifyPluginAsyncZod = async (
     },
     )
 
-    app.post('/platforms/runs/retry', AdminRetryRunsRequest, async (req, res) => {
-        await adminPlatformService(req.log).retryRuns(req.body)
-        return res.status(StatusCodes.OK).send()
-    })
 
     app.post('/platforms/apply-license-key', ApplyLicenseKeyByEmailRequest, async (req, res) => {
         await adminPlatformService(req.log).applyLicenseKeyByEmail(req.body)
@@ -104,14 +99,6 @@ const UpdateCanaryRequest = {
     },
 }
 
-const AdminRetryRunsRequest = {
-    schema: {
-        body: AdminRetryRunsRequestBody,
-    },
-    config: {
-        security: securityAccess.public(),
-    },
-}
 
 const ApplyLicenseKeyByEmailRequest = {
     schema: {

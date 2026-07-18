@@ -5,8 +5,6 @@ import { FastifyBaseLogger } from 'fastify'
 import { IsNull } from 'typeorm'
 import { repoFactory } from '../core/db/repo-factory'
 import { distributedLock } from '../database/redis-connections'
-import { flowService } from '../flows/flow/flow.service'
-import { flowRunRepo } from '../flows/flow-run/flow-run-service'
 import { ProjectEntity } from '../project/project-entity'
 import { userRepo } from '../user/user-service'
 import { PlatformAnalyticsReportEntity } from './platform-analytics-report.entity'
@@ -55,36 +53,7 @@ export const platformAnalyticsReportService = (log: FastifyBaseLogger) => ({
 
 
 async function listRuns(projectIds: string[], afterDate: string | null, currentDate: string): Promise<AnalyticsRunsUsageItem[]> {
-    if (projectIds.length === 0) {
-        return []
-    }
-    let query = flowRunRepo().createQueryBuilder('flow_run')
-        .select('flow_run.flowId', 'flowId')
-        .addSelect('DATE_TRUNC(\'day\', flow_run.created)', 'day')
-        .addSelect('COUNT(*)', 'runs')
-        .where('flow_run.projectId IN (:...projectIds)', { projectIds })
-        .andWhere('flow_run.environment = :environment', { environment: RunEnvironment.PRODUCTION })
-        .groupBy('flow_run.flowId')
-        .addGroupBy('DATE_TRUNC(\'day\', flow_run.created)')
-
-    if (!isNil(afterDate)) {
-        query = query.andWhere('flow_run.created > :afterDate', {
-            afterDate,
-        })
-    }
-    if (!isNil(currentDate)) {
-        query = query.andWhere('flow_run.created <= :currentDate', {
-            currentDate,
-        })
-    }
-    const runs = await query.getRawMany()
-    return runs.map((run) => {
-        return {
-            flowId: run.flowId,
-            day: run.day,
-            runs: Number(run.runs),
-        }
-    })
+    return []
 }
 
 function mergeRuns(existing: AnalyticsRunsUsageItem[], incoming: AnalyticsRunsUsageItem[]): AnalyticsRunsUsageItem[] {
@@ -101,26 +70,7 @@ function mergeRuns(existing: AnalyticsRunsUsageItem[], incoming: AnalyticsRunsUs
     return Array.from(map.values())
 }
 async function listFlows(platformId: PlatformId, log: FastifyBaseLogger): Promise<AnalyticsFlowReportItem[]> {
-    const { data } = await flowService(log).list({
-        platformId,
-        cursorRequest: null,
-        versionState: FlowVersionState.DRAFT,
-        includeTriggerSource: false,
-        status: [FlowStatus.ENABLED],
-    })
-    const projects = await listProjects(platformId)
-        
-    return data.map((flow) => {
-        return {
-            flowId: flow.id,
-            projectName: projects.find((project) => project.id === flow.projectId)?.displayName ?? '',
-            flowName: flow.version.displayName,
-            projectId: flow.projectId,
-            status: flow.status,
-            timeSavedPerRun: flow.timeSavedPerRun,
-            ownerId: flow.ownerId,
-        }
-    })
+    return []
 }
 
 async function listUsers(platformId: PlatformId): Promise<UserWithMetaInformation[]> {

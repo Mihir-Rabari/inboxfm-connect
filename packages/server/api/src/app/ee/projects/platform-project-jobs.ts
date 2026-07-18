@@ -5,15 +5,13 @@ import { ArrayContains } from 'typeorm'
 import { appConnectionsRepo } from '../../app-connection/app-connection-service/app-connection-service'
 import { repoFactory } from '../../core/db/repo-factory'
 import { transaction } from '../../core/db/transaction'
-import { flowExecutionCache } from '../../flows/flow/flow-execution-cache'
-import { flowSideEffects } from '../../flows/flow/flow-service-side-effects'
-import { batchDeleteByFlowId } from '../../flows/flow/flow.jobs'
-import { flowRepo } from '../../flows/flow/flow.repo'
+import { FlowEntity } from '../../flows/flow/flow.entity'
 import { SystemJobData, SystemJobName } from '../../helper/system-jobs/common'
 import { systemJobsSchedule } from '../../helper/system-jobs/system-job'
 import { ProjectEntity } from '../../project/project-entity'
 
 const projectRepo = repoFactory(ProjectEntity)
+const flowRepo = repoFactory(FlowEntity)
 
 export const platformProjectBackgroundJobs = (log: FastifyBaseLogger) => ({
     hardDeleteProjectHandler: async (data: SystemJobData<SystemJobName.HARD_DELETE_PROJECT>) => {
@@ -34,7 +32,6 @@ export const platformProjectBackgroundJobs = (log: FastifyBaseLogger) => ({
                 log.info({ flow: { id: flow.id } }, '[hardDeleteProjectHandler] Flow already deleted, skipping preDelete')
                 continue
             }
-            await flowSideEffects(log).preDelete({ flowToDelete: flow })
             await job.updateData({
                 ...data,
                 preDeletedFlowIds: [...preDeletedFlowIds, flow.id],
@@ -44,7 +41,6 @@ export const platformProjectBackgroundJobs = (log: FastifyBaseLogger) => ({
         const flowIds = allFlows.map(flow => flow.id)
 
         for (const flowId of flowIds) {
-            await batchDeleteByFlowId(flowId)
             await flowRepo().delete({ id: flowId })
         }
 
@@ -58,7 +54,5 @@ export const platformProjectBackgroundJobs = (log: FastifyBaseLogger) => ({
                 platformId,
             })
         })
-
-        await flowExecutionCache(log).invalidate(...flowIds)
     },
 })

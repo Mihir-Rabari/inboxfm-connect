@@ -4,10 +4,9 @@ import { BranchOperator, EngineResponse, EngineResponseStatus, FlowActionType, f
 import type { RouterAction, Step } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
-import { expressionRewriter } from '../../flows/flow-version/migrations/expression-rewriter'
+import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
 import { getPiecePackageWithoutArchive, pieceMetadataService } from '../../pieces/metadata/piece-metadata-service'
 import { projectService } from '../../project/project-service'
-import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
 
 const NON_INPUT_PROP_TYPES = new Set<PropertyType>([
     PropertyType.OAUTH2,
@@ -573,20 +572,6 @@ function isProjectScoped(mcp: ProjectScopedMcpServer): boolean {
     return mcp.type === McpServerType.PROJECT
 }
 
-function rewriteAllReferences<C = unknown>({ input, loopItems, conditions, trigger }: {
-    input?: Record<string, unknown>
-    loopItems?: string
-    conditions?: C
-    trigger: Step
-}): { input?: Record<string, unknown>, loopItems?: string, conditions?: C } {
-    const stepNames = flowStructureUtil.getAllSteps(trigger).map(s => s.name)
-    return {
-        input: input ? expressionRewriter.rewriteDeep(input, stepNames, true) : undefined,
-        loopItems: loopItems != null ? expressionRewriter.rewriteStepReferences({ input: loopItems, stepNames, idempotent: true }) : loopItems,
-        conditions: conditions ? expressionRewriter.rewriteDeep(conditions, stepNames, true) : conditions,
-    }
-}
-
 function extractOptionsArray(options: unknown): Array<{ label: string, value: unknown }> | null {
     if (Array.isArray(options)) return options
 
@@ -781,7 +766,6 @@ export const mcpUtils = {
     resolvePlatformId,
     isProjectScoped,
     withTimeout,
-    rewriteAllReferences,
     extractOptionsArray,
     executePropertyResolution,
     RESOLVE_TIMEOUT_MS,

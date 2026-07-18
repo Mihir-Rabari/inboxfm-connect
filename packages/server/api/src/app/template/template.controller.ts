@@ -7,7 +7,6 @@ import { z } from 'zod'
 import { securityAccess } from '../core/security/authorization/fastify-security'
 import { platformMustBeOwnedByCurrentUser } from '../ee/authentication/ee-authorization'
 import { flagService } from '../flags/flag.service'
-import { migrateFlowVersionTemplateList } from '../flows/flow-version/migrations'
 import { system } from '../helper/system/system'
 import { platformService } from '../platform/platform.service'
 import { communityTemplates } from './community-templates.service'
@@ -52,13 +51,7 @@ export const templateController: FastifyPluginAsyncZod = async (app) => {
         }
     })
 
-    app.post('/', {
-        ...CreateParams,
-        preValidation: async (request) => {
-            const migratedFlows = await migrateFlowVersionTemplateList(request.body.flows ?? [])
-            request.body.flows = migratedFlows
-        },
-    }, async (request, reply) => {
+    app.post('/', CreateParams, async (request, reply) => {
         const { type } = request.body
         let platformId: string | undefined
 
@@ -83,12 +76,7 @@ export const templateController: FastifyPluginAsyncZod = async (app) => {
         return reply.status(StatusCodes.CREATED).send(result)
     })
 
-    app.post('/:id', { ...UpdateParams,
-        preValidation: async (request) => {
-            const migratedFlows = await migrateFlowVersionTemplateList(request.body.flows ?? [])
-            request.body.flows = migratedFlows
-        },
-    }, async (request, reply) => {
+    app.post('/:id', UpdateParams, async (request, reply) => {
         const template = await templateService(app.log).getOneOrThrow({ id: request.params.id })
 
         switch (template.type) {

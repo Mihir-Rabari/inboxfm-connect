@@ -1,12 +1,10 @@
 import { isNil, isObject, isString } from '@inboxfm-connect/core-utils'
 import { Action, DropdownOption, ExecutePropsResult, PieceProperty, PropertyType } from '@inboxfm-connect/pieces-framework'
-import { AgentPieceTool, ExecuteToolOperation, ExecuteToolResponse, ExecutionToolStatus, FieldControlMode, FlowActionType, PieceAction, PropertyExecutionType, StepOutputStatus } from '@inboxfm-connect/shared'
+import { AgentPieceTool, EngineResponseStatus, ExecuteToolOperation, ExecuteToolResponse, ExecutionToolStatus, FieldControlMode, FlowActionType, PieceAction, PropertyExecutionType, StepOutputStatus } from '@inboxfm-connect/shared'
 import { generateText, JSONParseError, LanguageModel, NoObjectGeneratedError, Output, Tool, zodSchema } from 'ai'
 import dayjs from 'dayjs'
 import { z } from 'zod'
 import { EngineConstants } from '../handler/context/engine-constants'
-import { FlowExecutorContext } from '../handler/context/flow-execution-context'
-import { flowExecutor } from '../handler/flow-executor'
 import { pieceHelper } from '../helper/piece-helper'
 import { pieceLoader } from '../helper/piece-loader'
 import { tsort } from './tsort'
@@ -154,39 +152,23 @@ async function execute(operation: ExecuteToolOperationWithModel): Promise<Execut
         })
         const depthToPropertyMap = tsort.sortPropertiesByDependencies(pieceAction.props)
         const resolvedInput = await resolveProperties(depthToPropertyMap, operation.instruction, pieceAction, operation.model, operation)
-        
-        const step: PieceAction = {
-            name: operation.actionName,
-            displayName: operation.actionName,
-            type: FlowActionType.PIECE,
-            lastUpdatedDate: dayjs().toISOString(),
-            settings: {
+
+        const executeResult = await pieceHelper.executeTool({
+            params: {
+                ...operation,
                 input: resolvedInput,
-                actionName: operation.actionName,
-                pieceName: operation.pieceName,
-                pieceVersion: operation.pieceVersion,
-                propertySettings: Object.fromEntries(Object.entries(resolvedInput).map(([key]) => [key, {
-                    type: PropertyExecutionType.MANUAL,
-                    schema: undefined,
-                }])),
             },
-            valid: true,
-        }
-        const output = await flowExecutor.getExecutorForAction(step.type).handle({
-            action: step,
-            executionState: FlowExecutorContext.empty(),
-            constants: EngineConstants.fromExecuteActionInput(operation),
+            devPieces: EngineConstants.DEV_PIECES,
         })
-        const { output: stepOutput, errorMessage, status } = output.steps[operation.actionName]
-        
+
         return {
-            status: status === StepOutputStatus.FAILED ? ExecutionToolStatus.FAILED : ExecutionToolStatus.SUCCESS,
-            output: stepOutput,
+            status: executeResult.status === EngineResponseStatus.OK ? ExecutionToolStatus.SUCCESS : ExecutionToolStatus.FAILED,
+            output: executeResult.response,
             resolvedInput: {
                 ...resolvedInput,
                 auth: 'Redacted',
             },
-            errorMessage,
+            errorMessage: executeResult.error,
         }
     }
     catch (error) {

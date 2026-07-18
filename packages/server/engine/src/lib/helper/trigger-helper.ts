@@ -3,7 +3,7 @@ import { PiecePropertyMap, StaticPropsValue, TriggerStrategy } from '@inboxfm-co
 import { AUTHENTICATION_PROPERTY_NAME, EngineGenericError, EventPayload, ExecuteTriggerResponse, FlowTrigger, InvalidCronExpressionError, PieceTrigger, PropertySettings, ScheduleOptions, TriggerHookType, TriggerSourceScheduleType } from '@inboxfm-connect/shared'
 import { isValidCron } from 'cron-validator'
 import { EngineConstants, ResolvedExecuteTriggerOperation } from '../handler/context/engine-constants'
-import { FlowExecutorContext } from '../handler/context/flow-execution-context'
+import { ExecutionContext } from '../handler/context/execution-context'
 import { createFileUploader } from '../piece-context/file-uploader'
 import { createFlowsContext } from '../piece-context/flows'
 import { createContextStore } from '../piece-context/store'
@@ -260,7 +260,7 @@ async function prepareTriggerExecution({ pieceName, pieceVersion, triggerName, i
         stepNames,
     }).resolve<StaticPropsValue<PiecePropertyMap>>({
         unresolvedInput: input,
-        executionState: FlowExecutorContext.empty(),
+        executionState: ExecutionContext.empty(),
     })
 
     const { processedInput, errors } = await propsProcessor.applyProcessorsAndValidators(resolvedInput, pieceTrigger.props, piece.auth, pieceTrigger.requireAuth, propertySettings)

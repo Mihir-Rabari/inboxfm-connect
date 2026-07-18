@@ -2,7 +2,6 @@ import { apId, isNil, tryCatch } from '@inboxfm-connect/core-utils'
 import { FlowTriggerType, FlowVersionState, MCP_TRIGGER_PIECE_NAME, McpServer as McpServerSchema, McpServerType, PopulatedFlow, PopulatedMcpServer } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { repoFactory } from '../core/db/repo-factory'
-import { flowService } from '../flows/flow/flow.service'
 import { McpServerEntity } from './mcp-entity'
 import { ProjectSelectionScope } from './mcp-project-selection'
 import { buildMcpServer } from './mcp-server-builder'
@@ -98,14 +97,7 @@ async function getOrCreate({ where, defaults }: {
 }
 
 async function listMcpFlows(projectId: string, logger: FastifyBaseLogger): Promise<PopulatedFlow[]> {
-    const flows = await flowService(logger).list({
-        projectIds: [projectId],
-        limit: 1000000,
-        cursorRequest: null,
-        versionState: FlowVersionState.DRAFT,
-        includeTriggerSource: false,
-    })
-    return flows.data.filter((flow) => flow.version.trigger.type === FlowTriggerType.PIECE && flow.version.trigger.settings.pieceName === MCP_TRIGGER_PIECE_NAME)
+    return []
 }
 
 type UpdateParams = {

@@ -1,6 +1,6 @@
+import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager'
 import { ActivepiecesError, ErrorCode, isNil, isObject, isString } from '@inboxfm-connect/core-utils'
 import { AWSProviderConfig, SecretManagerProviderId } from '@inboxfm-connect/shared'
-import { GetSecretValueCommand, ListSecretsCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager'
 import { FastifyBaseLogger } from 'fastify'
 import { SecretManagerProvider, throwConnectionError, throwGetSecretError } from './secret-manager-providers'
 

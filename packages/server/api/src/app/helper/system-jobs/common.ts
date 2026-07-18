@@ -1,7 +1,7 @@
 import { FlowId, FlowRunId, PlatformId, ProjectId, UserId } from '@inboxfm-connect/core-utils'
 import { Flow } from '@inboxfm-connect/shared'
 // BullMQ types replaced with minimal local stubs — the scheduler now runs in-process
-type Job<T = unknown> = { data: T; updateData(data: T): Promise<void>; isFailed(): Promise<boolean>; retry(): Promise<void> }
+type Job<T = unknown> = { data: T, updateData(data: T): Promise<void>, isFailed(): Promise<boolean>, retry(): Promise<void> }
 type JobsOptions = Record<string, unknown>
 import { Dayjs } from 'dayjs'
 

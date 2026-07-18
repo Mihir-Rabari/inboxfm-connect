@@ -1,7 +1,7 @@
+import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { isNil } from '@inboxfm-connect/core-utils'
 import { httpClient, HttpMethod } from '@inboxfm-connect/pieces-common'
 import { AIProviderModel, AIProviderModelType, CloudflareGatewayProviderAuthConfig, CloudflareGatewayProviderConfig, splitCloudflareGatewayModelId } from '@inboxfm-connect/shared'
-import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { generateText } from 'ai'
 import { FastifyBaseLogger } from 'fastify'
 import { AIProviderStrategy } from './ai-provider'

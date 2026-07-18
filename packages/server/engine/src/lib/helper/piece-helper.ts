@@ -31,7 +31,7 @@ import {
     ExecuteValidateAuthResponse,
 } from '@inboxfm-connect/shared'
 import { EngineConstants } from '../handler/context/engine-constants'
-import { testExecutionContext } from '../handler/context/test-execution-context'
+import { ExecutionContext } from '../handler/context/execution-context'
 import { createFileUploader } from '../piece-context/file-uploader'
 import { createFlowsContext } from '../piece-context/flows'
 import { createContextStore } from '../piece-context/store'
@@ -45,14 +45,7 @@ const DEFAULT_REFRESH_EXPIRES_IN_SECONDS = 3300
 export const pieceHelper = {
     async executeProps( operation: ExecutePropsParams): Promise<ExecutePropsResult<PropertyType.DROPDOWN | PropertyType.MULTI_SELECT_DROPDOWN | PropertyType.DYNAMIC>> {
         const constants = EngineConstants.fromExecutePropertyInput(operation)
-        const executionState = await testExecutionContext.stateFromFlowVersion({
-            apiUrl: operation.internalApiUrl,
-            flowVersion: operation.flowVersion,
-            projectId: operation.projectId,
-            engineToken: operation.engineToken,
-            sampleData: operation.sampleData,
-            engineConstants: constants,
-        })
+        const executionState = ExecutionContext.empty()
         const { property, piece } = await pieceLoader.getPropOrThrow({ pieceName: operation.pieceName, pieceVersion: operation.pieceVersion, actionOrTriggerName: operation.actionOrTriggerName, propertyName: operation.propertyName, devPieces: EngineConstants.DEV_PIECES })
     
         if (property.type !== PropertyType.DROPDOWN && property.type !== PropertyType.MULTI_SELECT_DROPDOWN && property.type !== PropertyType.DYNAMIC) {

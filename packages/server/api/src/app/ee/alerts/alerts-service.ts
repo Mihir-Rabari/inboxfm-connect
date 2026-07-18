@@ -8,7 +8,6 @@ import { FastifyBaseLogger } from 'fastify'
 import { userIdentityService } from '../../authentication/user-identity/user-identity-service'
 import { repoFactory } from '../../core/db/repo-factory'
 import { redisConnections } from '../../database/redis-connections'
-import { flowVersionService } from '../../flows/flow-version/flow-version.service'
 import { domainHelper } from '../../helper/domain-helper'
 import { buildPaginator } from '../../helper/pagination/build-paginator'
 import { paginationHelper } from '../../helper/pagination/pagination-utils'
@@ -35,40 +34,7 @@ export const alertsService = (log: FastifyBaseLogger) => ({
         flowRunId: string
         failedStep: FailedStep
     }): Promise<void> {
-        if (!paidEditions) {
-            return
-        }
-
-        const redisConnection = await redisConnections.useExisting()
-        const failureKey = alertEventKey(issueToAlert.flowVersionId)
-        const numberOfFailures = await redisConnection.incrby(failureKey, 1)
-        await redisConnection.expire(failureKey, DAY_IN_SECONDS)
-
-        if (numberOfFailures > 1) {
-            return
-        }
-
-        const project = await projectService(log).getOneOrThrow(issueToAlert.projectId)
-        const flowVersion = await flowVersionService(log).getOneOrThrow(issueToAlert.flowVersionId)
-
-        const failedStepNumber = flowStructureUtil.getStepNumber(flowVersion.trigger, failedStep.name)
-        const alertsInfo: IssueParams = {
-            flowVersionId: flowVersion.id,
-            flowRunId,
-            projectId: issueToAlert.projectId,
-            platformId: project.platformId,
-            projectName: project.displayName,
-            flowId: issueToAlert.flowId,
-            flowName: flowVersion.displayName,
-            createdAt: dayjs(issueToAlert.created)
-                .tz('America/Los_Angeles')
-                .format('DD MMM YYYY, HH:mm [PT]'),
-            failedStepDisplayName: failedStep.displayName,
-            failedStepNumber: failedStepNumber > 0 ? failedStepNumber : undefined,
-            failedStepMessage: failedStep.message,
-        }
-
-        await sendAlertOnFlowFailure(log, alertsInfo)
+        // No-op: Flow runs do not exist in headless platform.
     },
     async add({ projectId, channel, receiver }: AddPrams): Promise<void> {
         const normalizedReceiver = receiver.toLowerCase()

@@ -6,7 +6,6 @@ import { ArrayContains, Equal, ILike, In, IsNull } from 'typeorm'
 import { appConnectionsRepo } from '../../app-connection/app-connection-service/app-connection-service'
 import { repoFactory } from '../../core/db/repo-factory'
 import { transaction } from '../../core/db/transaction'
-import { flowService } from '../../flows/flow/flow.service'
 import { buildPaginator } from '../../helper/pagination/build-paginator'
 import { paginationHelper } from '../../helper/pagination/pagination-utils'
 import { Order } from '../../helper/pagination/paginator'
@@ -261,11 +260,9 @@ async function enrichProjects(
     
     const projectIds = projects.map(p => p.id)
     
-    const [totalUsersMap, activeUsersMap, totalFlowsMap, activeFlowsMap, plansMap] = await Promise.all([
+    const [totalUsersMap, activeUsersMap, plansMap] = await Promise.all([
         projectMemberService(log).countTotalUsersByProjects(projectIds),
         projectMemberService(log).countActiveUsersByProjects(projectIds),
-        flowService(log).countFlowsByProjects(projectIds),
-        flowService(log).countActiveFlowsByProjects(projectIds),
         projectLimitsService(log).getOrCreateDefaultPlansForProjects(projectIds),
     ])
 
@@ -274,8 +271,6 @@ async function enrichProjects(
             ...project,
             plan: plansMap.get(project.id)!,
             analytics: {
-                activeFlows: activeFlowsMap.get(project.id) ?? 0,
-                totalFlows: totalFlowsMap.get(project.id) ?? 0,
                 totalUsers: totalUsersMap.get(project.id) ?? 0,
                 activeUsers: activeUsersMap.get(project.id) ?? 0,
             },

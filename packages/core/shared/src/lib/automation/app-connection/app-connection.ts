@@ -135,7 +135,6 @@ export const AppConnectionWithoutSensitiveData = z.object({
     ownerId: Nullable(z.string()),
     owner: Nullable(UserWithMetaInformation),
     metadata: Nullable(Metadata),
-    flowIds: Nullable(z.array(ApId)),
     pieceVersion: z.string(),
     preSelectForNewProjects: z.boolean(),
     usingSecretManager: z.boolean(),

@@ -1,6 +1,6 @@
 import { ApId, Permission, SeekPage } from '@inboxfm-connect/core-utils'
 import { wideEvent } from '@inboxfm-connect/server-utils'
-import { ActivepiecesError, AppConnectionOwners, AppConnectionScope, AppConnectionStatus, AppConnectionType, AppConnectionWithoutSensitiveData, ApplicationEventName, ErrorCode, GetOAuth2AuthorizationUrlRequestBody, GetOAuth2AuthorizationUrlResponse, ListAppConnectionOwnersRequestQuery, ListAppConnectionsRequestQuery, PLACEHOLDER_CONNECTION_TYPE, PrincipalType, ReplaceAppConnectionsRequestBody, SERVICE_KEY_SECURITY_OPENAPI, UpdateConnectionValueRequestBody, UpsertAppConnectionRequestBody } from '@inboxfm-connect/shared'
+import { ActivepiecesError, AppConnectionOwners, AppConnectionScope, AppConnectionStatus, AppConnectionType, AppConnectionWithoutSensitiveData, ApplicationEventName, ErrorCode, GetOAuth2AuthorizationUrlRequestBody, GetOAuth2AuthorizationUrlResponse, ListAppConnectionOwnersRequestQuery, ListAppConnectionsRequestQuery, PLACEHOLDER_CONNECTION_TYPE, PrincipalType, SERVICE_KEY_SECURITY_OPENAPI, UpdateConnectionValueRequestBody, UpsertAppConnectionRequestBody } from '@inboxfm-connect/shared'
 import { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
@@ -117,19 +117,6 @@ export const appConnectionController: FastifyPluginCallbackZod = (app, _opts, do
     },
     )
 
-    app.post('/replace', ReplaceAppConnectionsRequest, async (request, reply) => {
-        const { sourceAppConnectionId, targetAppConnectionId, deleteSourceConnection, applyToPublishedVersions } = request.body
-        await appConnectionService(request.log).replace({
-            sourceAppConnectionId,
-            targetAppConnectionId,
-            projectId: request.projectId,
-            platformId: request.principal.platform.id,
-            userId: request.principal.id,
-            deleteSourceConnection,
-            applyToPublishedVersions,
-        })
-        await reply.status(StatusCodes.NO_CONTENT).send()
-    })
 
     app.delete('/:id', DeleteAppConnectionRequest, async (request, reply): Promise<void> => {
         const connection = await appConnectionService(request.log).getOneOrThrowWithoutValue({
@@ -220,26 +207,6 @@ const UpdateConnectionValueRequest = {
     },
 }
 
-const ReplaceAppConnectionsRequest = {
-    config: {
-        security: securityAccess.project(
-            [PrincipalType.USER, PrincipalType.SERVICE],
-            Permission.WRITE_APP_CONNECTION,
-            {
-                type: ProjectResourceType.BODY,
-            },
-        ),
-    },
-    schema: {
-        tags: ['app-connections'],
-        security: [SERVICE_KEY_SECURITY_OPENAPI],
-        description: 'Replace app connections',
-        body: ReplaceAppConnectionsRequestBody,
-        response: {
-            [StatusCodes.NO_CONTENT]: z.never(),
-        },
-    },
-}
 
 const ListAppConnectionsRequest = {
     config: {

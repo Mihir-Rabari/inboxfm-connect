@@ -1,0 +1,1687 @@
+================================================================================
+Search Term: EventDestinationEntity
+Classification: Active
+File: packages/server/api/src/app/database/database-connection.ts
+Line: 29
+--------------------------------------------------------------------------------
+import { GitRepoEntity } from '../ee/projects/project-release/git-sync/git-sync.entity'
+import { ProjectReleaseEntity } from '../ee/projects/project-release/project-release.entity'
+import { ProjectRoleEntity } from '../ee/projects/project-role/project-role.entity'
+import { SecretManagerEntity } from '../ee/secret-managers/secret-manager.entity'
+import { SigningKeyEntity } from '../ee/signing-key/signing-key-entity'
+
+import { EventDestinationEntity } from '../event-destinations/event-destinations.entity'
+
+import { FileEntity } from '../file/file.entity'
+import { FlagEntity } from '../flags/flag.entity'
+import { FlowEntity } from '../flows/flow/flow.entity'
+import { FlowRunEntity } from '../flows/flow-run/flow-run-entity'
+import { WaitpointEntity } from '../flows/flow-run/waitpoint/waitpoint-entity'
+================================================================================
+
+================================================================================
+Search Term: EventDestinationEntity
+Classification: Active
+File: packages/server/api/src/app/database/database-connection.ts
+Line: 129
+--------------------------------------------------------------------------------
+        // CLOUD
+        AppSumoEntity,
+        ConnectionKeyEntity,
+        AppCredentialEntity,
+        PlatformPlanEntity,
+
+        EventDestinationEntity,
+
+
+    ]
+}
+
+export const commonProperties = {
+================================================================================
+
+================================================================================
+Search Term: EventDestinationEntity
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.entity.ts
+Line: 10
+--------------------------------------------------------------------------------
+export type EventDestinationSchema = EventDestination & {
+    platform: Platform
+    project: Project
+}
+
+
+export const EventDestinationEntity = new EntitySchema<EventDestinationSchema>({
+
+    name: 'event_destination',
+    columns: {
+        ...BaseColumnSchemaPart,
+        platformId: {
+            ...ApIdSchema,
+================================================================================
+
+================================================================================
+Search Term: EventDestinationEntity
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 13
+--------------------------------------------------------------------------------
+import { buildPaginator } from '../helper/pagination/build-paginator'
+import { paginationHelper } from '../helper/pagination/pagination-utils'
+const jobQueue = (log: any) => ({ add: async (data: any) => {} })
+const JobType = { CHAT: 'CHAT', ONE_TIME: 'ONE_TIME', EVENT_DESTINATION: 'EVENT_DESTINATION' } as const
+import {
+
+    EventDestinationEntity,
+
+    EventDestinationSchema,
+} from './event-destinations.entity'
+
+const eventDestinationRepo = repoFactory<EventDestinationSchema>(
+    EventDestinationEntity,
+================================================================================
+
+================================================================================
+Search Term: EventDestinationEntity
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 18
+--------------------------------------------------------------------------------
+    EventDestinationEntity,
+    EventDestinationSchema,
+} from './event-destinations.entity'
+
+const eventDestinationRepo = repoFactory<EventDestinationSchema>(
+
+    EventDestinationEntity,
+
+)
+
+const PROJECT_SCOPE_EVENTS = [ ApplicationEventName.FLOW_RUN_FINISHED ]
+
+const FLOW_RUN_EVENT_ACTIONS: ReadonlySet<ApplicationEventName> = new Set([
+================================================================================
+
+================================================================================
+Search Term: EventDestinationEntity
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 79
+--------------------------------------------------------------------------------
+        cursorRequest,
+        limit,
+    }: ListParams): Promise<SeekPage<EventDestination>> => {
+        const decodedCursor = paginationHelper.decodeCursor(cursorRequest)
+        const paginator = buildPaginator({
+
+            entity: EventDestinationEntity,
+
+            query: {
+                limit,
+                afterCursor: decodedCursor.nextCursor,
+                beforeCursor: decodedCursor.previousCursor,
+            },
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Documentation
+File: .agents/features/event-destinations.md
+Line: 30
+--------------------------------------------------------------------------------
+
+## Domain Terms
+
+> Canonical term definitions live in the bounded-context glossaries — see [CONTEXT-MAP.md](../../CONTEXT-MAP.md).
+
+
+- **EventDestination**: A persisted webhook subscription — one URL receiving a chosen set of events for a platform or project scope.
+
+- **ApplicationEventName**: The 27-value enum that names every auditable action in the system.
+- **Scope**: PLATFORM (all platform-level events) or PROJECT (currently only `FLOW_RUN_FINISHED`).
+- **Event Delivery**: Async BullMQ `ONE_TIME` job that POSTs the event payload to the destination URL.
+- **Test Delivery**: Sends a mock payload for a selected event type (defaults to `FLOW_CREATED`) synchronously so the operator can verify connectivity. Backed by `buildMockEvent()`.
+- **Handler Flow**: An optional internal Activepieces flow generated from `handler-flow-builder.ts` that consumes the webhook and routes each event to its own branch (Slack/Gmail/Teams/HTTP).
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Documentation
+File: .agents/features/event-destinations.md
+Line: 39
+--------------------------------------------------------------------------------
+- **Test Delivery**: Sends a mock payload for a selected event type (defaults to `FLOW_CREATED`) synchronously so the operator can verify connectivity. Backed by `buildMockEvent()`.
+- **Handler Flow**: An optional internal Activepieces flow generated from `handler-flow-builder.ts` that consumes the webhook and routes each event to its own branch (Slack/Gmail/Teams/HTTP).
+
+## Entity
+
+
+**EventDestination**: id, platformId, projectId (nullable — null for platform scope), scope (PLATFORM/PROJECT), events[] (ApplicationEventName array), url (HTTPS webhook endpoint). Relations: platform, project.
+
+
+## Scopes
+
+- **PLATFORM**: Receives all platform-level events (flow CRUD, user auth, connections, folders, security)
+- **PROJECT**: Currently only receives `FLOW_RUN_FINISHED` events for that project
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/core/shared/src/lib/ee/event-destinations/index.ts
+Line: 26
+--------------------------------------------------------------------------------
+export const EventDestinationPlatformScope = z.object({
+    ...EventDestinationBase,
+    scope: z.literal(EventDestinationScope.PLATFORM),
+})
+
+
+export const EventDestination = z.discriminatedUnion('scope', [
+
+    EventDestinationPlatformScope,
+    EventDestinationProjectScope,
+])
+
+export type EventDestination = z.infer<typeof EventDestination>
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/core/shared/src/lib/ee/event-destinations/index.ts
+Line: 31
+--------------------------------------------------------------------------------
+export const EventDestination = z.discriminatedUnion('scope', [
+    EventDestinationPlatformScope,
+    EventDestinationProjectScope,
+])
+
+
+export type EventDestination = z.infer<typeof EventDestination>
+
+
+export * from './dto'
+
+
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/server/api/src/app/ee/platform-webhooks/platform-webhooks.controller.ts
+Line: 2
+--------------------------------------------------------------------------------
+import { SeekPage } from '@inboxfm-connect/core-utils'
+
+import { CreatePlatformEventDestinationRequestBody, EventDestination, ListPlatformEventDestinationsRequestBody, PrincipalType, TestPlatformEventDestinationRequestBody, UpdatePlatformEventDestinationRequestBody } from '@inboxfm-connect/shared'
+
+import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import { StatusCodes } from 'http-status-codes'
+import { z } from 'zod'
+import { securityAccess } from '../../core/security/authorization/fastify-security'
+import { eventDestinationService } from '../../event-destinations/event-destinations.service'
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/server/api/src/app/ee/platform-webhooks/platform-webhooks.controller.ts
+Line: 70
+--------------------------------------------------------------------------------
+
+export const ListEventDestinationsRequest = {
+    schema: {
+        querystring: ListPlatformEventDestinationsRequestBody,
+        response: {
+
+            [StatusCodes.OK]: SeekPage(EventDestination),
+
+        },
+        tags: ['event-destinations'],
+        description: 'List event destinations',
+    },
+    response: {
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/server/api/src/app/ee/platform-webhooks/platform-webhooks.controller.ts
+Line: 76
+--------------------------------------------------------------------------------
+        },
+        tags: ['event-destinations'],
+        description: 'List event destinations',
+    },
+    response: {
+
+        [StatusCodes.OK]: SeekPage(EventDestination),
+
+    },
+    config: {
+        security: securityAccess.platformAdminOnly([PrincipalType.USER, PrincipalType.SERVICE]),
+    },
+}
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.entity.ts
+Line: 1
+--------------------------------------------------------------------------------
+
+
+import { EventDestination, EventDestinationScope, Platform, Project } from '@inboxfm-connect/shared'
+
+import { EntitySchema } from 'typeorm'
+import { ApIdSchema, BaseColumnSchemaPart } from '../database/database-common'
+
+export type EventDestinationSchema = EventDestination & {
+    platform: Platform
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.entity.ts
+Line: 5
+--------------------------------------------------------------------------------
+import { EventDestination, EventDestinationScope, Platform, Project } from '@inboxfm-connect/shared'
+import { EntitySchema } from 'typeorm'
+import { ApIdSchema, BaseColumnSchemaPart } from '../database/database-common'
+
+
+export type EventDestinationSchema = EventDestination & {
+
+    platform: Platform
+    project: Project
+}
+
+export const EventDestinationEntity = new EntitySchema<EventDestinationSchema>({
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 2
+--------------------------------------------------------------------------------
+import { apId, Cursor, isNil, PlatformId, ProjectId, SeekPage, tryCatchSync } from '@inboxfm-connect/core-utils'
+
+import { ApplicationEvent, ApplicationEventName, buildMockEvent, CreatePlatformEventDestinationRequestBody, EventDestination, EventDestinationScope, FlowRunEvent, LATEST_JOB_DATA_SCHEMA_VERSION, UpdatePlatformEventDestinationRequestBody, WorkerJobType } from '@inboxfm-connect/shared'
+
+import { FastifyBaseLogger } from 'fastify'
+import { ArrayContains, FindOptionsWhere } from 'typeorm'
+import { repoFactory } from '../core/db/repo-factory'
+import { applicationEvents } from '../helper/application-events'
+import { domainHelper } from '../helper/domain-helper'
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 50
+--------------------------------------------------------------------------------
+        })
+    },
+    create: async (
+        request: CreatePlatformEventDestinationRequestBody,
+        platformId: string,
+
+    ): Promise<EventDestination> => {
+
+        const entity: EventDestination = {
+            id: apId(),
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+            platformId,
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 51
+--------------------------------------------------------------------------------
+    },
+    create: async (
+        request: CreatePlatformEventDestinationRequestBody,
+        platformId: string,
+    ): Promise<EventDestination> => {
+
+        const entity: EventDestination = {
+
+            id: apId(),
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+            platformId,
+            scope: EventDestinationScope.PLATFORM,
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 62
+--------------------------------------------------------------------------------
+            events: request.events,
+            url: request.url,
+        }
+        return eventDestinationRepo().save(entity)
+    },
+
+    update: async ({ id, platformId, request }: UpdateParams): Promise<EventDestination> => {
+
+        await eventDestinationRepo().update({ id, platformId }, request)
+        return eventDestinationRepo().findOneByOrFail({ id, platformId })
+    },
+    delete: async ({ id, platformId }: DeleteParams): Promise<void> => {
+        await eventDestinationRepo().delete({
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 76
+--------------------------------------------------------------------------------
+    },
+    list: async ({
+        platformId,
+        cursorRequest,
+        limit,
+
+    }: ListParams): Promise<SeekPage<EventDestination>> => {
+
+        const decodedCursor = paginationHelper.decodeCursor(cursorRequest)
+        const paginator = buildPaginator({
+            entity: EventDestinationEntity,
+            query: {
+                limit,
+================================================================================
+
+================================================================================
+Search Term: EventDestination
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 95
+--------------------------------------------------------------------------------
+                platformId,
+            })
+
+        const { data, cursor } = await paginator.paginate(queryBuilder)
+
+
+        return paginationHelper.createPage<EventDestination>(data, cursor)
+
+    },
+    trigger: async ({ projectId, event }: TriggerParams): Promise<void> => {
+        const platformId = event.platformId
+        const conditions: FindOptionsWhere<EventDestinationSchema>[] = [{
+            platformId,
+================================================================================
+
+Search Term: platformWebhooks
+No matches found.
+
+================================================================================
+Search Term: platform-webhooks
+Classification: Documentation
+File: .agents/features/ee-overview.md
+Line: 60
+--------------------------------------------------------------------------------
+| **authentication/project-role/** | RBAC enforcement: assertPrincipalAccessToProject() | — |
+| **platform/platform-plan/** | PlatformPlan (40+ flags), Stripe billing, AI credits, auto top-up | — |
+| **license-keys/** | License activation, trial (with expiry), feature mapping to plan | — |
+| **alerts/** | Flow failure email notifications per project | — |
+| **oauth-apps/** | Custom OAuth2 app credentials per piece (override defaults) | — |
+
+| **platform-webhooks/** | Event destination management for parent app notification | — |
+
+| **app-credentials/** | App-level credential storage | — |
+| **connection-keys/** | Connection encryption key management | — |
+| **template/** | Platform-specific custom templates | `manageTemplatesEnabled` |
+| **pieces/** | Platform piece installation and management | `managePiecesEnabled` |
+| **platform/admin/** | Cloud admin: retry runs, apply license, increase credits, dedicated workers | — |
+================================================================================
+
+================================================================================
+Search Term: platform-webhooks
+Classification: Documentation
+File: DEAD_CODE.md
+Line: 104
+--------------------------------------------------------------------------------
+*   **Dependency Chain**: Unused since route registration and setup calls were disabled.
+*   **Files Importing It**:
+    *   `app.ts` imports `engineResponseWatcher` (not called).
+*   **Potential Side Effects**: Clean up imports in `app.ts`.
+
+
+#### `app/ee/platform-webhooks`
+
+*   **Why**: Dispatches webhook events on flow actions.
+*   **Dependency Chain**: Unused.
+*   **Files Importing It**: None.
+*   **Potential Side Effects**: None.
+
+================================================================================
+
+================================================================================
+Search Term: platform-webhooks
+Classification: Active
+File: packages/server/api/src/app/app.ts
+Line: 53
+--------------------------------------------------------------------------------
+import { platformPieceModule } from './ee/pieces/platform-piece-module'
+import { adminPlatformModule } from './ee/platform/admin/admin-platform.controller'
+import { adminPlatformTemplatesCloudModule } from './ee/platform/admin/templates/admin-platform-templates-cloud.module'
+import { platformAiCreditsService } from './ee/platform/platform-plan/platform-ai-credits.service'
+import { platformPlanModule } from './ee/platform/platform-plan/platform-plan.module'
+
+import { platformWebhooksModule } from './ee/platform-webhooks/platform-webhooks.module'
+
+import { projectEnterpriseHooks } from './ee/projects/ee-project-hooks'
+import { platformProjectBackgroundJobs } from './ee/projects/platform-project-jobs'
+import { platformProjectModule } from './ee/projects/platform-project-module'
+import { projectMemberModule } from './ee/projects/project-members/project-member.module'
+import { gitRepoModule } from './ee/projects/project-release/git-sync/git-sync.module'
+================================================================================
+
+================================================================================
+Search Term: platform-webhooks
+Classification: Active
+File: packages/server/api/src/app/ee/platform-webhooks/platform-webhooks.module.ts
+Line: 3
+--------------------------------------------------------------------------------
+import { FastifyPluginAsync } from 'fastify'
+import { eventDestinationService } from '../../event-destinations/event-destinations.service'
+
+import { platformWebhooksController } from './platform-webhooks.controller'
+
+
+export const platformWebhooksModule: FastifyPluginAsync = async (app) => {
+    eventDestinationService(app.log).setup()
+    await app.register(platformWebhooksController, { prefix: '/v1/event-destinations' })
+}
+================================================================================
+
+================================================================================
+Search Term: platformWebhooksModule
+Classification: Active
+File: packages/server/api/src/app/app.ts
+Line: 53
+--------------------------------------------------------------------------------
+import { platformPieceModule } from './ee/pieces/platform-piece-module'
+import { adminPlatformModule } from './ee/platform/admin/admin-platform.controller'
+import { adminPlatformTemplatesCloudModule } from './ee/platform/admin/templates/admin-platform-templates-cloud.module'
+import { platformAiCreditsService } from './ee/platform/platform-plan/platform-ai-credits.service'
+import { platformPlanModule } from './ee/platform/platform-plan/platform-plan.module'
+
+import { platformWebhooksModule } from './ee/platform-webhooks/platform-webhooks.module'
+
+import { projectEnterpriseHooks } from './ee/projects/ee-project-hooks'
+import { platformProjectBackgroundJobs } from './ee/projects/platform-project-jobs'
+import { platformProjectModule } from './ee/projects/platform-project-module'
+import { projectMemberModule } from './ee/projects/project-members/project-member.module'
+import { gitRepoModule } from './ee/projects/project-release/git-sync/git-sync.module'
+================================================================================
+
+================================================================================
+Search Term: platformWebhooksModule
+Classification: Active
+File: packages/server/api/src/app/app.ts
+Line: 311
+--------------------------------------------------------------------------------
+            await app.register(enterpriseLocalAuthnModule)
+            await app.register(federatedAuthModule)
+            await app.register(apiKeyModule)
+            await app.register(gitRepoModule)
+            await app.register(auditEventModule)
+
+            await app.register(platformWebhooksModule)
+
+            await app.register(projectRoleModule)
+            await app.register(projectReleaseModule)
+            await app.register(projectReplaceModule)
+            await app.register(globalConnectionModule)
+            await app.register(secretManagersModule)
+================================================================================
+
+================================================================================
+Search Term: platformWebhooksModule
+Classification: Active
+File: packages/server/api/src/app/app.ts
+Line: 343
+--------------------------------------------------------------------------------
+            await app.register(enterpriseLocalAuthnModule)
+            await app.register(federatedAuthModule)
+            await app.register(apiKeyModule)
+            await app.register(gitRepoModule)
+            await app.register(auditEventModule)
+
+            await app.register(platformWebhooksModule)
+
+            await app.register(projectRoleModule)
+            await app.register(projectReleaseModule)
+            await app.register(projectReplaceModule)
+            await app.register(globalConnectionModule)
+            await app.register(secretManagersModule)
+================================================================================
+
+================================================================================
+Search Term: platformWebhooksModule
+Classification: Active
+File: packages/server/api/src/app/ee/platform-webhooks/platform-webhooks.module.ts
+Line: 5
+--------------------------------------------------------------------------------
+import { FastifyPluginAsync } from 'fastify'
+import { eventDestinationService } from '../../event-destinations/event-destinations.service'
+import { platformWebhooksController } from './platform-webhooks.controller'
+
+
+export const platformWebhooksModule: FastifyPluginAsync = async (app) => {
+
+    eventDestinationService(app.log).setup()
+    await app.register(platformWebhooksController, { prefix: '/v1/event-destinations' })
+}
+
+
+================================================================================
+
+================================================================================
+Search Term: platformWebhooksController
+Classification: Active
+File: packages/server/api/src/app/ee/platform-webhooks/platform-webhooks.controller.ts
+Line: 9
+--------------------------------------------------------------------------------
+import { StatusCodes } from 'http-status-codes'
+import { z } from 'zod'
+import { securityAccess } from '../../core/security/authorization/fastify-security'
+import { eventDestinationService } from '../../event-destinations/event-destinations.service'
+
+
+export const platformWebhooksController: FastifyPluginAsyncZod = async (app) => {
+
+    app.post('/', CreateEventDestinationRequest, async (req) => {
+        return eventDestinationService(req.log).create(req.body, req.principal.platform.id)
+    })
+
+    app.patch('/:id', UpdateEventDestinationRequest, async (req) => {
+================================================================================
+
+================================================================================
+Search Term: platformWebhooksController
+Classification: Active
+File: packages/server/api/src/app/ee/platform-webhooks/platform-webhooks.module.ts
+Line: 3
+--------------------------------------------------------------------------------
+import { FastifyPluginAsync } from 'fastify'
+import { eventDestinationService } from '../../event-destinations/event-destinations.service'
+
+import { platformWebhooksController } from './platform-webhooks.controller'
+
+
+export const platformWebhooksModule: FastifyPluginAsync = async (app) => {
+    eventDestinationService(app.log).setup()
+    await app.register(platformWebhooksController, { prefix: '/v1/event-destinations' })
+}
+================================================================================
+
+================================================================================
+Search Term: platformWebhooksController
+Classification: Active
+File: packages/server/api/src/app/ee/platform-webhooks/platform-webhooks.module.ts
+Line: 7
+--------------------------------------------------------------------------------
+import { eventDestinationService } from '../../event-destinations/event-destinations.service'
+import { platformWebhooksController } from './platform-webhooks.controller'
+
+export const platformWebhooksModule: FastifyPluginAsync = async (app) => {
+    eventDestinationService(app.log).setup()
+
+    await app.register(platformWebhooksController, { prefix: '/v1/event-destinations' })
+
+}
+
+
+================================================================================
+
+Search Term: eventDestinationsModule
+No matches found.
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Documentation
+File: .agents/features/event-destinations.md
+Line: 32
+--------------------------------------------------------------------------------
+
+> Canonical term definitions live in the bounded-context glossaries — see [CONTEXT-MAP.md](../../CONTEXT-MAP.md).
+
+- **EventDestination**: A persisted webhook subscription — one URL receiving a chosen set of events for a platform or project scope.
+- **ApplicationEventName**: The 27-value enum that names every auditable action in the system.
+
+- **Scope**: PLATFORM (all platform-level events) or PROJECT (currently only `FLOW_RUN_FINISHED`).
+
+- **Event Delivery**: Async BullMQ `ONE_TIME` job that POSTs the event payload to the destination URL.
+- **Test Delivery**: Sends a mock payload for a selected event type (defaults to `FLOW_CREATED`) synchronously so the operator can verify connectivity. Backed by `buildMockEvent()`.
+- **Handler Flow**: An optional internal Activepieces flow generated from `handler-flow-builder.ts` that consumes the webhook and routes each event to its own branch (Slack/Gmail/Teams/HTTP).
+
+## Entity
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Documentation
+File: .agents/features/event-destinations.md
+Line: 44
+--------------------------------------------------------------------------------
+**EventDestination**: id, platformId, projectId (nullable — null for platform scope), scope (PLATFORM/PROJECT), events[] (ApplicationEventName array), url (HTTPS webhook endpoint). Relations: platform, project.
+
+## Scopes
+
+- **PLATFORM**: Receives all platform-level events (flow CRUD, user auth, connections, folders, security)
+
+- **PROJECT**: Currently only receives `FLOW_RUN_FINISHED` events for that project
+
+
+## Available Events (ApplicationEventName — 27 types)
+
+- Flow: FLOW_CREATED, FLOW_UPDATED, FLOW_DELETED, FLOW_PUBLISHED, FLOW_ACTIVATED, FLOW_DEACTIVATED
+- Runs: FLOW_RUN_STARTED, FLOW_RUN_FINISHED, FLOW_RUN_RESUMED, FLOW_RUN_RETRIED
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Documentation
+File: .agents/features/event-destinations.md
+Line: 49
+--------------------------------------------------------------------------------
+- **PROJECT**: Currently only receives `FLOW_RUN_FINISHED` events for that project
+
+## Available Events (ApplicationEventName — 27 types)
+
+- Flow: FLOW_CREATED, FLOW_UPDATED, FLOW_DELETED, FLOW_PUBLISHED, FLOW_ACTIVATED, FLOW_DEACTIVATED
+
+- Runs: FLOW_RUN_STARTED, FLOW_RUN_FINISHED, FLOW_RUN_RESUMED, FLOW_RUN_RETRIED
+
+- Folders: FOLDER_CREATED, FOLDER_UPDATED, FOLDER_DELETED
+- Connections: CONNECTION_UPSERTED, CONNECTION_DELETED
+- Variables: VARIABLE_UPSERTED, VARIABLE_DELETED, VARIABLE_VALUE_REVEALED
+- Users: USER_SIGNED_UP, USER_SIGNED_IN, USER_PASSWORD_RESET, USER_EMAIL_VERIFIED
+- Security: SIGNING_KEY_CREATED, PROJECT_ROLE_CREATED, PROJECT_ROLE_UPDATED, PROJECT_ROLE_DELETED
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Documentation
+File: .agents/features/flow-runs.md
+Line: 107
+--------------------------------------------------------------------------------
+
+## Side Effects
+
+- `onStart()` → emit FLOW_RUN_STARTED application event
+- `onResume()` → emit FLOW_RUN_RESUMED
+
+- `onFinish()` → emit FLOW_RUN_FINISHED (terminal states only), notify via WebSocket, and (paid editions only) fire AI usage billing tracking (see AI Usage Billing below)
+
+- Each emitter takes `{ flowRun, platformId }` and passes `platformId` straight to `applicationEvents.sendWorkerEvent` — the caller already holds it, so the synchronous webhook dispatch path (`handleSync → start → onStart`) stays free of any `getPlatformId` DB lookup. The async runs-metadata worker that fires `onFinish` resolves `platformId` itself, off the hot path.
+- On run start, project telemetry (`telemetry().trackProject(...)`) is fire-and-forget via `rejectedPromiseHandler` (`helper/promise-handler`); failures are logged and never block the run
+
+### AI Usage Billing
+
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Active
+File: packages/core/shared/src/lib/ee/audit-events/index.ts
+Line: 30
+--------------------------------------------------------------------------------
+    FLOW_PUBLISHED = 'flow.published',
+    FLOW_ACTIVATED = 'flow.activated',
+    FLOW_DEACTIVATED = 'flow.deactivated',
+    FLOW_RUN_RESUMED = 'flow.run.resumed',
+    FLOW_RUN_STARTED = 'flow.run.started',
+
+    FLOW_RUN_FINISHED = 'flow.run.finished',
+
+    FLOW_RUN_RETRIED = 'flow.run.retried',
+    FOLDER_CREATED = 'folder.created',
+    FOLDER_UPDATED = 'folder.updated',
+    FOLDER_DELETED = 'folder.deleted',
+    CONNECTION_UPSERTED = 'connection.upserted',
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Active
+File: packages/core/shared/src/lib/ee/audit-events/index.ts
+Line: 209
+--------------------------------------------------------------------------------
+
+export const FlowRunEvent = z.object({
+    ...BaseAuditEventProps,
+    action: z.union([
+        z.literal(ApplicationEventName.FLOW_RUN_STARTED),
+
+        z.literal(ApplicationEventName.FLOW_RUN_FINISHED),
+
+        z.literal(ApplicationEventName.FLOW_RUN_RESUMED),
+        z.literal(ApplicationEventName.FLOW_RUN_RETRIED),
+    ]),
+    data: FlowRunEventData,
+})
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Active
+File: packages/core/shared/src/lib/ee/audit-events/index.ts
+Line: 226
+--------------------------------------------------------------------------------
+})
+export type FlowRunStartedEvent = z.infer<typeof FlowRunStartedEvent>
+
+export const FlowRunFinishedEvent = z.object({
+    ...BaseAuditEventProps,
+
+    action: z.literal(ApplicationEventName.FLOW_RUN_FINISHED),
+
+    data: FlowRunEventData,
+})
+export type FlowRunFinishedEvent = z.infer<typeof FlowRunFinishedEvent>
+
+export const FlowRunRetriedEvent = z.object({
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Active
+File: packages/core/shared/src/lib/ee/audit-events/index.ts
+Line: 508
+--------------------------------------------------------------------------------
+        case ApplicationEventName.FLOW_UPDATED: {
+            return convertUpdateActionToDetails(event)
+        }
+        case ApplicationEventName.FLOW_RUN_STARTED:
+            return `Flow run ${event.data.flowRun.id} is started`
+
+        case ApplicationEventName.FLOW_RUN_FINISHED: {
+
+            return `Flow run ${event.data.flowRun.id} is finished`
+        }
+        case ApplicationEventName.FLOW_RUN_RESUMED: {
+            return `Flow run ${event.data.flowRun.id} is resumed`
+        }
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Active
+File: packages/core/shared/src/lib/ee/audit-events/mock-event-builder.ts
+Line: 53
+--------------------------------------------------------------------------------
+        lastName: 'User',
+    }
+
+    switch (event) {
+        case ApplicationEventName.FLOW_RUN_STARTED:
+
+        case ApplicationEventName.FLOW_RUN_FINISHED:
+
+        case ApplicationEventName.FLOW_RUN_RESUMED:
+        case ApplicationEventName.FLOW_RUN_RETRIED: {
+            const mock: FlowRunEvent = {
+                ...baseEnvelope,
+                action: event,
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Active
+File: packages/core/shared/src/lib/ee/audit-events/mock-event-builder.ts
+Line: 69
+--------------------------------------------------------------------------------
+                        duration: 1234,
+                        environment: 'PRODUCTION',
+                        flowId: flow.id,
+                        flowVersionId: flowVersion.id,
+                        flowDisplayName: flowVersion.displayName,
+
+                        status: event === ApplicationEventName.FLOW_RUN_FINISHED ? 'FAILED' : 'RUNNING',
+
+                    },
+                    project,
+                },
+            }
+            return mock
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Active
+File: packages/server/api/src/app/app.ts
+Line: 444
+--------------------------------------------------------------------------------
+    globalRegistry.add(ConnectionDeletedEvent, { id: ApplicationEventName.CONNECTION_DELETED })
+    globalRegistry.add(FolderCreatedEvent, { id: ApplicationEventName.FOLDER_CREATED })
+    globalRegistry.add(FolderUpdatedEvent, { id: ApplicationEventName.FOLDER_UPDATED })
+    globalRegistry.add(FolderDeletedEvent, { id: ApplicationEventName.FOLDER_DELETED })
+    globalRegistry.add(FlowRunStartedEvent, { id: ApplicationEventName.FLOW_RUN_STARTED })
+
+    globalRegistry.add(FlowRunFinishedEvent, { id: ApplicationEventName.FLOW_RUN_FINISHED })
+
+    globalRegistry.add(FlowRunRetriedEvent, { id: ApplicationEventName.FLOW_RUN_RETRIED })
+    globalRegistry.add(SignUpEvent, { id: ApplicationEventName.USER_SIGNED_UP })
+    globalRegistry.add(UserSignedInEvent, { id: ApplicationEventName.USER_SIGNED_IN })
+    globalRegistry.add(UserPasswordResetEvent, { id: ApplicationEventName.USER_PASSWORD_RESET })
+    globalRegistry.add(UserEmailVerifiedEvent, { id: ApplicationEventName.USER_EMAIL_VERIFIED })
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 21
+--------------------------------------------------------------------------------
+
+const eventDestinationRepo = repoFactory<EventDestinationSchema>(
+    EventDestinationEntity,
+)
+
+
+const PROJECT_SCOPE_EVENTS = [ ApplicationEventName.FLOW_RUN_FINISHED ]
+
+
+const FLOW_RUN_EVENT_ACTIONS: ReadonlySet<ApplicationEventName> = new Set([
+    ApplicationEventName.FLOW_RUN_STARTED,
+    ApplicationEventName.FLOW_RUN_FINISHED,
+    ApplicationEventName.FLOW_RUN_RESUMED,
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 25
+--------------------------------------------------------------------------------
+
+const PROJECT_SCOPE_EVENTS = [ ApplicationEventName.FLOW_RUN_FINISHED ]
+
+const FLOW_RUN_EVENT_ACTIONS: ReadonlySet<ApplicationEventName> = new Set([
+    ApplicationEventName.FLOW_RUN_STARTED,
+
+    ApplicationEventName.FLOW_RUN_FINISHED,
+
+    ApplicationEventName.FLOW_RUN_RESUMED,
+    ApplicationEventName.FLOW_RUN_RETRIED,
+])
+
+export const eventDestinationService = (log: FastifyBaseLogger) => ({
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Active
+File: packages/server/api/src/app/flows/flow-run/flow-run-side-effects.ts
+Line: 24
+--------------------------------------------------------------------------------
+        await waitpointService(log).deleteByFlowRunId(flowRun.id)
+        await flowRunHooks(log).onFinish(flowRun)
+        applicationEvents(log).sendWorkerEvent({
+            projectId: flowRun.projectId,
+            platformId,
+
+            action: ApplicationEventName.FLOW_RUN_FINISHED,
+
+            data: {
+                flowRun,
+            },
+        })
+    },
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 49
+--------------------------------------------------------------------------------
+}
+
+const buildFlowRunEvent = (params: { platformId: string, projectId?: string, flowId?: string, status?: 'SUCCEEDED' | 'FAILED' | 'RUNNING' }): FlowRunEvent => {
+    return {
+        ...buildEnvelope(params),
+
+        action: ApplicationEventName.FLOW_RUN_FINISHED,
+
+        data: {
+            flowRun: {
+                id: apId(),
+                environment: 'PRODUCTION',
+                flowId: params.flowId ?? apId(),
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 209
+--------------------------------------------------------------------------------
+                }),
+            }),
+        )
+    })
+
+
+    it('should NOT dispatch FLOW_RUN_FINISHED to a destination whose URL is the same flow webhook (recursion guard)', async () => {
+
+        const ctx = await createTestContext(app)
+        const flowId = apId()
+        const webhookUrlPrefix = await domainHelper.getPublicApiUrl({
+            path: 'v1/webhooks',
+            platformId: ctx.platform.id,
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 218
+--------------------------------------------------------------------------------
+            path: 'v1/webhooks',
+            platformId: ctx.platform.id,
+        })
+        const destination = createMockEventDestination({
+            platformId: ctx.platform.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PLATFORM,
+            url: `${webhookUrlPrefix}/${flowId}`,
+        })
+        await db.save('event_destination', destination)
+
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 231
+--------------------------------------------------------------------------------
+        })
+
+        expect(addSpy).not.toHaveBeenCalled()
+    })
+
+
+    it('should still dispatch FLOW_RUN_FINISHED to a same-host destination that targets a different flow', async () => {
+
+        const ctx = await createTestContext(app)
+        const finishedFlowId = apId()
+        const otherFlowId = apId()
+        const webhookUrlPrefix = await domainHelper.getPublicApiUrl({
+            path: 'v1/webhooks',
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 241
+--------------------------------------------------------------------------------
+            path: 'v1/webhooks',
+            platformId: ctx.platform.id,
+        })
+        const destination = createMockEventDestination({
+            platformId: ctx.platform.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PLATFORM,
+            url: `${webhookUrlPrefix}/${otherFlowId}`,
+        })
+        await db.save('event_destination', destination)
+
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 259
+--------------------------------------------------------------------------------
+                data: expect.objectContaining({ webhookUrl: destination.url }),
+            }),
+        )
+    })
+
+
+    it('should skip self-targeting destination but keep dispatching to other destinations on the same FLOW_RUN_FINISHED event', async () => {
+
+        const ctx = await createTestContext(app)
+        const flowId = apId()
+        const webhookUrlPrefix = await domainHelper.getPublicApiUrl({
+            path: 'v1/webhooks',
+            platformId: ctx.platform.id,
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 268
+--------------------------------------------------------------------------------
+            path: 'v1/webhooks',
+            platformId: ctx.platform.id,
+        })
+        const selfTargetingDestination = createMockEventDestination({
+            platformId: ctx.platform.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PLATFORM,
+            url: `${webhookUrlPrefix}/${flowId}`,
+        })
+        const externalDestination = createMockEventDestination({
+            platformId: ctx.platform.id,
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 274
+--------------------------------------------------------------------------------
+            scope: EventDestinationScope.PLATFORM,
+            url: `${webhookUrlPrefix}/${flowId}`,
+        })
+        const externalDestination = createMockEventDestination({
+            platformId: ctx.platform.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PLATFORM,
+            url: 'https://hooks.slack.example.com/services/abc',
+        })
+        await db.save('event_destination', [selfTargetingDestination, externalDestination])
+
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 302
+--------------------------------------------------------------------------------
+            path: 'v1/webhooks',
+            platformId: ctx.platform.id,
+        })
+        const internalDestinationA = createMockEventDestination({
+            platformId: ctx.platform.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PLATFORM,
+            url: `${webhookUrlPrefix}/${flowAId}`,
+        })
+        const internalDestinationB = createMockEventDestination({
+            platformId: ctx.platform.id,
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 308
+--------------------------------------------------------------------------------
+            scope: EventDestinationScope.PLATFORM,
+            url: `${webhookUrlPrefix}/${flowAId}`,
+        })
+        const internalDestinationB = createMockEventDestination({
+            platformId: ctx.platform.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PLATFORM,
+            url: `${webhookUrlPrefix}/${flowBId}`,
+        })
+        const externalDestination = createMockEventDestination({
+            platformId: ctx.platform.id,
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 314
+--------------------------------------------------------------------------------
+            scope: EventDestinationScope.PLATFORM,
+            url: `${webhookUrlPrefix}/${flowBId}`,
+        })
+        const externalDestination = createMockEventDestination({
+            platformId: ctx.platform.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PLATFORM,
+            url: 'https://hooks.slack.example.com/services/abc',
+        })
+        await db.save('event_destination', [internalDestinationA, internalDestinationB, externalDestination])
+
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 342
+--------------------------------------------------------------------------------
+            path: 'v1/webhooks',
+            platformId: ctx.platform.id,
+        })
+        const internalDestinationA = createMockEventDestination({
+            platformId: ctx.platform.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PLATFORM,
+            url: `${webhookUrlPrefix}/${flowAId}`,
+        })
+        const internalDestinationB = createMockEventDestination({
+            platformId: ctx.platform.id,
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 348
+--------------------------------------------------------------------------------
+            scope: EventDestinationScope.PLATFORM,
+            url: `${webhookUrlPrefix}/${flowAId}`,
+        })
+        const internalDestinationB = createMockEventDestination({
+            platformId: ctx.platform.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PLATFORM,
+            url: `${webhookUrlPrefix}/${flowBId}`,
+        })
+        await db.save('event_destination', [internalDestinationA, internalDestinationB])
+
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 361
+--------------------------------------------------------------------------------
+        })
+
+        expect(addSpy).not.toHaveBeenCalled()
+    })
+
+
+    it('should dispatch FLOW_RUN_FINISHED to a PROJECT scope destination matching the project', async () => {
+
+        const ctx = await createTestContext(app)
+        const destination = createMockEventDestination({
+            platformId: ctx.platform.id,
+            projectId: ctx.project.id,
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 366
+--------------------------------------------------------------------------------
+    it('should dispatch FLOW_RUN_FINISHED to a PROJECT scope destination matching the project', async () => {
+        const ctx = await createTestContext(app)
+        const destination = createMockEventDestination({
+            platformId: ctx.platform.id,
+            projectId: ctx.project.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PROJECT,
+            url: 'https://example.com/project-scope',
+        })
+        await db.save('event_destination', destination)
+
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 391
+--------------------------------------------------------------------------------
+        const ctx = await createTestContext(app)
+        const otherCtx = await createTestContext(app, { platform: { id: ctx.platform.id } })
+        const destination = createMockEventDestination({
+            platformId: ctx.platform.id,
+            projectId: ctx.project.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PROJECT,
+            url: 'https://example.com/project-a',
+        })
+        await db.save('event_destination', destination)
+
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 405
+--------------------------------------------------------------------------------
+        })
+
+        expect(addSpy).not.toHaveBeenCalled()
+    })
+
+
+    it('should NOT fan out non-FLOW_RUN_FINISHED events to PROJECT scope destinations', async () => {
+
+        const ctx = await createTestContext(app)
+        const destination = createMockEventDestination({
+            platformId: ctx.platform.id,
+            projectId: ctx.project.id,
+            events: [ApplicationEventName.FLOW_CREATED],
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 457
+--------------------------------------------------------------------------------
+
+    it('regression: ensure that we have setup the event streaming listeners', async () => {
+        const ctx = await createTestContext(app)
+        const workerDestination = createMockEventDestination({
+            platformId: ctx.platform.id,
+
+            events: [ApplicationEventName.FLOW_RUN_FINISHED],
+
+            scope: EventDestinationScope.PLATFORM,
+            url: 'https://example.com/worker-listener-regression',
+        })
+        const userDestination = createMockEventDestination({
+            platformId: ctx.platform.id,
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_FINISHED
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 472
+--------------------------------------------------------------------------------
+        await db.save('event_destination', [workerDestination, userDestination])
+
+        applicationEvents(app.log).sendWorkerEvent({
+            projectId: ctx.project.id,
+            platformId: ctx.platform.id,
+
+            action: ApplicationEventName.FLOW_RUN_FINISHED,
+
+            data: {
+                flowRun: {
+                    id: apId(),
+                    environment: 'PRODUCTION',
+                    flowId: apId(),
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_STARTED
+Classification: Documentation
+File: .agents/features/event-destinations.md
+Line: 49
+--------------------------------------------------------------------------------
+- **PROJECT**: Currently only receives `FLOW_RUN_FINISHED` events for that project
+
+## Available Events (ApplicationEventName — 27 types)
+
+- Flow: FLOW_CREATED, FLOW_UPDATED, FLOW_DELETED, FLOW_PUBLISHED, FLOW_ACTIVATED, FLOW_DEACTIVATED
+
+- Runs: FLOW_RUN_STARTED, FLOW_RUN_FINISHED, FLOW_RUN_RESUMED, FLOW_RUN_RETRIED
+
+- Folders: FOLDER_CREATED, FOLDER_UPDATED, FOLDER_DELETED
+- Connections: CONNECTION_UPSERTED, CONNECTION_DELETED
+- Variables: VARIABLE_UPSERTED, VARIABLE_DELETED, VARIABLE_VALUE_REVEALED
+- Users: USER_SIGNED_UP, USER_SIGNED_IN, USER_PASSWORD_RESET, USER_EMAIL_VERIFIED
+- Security: SIGNING_KEY_CREATED, PROJECT_ROLE_CREATED, PROJECT_ROLE_UPDATED, PROJECT_ROLE_DELETED
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_STARTED
+Classification: Documentation
+File: .agents/features/flow-runs.md
+Line: 105
+--------------------------------------------------------------------------------
+- **Legacy (V0) path:** `pauseMetadata` on `flow_run` + `ctx.run.pause({ pauseMetadata })` + `ctx.generateResumeUrl()` + `/requests/:requestId[/sync]` routes. Still functional for in-flight runs; scheduled for removal.
+- **On server restart:** `refill-paused-jobs` migration re-queues legacy paused runs. Waitpoint DELAYs are BullMQ delayed jobs and survive restarts natively.
+
+## Side Effects
+
+
+- `onStart()` → emit FLOW_RUN_STARTED application event
+
+- `onResume()` → emit FLOW_RUN_RESUMED
+- `onFinish()` → emit FLOW_RUN_FINISHED (terminal states only), notify via WebSocket, and (paid editions only) fire AI usage billing tracking (see AI Usage Billing below)
+- Each emitter takes `{ flowRun, platformId }` and passes `platformId` straight to `applicationEvents.sendWorkerEvent` — the caller already holds it, so the synchronous webhook dispatch path (`handleSync → start → onStart`) stays free of any `getPlatformId` DB lookup. The async runs-metadata worker that fires `onFinish` resolves `platformId` itself, off the hot path.
+- On run start, project telemetry (`telemetry().trackProject(...)`) is fire-and-forget via `rejectedPromiseHandler` (`helper/promise-handler`); failures are logged and never block the run
+
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_STARTED
+Classification: Active
+File: packages/core/shared/src/lib/ee/audit-events/index.ts
+Line: 29
+--------------------------------------------------------------------------------
+    FLOW_UPDATED = 'flow.updated',
+    FLOW_PUBLISHED = 'flow.published',
+    FLOW_ACTIVATED = 'flow.activated',
+    FLOW_DEACTIVATED = 'flow.deactivated',
+    FLOW_RUN_RESUMED = 'flow.run.resumed',
+
+    FLOW_RUN_STARTED = 'flow.run.started',
+
+    FLOW_RUN_FINISHED = 'flow.run.finished',
+    FLOW_RUN_RETRIED = 'flow.run.retried',
+    FOLDER_CREATED = 'folder.created',
+    FOLDER_UPDATED = 'folder.updated',
+    FOLDER_DELETED = 'folder.deleted',
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_STARTED
+Classification: Active
+File: packages/core/shared/src/lib/ee/audit-events/index.ts
+Line: 208
+--------------------------------------------------------------------------------
+})
+
+export const FlowRunEvent = z.object({
+    ...BaseAuditEventProps,
+    action: z.union([
+
+        z.literal(ApplicationEventName.FLOW_RUN_STARTED),
+
+        z.literal(ApplicationEventName.FLOW_RUN_FINISHED),
+        z.literal(ApplicationEventName.FLOW_RUN_RESUMED),
+        z.literal(ApplicationEventName.FLOW_RUN_RETRIED),
+    ]),
+    data: FlowRunEventData,
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_STARTED
+Classification: Active
+File: packages/core/shared/src/lib/ee/audit-events/index.ts
+Line: 219
+--------------------------------------------------------------------------------
+})
+export type FlowRunEvent = z.infer<typeof FlowRunEvent>
+
+export const FlowRunStartedEvent = z.object({
+    ...BaseAuditEventProps,
+
+    action: z.literal(ApplicationEventName.FLOW_RUN_STARTED),
+
+    data: FlowRunEventData,
+})
+export type FlowRunStartedEvent = z.infer<typeof FlowRunStartedEvent>
+
+export const FlowRunFinishedEvent = z.object({
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_STARTED
+Classification: Active
+File: packages/core/shared/src/lib/ee/audit-events/index.ts
+Line: 506
+--------------------------------------------------------------------------------
+export function summarizeApplicationEvent(event: ApplicationEvent) {
+    switch (event.action) {
+        case ApplicationEventName.FLOW_UPDATED: {
+            return convertUpdateActionToDetails(event)
+        }
+
+        case ApplicationEventName.FLOW_RUN_STARTED:
+
+            return `Flow run ${event.data.flowRun.id} is started`
+        case ApplicationEventName.FLOW_RUN_FINISHED: {
+            return `Flow run ${event.data.flowRun.id} is finished`
+        }
+        case ApplicationEventName.FLOW_RUN_RESUMED: {
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_STARTED
+Classification: Active
+File: packages/core/shared/src/lib/ee/audit-events/mock-event-builder.ts
+Line: 52
+--------------------------------------------------------------------------------
+        firstName: 'Sample',
+        lastName: 'User',
+    }
+
+    switch (event) {
+
+        case ApplicationEventName.FLOW_RUN_STARTED:
+
+        case ApplicationEventName.FLOW_RUN_FINISHED:
+        case ApplicationEventName.FLOW_RUN_RESUMED:
+        case ApplicationEventName.FLOW_RUN_RETRIED: {
+            const mock: FlowRunEvent = {
+                ...baseEnvelope,
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_STARTED
+Classification: Active
+File: packages/server/api/src/app/app.ts
+Line: 443
+--------------------------------------------------------------------------------
+    globalRegistry.add(ConnectionUpsertedEvent, { id: ApplicationEventName.CONNECTION_UPSERTED })
+    globalRegistry.add(ConnectionDeletedEvent, { id: ApplicationEventName.CONNECTION_DELETED })
+    globalRegistry.add(FolderCreatedEvent, { id: ApplicationEventName.FOLDER_CREATED })
+    globalRegistry.add(FolderUpdatedEvent, { id: ApplicationEventName.FOLDER_UPDATED })
+    globalRegistry.add(FolderDeletedEvent, { id: ApplicationEventName.FOLDER_DELETED })
+
+    globalRegistry.add(FlowRunStartedEvent, { id: ApplicationEventName.FLOW_RUN_STARTED })
+
+    globalRegistry.add(FlowRunFinishedEvent, { id: ApplicationEventName.FLOW_RUN_FINISHED })
+    globalRegistry.add(FlowRunRetriedEvent, { id: ApplicationEventName.FLOW_RUN_RETRIED })
+    globalRegistry.add(SignUpEvent, { id: ApplicationEventName.USER_SIGNED_UP })
+    globalRegistry.add(UserSignedInEvent, { id: ApplicationEventName.USER_SIGNED_IN })
+    globalRegistry.add(UserPasswordResetEvent, { id: ApplicationEventName.USER_PASSWORD_RESET })
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_STARTED
+Classification: Active
+File: packages/server/api/src/app/event-destinations/event-destinations.service.ts
+Line: 24
+--------------------------------------------------------------------------------
+)
+
+const PROJECT_SCOPE_EVENTS = [ ApplicationEventName.FLOW_RUN_FINISHED ]
+
+const FLOW_RUN_EVENT_ACTIONS: ReadonlySet<ApplicationEventName> = new Set([
+
+    ApplicationEventName.FLOW_RUN_STARTED,
+
+    ApplicationEventName.FLOW_RUN_FINISHED,
+    ApplicationEventName.FLOW_RUN_RESUMED,
+    ApplicationEventName.FLOW_RUN_RETRIED,
+])
+
+================================================================================
+
+================================================================================
+Search Term: FLOW_RUN_STARTED
+Classification: Active
+File: packages/server/api/src/app/flows/flow-run/flow-run-side-effects.ts
+Line: 54
+--------------------------------------------------------------------------------
+    },
+    async onStart({ flowRun, platformId }: FlowRunSideEffectParams): Promise<void> {
+        applicationEvents(log).sendWorkerEvent({
+            projectId: flowRun.projectId,
+            platformId,
+
+            action: ApplicationEventName.FLOW_RUN_STARTED,
+
+            data: {
+                flowRun,
+            },
+        })
+    },
+================================================================================
+
+Search Term: FLOW_RUN_FAILED
+No matches found.
+
+Search Term: RUN_FINISHED
+No matches found.
+
+Search Term: RUN_FAILED
+No matches found.
+
+Search Term: WEBHOOK_EVENT
+No matches found.
+
+================================================================================
+Search Term: import statements containing: event-destinations
+Classification: Active
+File: packages/server/api/src/app/database/database-connection.ts
+Line: 29
+--------------------------------------------------------------------------------
+import { GitRepoEntity } from '../ee/projects/project-release/git-sync/git-sync.entity'
+import { ProjectReleaseEntity } from '../ee/projects/project-release/project-release.entity'
+import { ProjectRoleEntity } from '../ee/projects/project-role/project-role.entity'
+import { SecretManagerEntity } from '../ee/secret-managers/secret-manager.entity'
+import { SigningKeyEntity } from '../ee/signing-key/signing-key-entity'
+
+import { EventDestinationEntity } from '../event-destinations/event-destinations.entity'
+
+import { FileEntity } from '../file/file.entity'
+import { FlagEntity } from '../flags/flag.entity'
+import { FlowEntity } from '../flows/flow/flow.entity'
+import { FlowRunEntity } from '../flows/flow-run/flow-run-entity'
+import { WaitpointEntity } from '../flows/flow-run/waitpoint/waitpoint-entity'
+================================================================================
+
+================================================================================
+Search Term: import statements containing: event-destinations
+Classification: Active
+File: packages/server/api/src/app/ee/platform-webhooks/platform-webhooks.controller.ts
+Line: 7
+--------------------------------------------------------------------------------
+import { CreatePlatformEventDestinationRequestBody, EventDestination, ListPlatformEventDestinationsRequestBody, PrincipalType, TestPlatformEventDestinationRequestBody, UpdatePlatformEventDestinationRequestBody } from '@inboxfm-connect/shared'
+import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
+import { StatusCodes } from 'http-status-codes'
+import { z } from 'zod'
+import { securityAccess } from '../../core/security/authorization/fastify-security'
+
+import { eventDestinationService } from '../../event-destinations/event-destinations.service'
+
+
+export const platformWebhooksController: FastifyPluginAsyncZod = async (app) => {
+    app.post('/', CreateEventDestinationRequest, async (req) => {
+        return eventDestinationService(req.log).create(req.body, req.principal.platform.id)
+    })
+================================================================================
+
+================================================================================
+Search Term: import statements containing: event-destinations
+Classification: Active
+File: packages/server/api/src/app/ee/platform-webhooks/platform-webhooks.module.ts
+Line: 2
+--------------------------------------------------------------------------------
+import { FastifyPluginAsync } from 'fastify'
+
+import { eventDestinationService } from '../../event-destinations/event-destinations.service'
+
+import { platformWebhooksController } from './platform-webhooks.controller'
+
+export const platformWebhooksModule: FastifyPluginAsync = async (app) => {
+    eventDestinationService(app.log).setup()
+    await app.register(platformWebhooksController, { prefix: '/v1/event-destinations' })
+================================================================================
+
+================================================================================
+Search Term: import statements containing: event-destinations
+Classification: Test
+File: packages/server/api/test/integration/cloud/event-destinations/event-destination-trigger.test.ts
+Line: 4
+--------------------------------------------------------------------------------
+import { apId } from '@inboxfm-connect/core-utils'
+import { ApplicationEventName, EventDestinationScope, FlowCreatedEvent, FlowDeletedEvent, FlowRunEvent, WorkerJobType } from '@inboxfm-connect/shared'
+import { FastifyInstance } from 'fastify'
+
+import { eventDestinationService } from '../../../../src/app/event-destinations/event-destinations.service'
+
+import { applicationEvents } from '../../../../src/app/helper/application-events'
+import { domainHelper } from '../../../../src/app/helper/domain-helper'
+import * as jobQueueModule from '../../../../src/app/workers/job-queue/job-queue'
+import { db } from '../../../helpers/db'
+import { createMockEventDestination } from '../../../helpers/mocks'
+================================================================================
+
+================================================================================
+Search Term: import statements containing: platform-webhooks
+Classification: Active
+File: packages/server/api/src/app/app.ts
+Line: 53
+--------------------------------------------------------------------------------
+import { platformPieceModule } from './ee/pieces/platform-piece-module'
+import { adminPlatformModule } from './ee/platform/admin/admin-platform.controller'
+import { adminPlatformTemplatesCloudModule } from './ee/platform/admin/templates/admin-platform-templates-cloud.module'
+import { platformAiCreditsService } from './ee/platform/platform-plan/platform-ai-credits.service'
+import { platformPlanModule } from './ee/platform/platform-plan/platform-plan.module'
+
+import { platformWebhooksModule } from './ee/platform-webhooks/platform-webhooks.module'
+
+import { projectEnterpriseHooks } from './ee/projects/ee-project-hooks'
+import { platformProjectBackgroundJobs } from './ee/projects/platform-project-jobs'
+import { platformProjectModule } from './ee/projects/platform-project-module'
+import { projectMemberModule } from './ee/projects/project-members/project-member.module'
+import { gitRepoModule } from './ee/projects/project-release/git-sync/git-sync.module'
+================================================================================
+
+================================================================================
+Search Term: import statements containing: platform-webhooks
+Classification: Active
+File: packages/server/api/src/app/ee/platform-webhooks/platform-webhooks.module.ts
+Line: 3
+--------------------------------------------------------------------------------
+import { FastifyPluginAsync } from 'fastify'
+import { eventDestinationService } from '../../event-destinations/event-destinations.service'
+
+import { platformWebhooksController } from './platform-webhooks.controller'
+
+
+export const platformWebhooksModule: FastifyPluginAsync = async (app) => {
+    eventDestinationService(app.log).setup()
+    await app.register(platformWebhooksController, { prefix: '/v1/event-destinations' })
+}
+================================================================================
+

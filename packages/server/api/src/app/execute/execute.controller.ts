@@ -1,13 +1,13 @@
+import { HeadlessRuntime } from '@inboxfm-connect/runtime'
 import { Permission, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
+import { appConnectionService, appConnectionsRepo } from '../app-connection/app-connection-service/app-connection-service'
 import { ProjectResourceType } from '../core/security/authorization/common'
 import { securityAccess } from '../core/security/authorization/fastify-security'
-import { HeadlessRuntime } from '@inboxfm-connect/runtime'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
-import { appConnectionsRepo, appConnectionService } from '../app-connection/app-connection-service/app-connection-service'
 
 const runtime = new HeadlessRuntime({
     basePath: process.cwd(),
@@ -32,7 +32,7 @@ const runtime = new HeadlessRuntime({
         },
         async deleteConnection({ connectionId }) {
             await appConnectionsRepo().delete({ id: connectionId })
-        }
+        },
     },
     decryptAndRefresh: async ({ connection }) => {
         const projectId = connection.projectIds?.[0]
@@ -42,9 +42,9 @@ const runtime = new HeadlessRuntime({
         return appConnectionService(console as any).decryptAndRefreshConnection(
             connection,
             projectId,
-            console as any
+            console as any,
         )
-    }
+    },
 })
 
 export const executeController: FastifyPluginAsyncZod = async (fastify) => {

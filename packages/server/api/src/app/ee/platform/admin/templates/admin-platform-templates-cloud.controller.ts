@@ -4,7 +4,6 @@ import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { securityAccess } from '../../../../core/security/authorization/fastify-security'
 import { flagService } from '../../../../flags/flag.service'
-import { migrateFlowVersionTemplateList } from '../../../../flows/flow-version/migrations'
 import { templateService } from '../../../../template/template.service'
 
 export const adminPlatformTemplatesCloudController: FastifyPluginAsyncZod = async (
@@ -31,13 +30,7 @@ export const adminPlatformTemplatesCloudController: FastifyPluginAsyncZod = asyn
     })
     
 
-    app.post('/', {
-        ...CreateTemplateRequest,
-        preValidation: async (request) => {
-            const migratedFlows = await migrateFlowVersionTemplateList(request.body.flows ?? [])
-            request.body.flows = migratedFlows
-        },
-    }, async (request) => {
+    app.post('/', CreateTemplateRequest, async (request) => {
         const { type } = request.body
         if (type !== TemplateType.OFFICIAL) {
             throw new ActivepiecesError({
@@ -53,13 +46,7 @@ export const adminPlatformTemplatesCloudController: FastifyPluginAsyncZod = asyn
         })
     })
 
-    app.post('/:id', {
-        ...UpdateTemplateRequest,
-        preValidation: async (request) => {
-            const migratedFlows = await migrateFlowVersionTemplateList(request.body.flows ?? [])
-            request.body.flows = migratedFlows
-        },
-    }, async (request) => {
+    app.post('/:id', UpdateTemplateRequest, async (request) => {
         const template = await templateService(app.log).getOneOrThrow({ id: request.params.id })
         
         if (template.type !== TemplateType.OFFICIAL) {

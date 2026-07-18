@@ -3,7 +3,6 @@ import { isNil, tryCatch } from '@inboxfm-connect/core-utils'
 import { PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyReply, FastifyRequest } from 'fastify'
 import { workerGroupService } from '../../ee/platform/platform-plan/worker-group.service'
-import { flowExecutionCache } from '../../flows/flow/flow-execution-cache'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 
@@ -50,14 +49,6 @@ async function resolvePlatformId(request: FastifyRequest, log: FastifyBaseLogger
             || principal.type === PrincipalType.ENGINE
         if (resolvedFromPrincipal) {
             return principal.platform.id
-        }
-    }
-
-    const flowId = (request.params as Record<string, string>).flowId
-    if (!isNil(flowId)) {
-        const cacheResult = await flowExecutionCache(log).get({ flowId, simulate: false })
-        if (cacheResult.exists) {
-            return cacheResult.platformId
         }
     }
 

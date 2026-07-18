@@ -5,7 +5,6 @@ import { FastifyBaseLogger } from 'fastify'
 import { repoFactory } from '../../../core/db/repo-factory'
 import { getPlatformPlanNameKey } from '../../../database/redis/keys'
 import { distributedLock, distributedStore } from '../../../database/redis-connections'
-import { flowRepo } from '../../../flows/flow/flow.repo'
 import { system } from '../../../helper/system/system'
 import { AppSystemProp } from '../../../helper/system/system-props'
 import { platformService } from '../../../platform/platform.service'
@@ -93,12 +92,7 @@ export const platformPlanService = (log: FastifyBaseLogger) => ({
         return isCloudPlanButNotEnterprise(platformPlan.plan)
     },
     async getUsage(platformId: string): Promise<PlatformUsage> {
-        const activeFlowsCount = await flowRepo()
-            .createQueryBuilder('flow')
-            .innerJoin('project', 'project', 'project.id = flow."projectId"')
-            .where('project."platformId" = :platformId', { platformId })
-            .andWhere('flow.status = :status', { status: FlowStatus.ENABLED })
-            .getCount()
+        const activeFlowsCount = 0
         const aiCreditsUsage = await platformAiCreditsService(log).getUsage(platformId)
         return {
             activeFlows: activeFlowsCount,

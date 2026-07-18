@@ -3,8 +3,8 @@ import { PiecePropertyMap, PropertyType } from '@inboxfm-connect/pieces-framewor
 import { EngineResponse, EngineResponseStatus, McpToolDefinition, ProjectScopedMcpServer, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
-import { getPiecePackageWithoutArchive } from '../../pieces/metadata/piece-metadata-service'
 import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
+import { getPiecePackageWithoutArchive } from '../../pieces/metadata/piece-metadata-service'
 import { mcpUtils, PropSummary } from './mcp-utils'
 
 const { withTimeout, RESOLVE_TIMEOUT_MS } = mcpUtils

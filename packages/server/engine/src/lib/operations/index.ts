@@ -1,10 +1,10 @@
 import { inspect } from 'util'
 import { formatPieceError, tryCatch } from '@inboxfm-connect/core-utils'
-import { EngineOperation, EngineOperationType, EngineResponse, EngineResponseStatus, ExecuteExtractPieceMetadataOperation, ExecuteFlowOperation, ExecutePropsOptions, ExecuteRefreshTokenAuthOperation, ExecuteToolOperation, ExecuteTriggerOperation, ExecuteValidateAuthOperation, ExecutionError, ExecutionErrorType, TriggerHookType } from '@inboxfm-connect/shared'
+import { EngineOperation, EngineOperationType, EngineResponse, EngineResponseStatus, ExecuteExtractPieceMetadataOperation, ExecutePropsOptions, ExecuteRefreshTokenAuthOperation, ExecuteToolOperation, ExecuteTriggerOperation, ExecuteValidateAuthOperation, ExecutionError, ExecutionErrorType, TriggerHookType } from '@inboxfm-connect/shared'
 import { pieceHelper } from '../helper/piece-helper'
+import { EngineConstants } from '../handler/context/engine-constants'
 import { authRefreshOperation } from './auth-refresh.operation'
 import { authValidationOperation } from './auth-validation.operation'
-import { flowOperation } from './flow.operation'
 import { pieceMetadataOperation } from './piece-metadata.operation'
 import { propertyOperation } from './property.operation'
 import { triggerHookOperation } from './trigger-hook.operation'
@@ -15,9 +15,6 @@ export async function execute(operationType: EngineOperationType, operation: Eng
         switch (operationType) {
             case EngineOperationType.EXTRACT_PIECE_METADATA: {
                 return pieceMetadataOperation.extract(operation as ExecuteExtractPieceMetadataOperation)
-            }
-            case EngineOperationType.EXECUTE_FLOW: {
-                return flowOperation.execute(operation as ExecuteFlowOperation)
             }
             case EngineOperationType.EXECUTE_PROPERTY: {
                 return propertyOperation.execute(operation as ExecutePropsOptions)

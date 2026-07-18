@@ -1,13 +1,11 @@
 import { isNil, isObject, spreadIfDefined, tryCatch } from '@inboxfm-connect/core-utils'
 import { PiecePropertyMap } from '@inboxfm-connect/pieces-framework'
-import { AppConnectionStatus, EngineResponse, EngineResponseStatus, FlowVersion, McpToolDefinition, ProjectScopedMcpServer, SampleDataFileType, WorkerJobType } from '@inboxfm-connect/shared'
+import { AppConnectionStatus, EngineResponse, EngineResponseStatus, McpToolDefinition, ProjectScopedMcpServer, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { appConnectionService } from '../../app-connection/app-connection-service/app-connection-service'
-import { flowService } from '../../flows/flow/flow.service'
-import { sampleDataService } from '../../flows/step-run/sample-data.service'
-import { getPiecePackageWithoutArchive } from '../../pieces/metadata/piece-metadata-service'
 import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
+import { getPiecePackageWithoutArchive } from '../../pieces/metadata/piece-metadata-service'
 import { mcpUtils, PropertyResolutionResult, PropSummary } from './mcp-utils'
 import { pieceExpertise } from './piece-expertise'
 
@@ -19,7 +17,7 @@ export const apGetPiecePropsTool = (mcp: ProjectScopedMcpServer, log: FastifyBas
         annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
         execute: async (args) => {
             try {
-                const { pieceName, actionOrTriggerName, type, auth, flowId, input: providedInput } = getPiecePropsInput.parse(args)
+                const { pieceName, actionOrTriggerName, type, auth, input: providedInput } = getPiecePropsInput.parse(args)
 
                 const platformId = await mcpUtils.resolvePlatformId({ mcp, log })
                 const projectId = mcpUtils.isProjectScoped(mcp) ? mcp.projectId : undefined
@@ -65,7 +63,6 @@ export const apGetPiecePropsTool = (mcp: ProjectScopedMcpServer, log: FastifyBas
                         pieceVersion: piece.version,
                         actionOrTriggerName,
                         auth,
-                        flowId,
                         providedInput: providedInput ?? {},
                         projectId: mcp.projectId,
                         platformId,
@@ -138,21 +135,17 @@ export const apGetPiecePropsTool = (mcp: ProjectScopedMcpServer, log: FastifyBas
     }
 }
 
-async function resolvePropertyOptions({ props, componentProps, pieceName, pieceVersion, actionOrTriggerName, auth, flowId, providedInput, projectId, platformId, log }: ResolvePropertyOptionsParams): Promise<void> {
+async function resolvePropertyOptions({ props, componentProps, pieceName, pieceVersion, actionOrTriggerName, auth, providedInput, projectId, platformId, log }: ResolvePropertyOptionsParams): Promise<void> {
     const resolvableProps = mcpUtils.findResolvableProps({ props, componentProps, auth, providedInput })
     if (resolvableProps.length === 0) {
         return
     }
 
-    const flow = flowId ? await flowService(log).getOnePopulated({ id: flowId, projectId }) : null
-
     const [piecePackage, sampleData] = await Promise.all([
         getPiecePackageWithoutArchive(log, platformId, { pieceName, pieceVersion }),
-        flow
-            ? sampleDataService(log).getSampleDataForFlow(projectId, flow.version, SampleDataFileType.OUTPUT)
-            : Promise.resolve({} as Record<string, unknown>),
+        Promise.resolve({} as Record<string, unknown>),
     ])
-    const flowVersion: FlowVersion | undefined = flow?.version
+    const flowVersion = undefined
 
     // Resolve the full dependent chain in one pass (base → table → fields), seeding each result so
     // dependent dropdowns unlock — instead of one round-trip per field. The engine call is the
@@ -263,7 +256,6 @@ const getPiecePropsInput = z.object({
     actionOrTriggerName: z.string().describe('The action or trigger name (e.g. "send_channel_message"). Use ap_research_pieces with pieceNames to get valid values.'),
     type: z.enum(['action', 'trigger']).describe('Whether to look up an action or a trigger.'),
     auth: z.string().optional().describe('Connection externalId from ap_list_connections. When provided, dynamic dropdowns and dynamic property sub-fields are resolved via your account.'),
-    flowId: z.string().optional().describe('Flow ID for resolving dependent dropdowns that need step context. Optional — most dropdowns work without it.'),
     input: z.record(z.string(), z.unknown()).optional().describe('Known input values to resolve dependent dynamic properties.'),
 })
 
@@ -276,7 +268,6 @@ type ResolvePropertyOptionsParams = {
     pieceVersion: string
     actionOrTriggerName: string
     auth: string | undefined
-    flowId: string | undefined
     providedInput: Record<string, unknown>
     projectId: string
     platformId: string

@@ -1,5 +1,5 @@
+import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
 import { createSandboxRuntime } from '@inboxfm-connect/sandbox'
-import { ActivepiecesError, ErrorCode, isNil } from '@inboxfm-connect/core-utils'
 import { EngineOperationType, PiecePackage, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { system } from '../system/system'
@@ -18,7 +18,7 @@ const sandboxRuntime = createSandboxRuntime({
         DEV_PIECES: (system.get(AppSystemProp.DEV_PIECES) ?? '').split(',').map(s => s.trim()).filter(Boolean),
         WORKER_GROUP_ID: 'headless',
         PROJECT_WORKER: false,
-    } as any)
+    } as any),
 })
 
 const userInteractionWatcherImpl = {
@@ -60,7 +60,7 @@ const userInteractionWatcherImpl = {
                 codes: [],
                 publicApiUrl: 'http://localhost:3000',
                 engineToken: 'headless',
-            }
+            },
         })
 
         if (result.status !== 'OK') {
@@ -71,7 +71,7 @@ const userInteractionWatcherImpl = {
         }
 
         return result.response as T
-    }
+    },
 }
 
 export const userInteractionWatcher = userInteractionWatcherImpl

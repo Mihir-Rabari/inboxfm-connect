@@ -1,7 +1,7 @@
+import * as validator from '@authenio/samlify-node-xmllint'
 import { ActivepiecesError, ErrorCode, tryCatch } from '@inboxfm-connect/core-utils'
 import { safeHttp } from '@inboxfm-connect/server-utils'
 import { SAMLAttributeMapping, SAMLAuthnProviderConfig } from '@inboxfm-connect/shared'
-import * as validator from '@authenio/samlify-node-xmllint'
 import * as saml from 'samlify'
 import { resolveSamlAttributes, SamlAttributes } from './saml-attributes'
 

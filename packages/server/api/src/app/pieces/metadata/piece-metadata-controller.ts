@@ -6,8 +6,6 @@ import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { ProjectResourceType } from '../../core/security/authorization/common'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
-import { flowService } from '../../flows/flow/flow.service'
-import { sampleDataService } from '../../flows/step-run/sample-data.service'
 import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
 import { pieceSyncService } from '../piece-sync-service'
 import { getPiecePackageWithoutArchive, pieceMetadataService } from './piece-metadata-service'
@@ -122,21 +120,14 @@ const basePiecesController: FastifyPluginAsyncZod = async (app) => {
         async (req) => {
             const projectId = req.projectId
             const platform = req.principal.platform
-            const flow = await flowService(req.log).getOnePopulatedOrThrow({
-                projectId,
-                id: req.body.flowId,
-                versionId: req.body.flowVersionId,
-            })
-            const sampleData = await sampleDataService(req.log).getSampleDataForFlow(projectId, flow.version, SampleDataFileType.OUTPUT)
             const { response } = await userInteractionWatcher.submitAndWaitForResponse<EngineResponse<unknown>>({
                 jobType: WorkerJobType.EXECUTE_PROPERTY,
                 platformId: platform.id,
                 projectId,
-                flowVersion: flow.version,
                 propertyName: req.body.propertyName,
                 actionOrTriggerName: req.body.actionOrTriggerName,
                 input: req.body.input,
-                sampleData,
+                sampleData: {},
                 searchValue: req.body.searchValue,
                 piece: await getPiecePackageWithoutArchive(req.log, platform.id, req.body),
             }, req.log)

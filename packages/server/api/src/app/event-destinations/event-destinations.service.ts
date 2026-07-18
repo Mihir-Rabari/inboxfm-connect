@@ -1,3 +1,20 @@
+/**
+ * Event Destinations Service
+ *
+ * This service serves as a backward compatibility layer for Event Destinations / Platform Webhooks.
+ *
+ * Core Design & Compatibility Details:
+ * 1. PERSISTENCE SUPPORTED: Webhook configuration persistence remains fully active. Platform administrators
+ *    can still create, read, update, and delete event destination webhooks through the REST API. Configurations
+ *    are stored in the `event_destination` database table via `EventDestinationEntity`.
+ * 2. DISPATCH IS INTENTIONALLY DISABLED: The active webhook dispatch logic has been disabled by stubbing out
+ *    the `jobQueue` (see below). No webhook payloads are actually sent out to registered URLs.
+ * 3. RETIRED BULLMQ INTEGRATION: Webhook dispatch previously relied on BullMQ background queues (adding
+ *    `EVENT_DESTINATION` jobs to the queue to be executed asynchronously by workers).
+ * 4. HEADLESS RUNTIME COMPATIBILITY: The modern headless runtime operates synchronously and does not emit
+ *    any dispatchable execution events (such as `FLOW_RUN_STARTED` or `FLOW_RUN_FINISHED`).
+ */
+
 import { apId, Cursor, isNil, PlatformId, ProjectId, SeekPage, tryCatchSync } from '@inboxfm-connect/core-utils'
 import { ApplicationEvent, ApplicationEventName, buildMockEvent, CreatePlatformEventDestinationRequestBody, EventDestination, EventDestinationScope, FlowRunEvent, LATEST_JOB_DATA_SCHEMA_VERSION, UpdatePlatformEventDestinationRequestBody, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
@@ -7,7 +24,11 @@ import { applicationEvents } from '../helper/application-events'
 import { domainHelper } from '../helper/domain-helper'
 import { buildPaginator } from '../helper/pagination/build-paginator'
 import { paginationHelper } from '../helper/pagination/pagination-utils'
-const jobQueue = (log: any) => ({ add: async (data: any) => {} })
+
+// Webhook dispatch is intentionally disabled.
+// Previously, jobs were pushed to a BullMQ queue to be delivered by the background worker.
+// Since the background worker execution pathway is removed/commented out, this is stubbed to a no-op.
+const jobQueue = (_log: unknown): { add: (_data: unknown) => Promise<void> } => ({ add: async (_data: unknown): Promise<void> => {} })
 const JobType = { CHAT: 'CHAT', ONE_TIME: 'ONE_TIME', EVENT_DESTINATION: 'EVENT_DESTINATION' } as const
 import {
     EventDestinationEntity,
@@ -27,16 +48,24 @@ const FLOW_RUN_EVENT_ACTIONS: ReadonlySet<ApplicationEventName> = new Set([
     ApplicationEventName.FLOW_RUN_RETRIED,
 ])
 
-export const eventDestinationService = (log: FastifyBaseLogger) => ({
+export const eventDestinationService = (log: FastifyBaseLogger): {
+    setup(): void
+    create(request: CreatePlatformEventDestinationRequestBody, platformId: string): Promise<EventDestination>
+    update(params: UpdateParams): Promise<EventDestination>
+    delete(params: DeleteParams): Promise<void>
+    list(params: ListParams): Promise<SeekPage<EventDestination>>
+    trigger(params: TriggerParams): Promise<void>
+    test(params: TestParams): Promise<void>
+} => ({
     setup(): void {
         applicationEvents(log).registerListeners(log, {
-            userEvent: () => async (event) => {
+            userEvent: (log: FastifyBaseLogger) => async (event: ApplicationEvent): Promise<void> => {
                 await eventDestinationService(log).trigger({
                     projectId: event.projectId,
                     event,
                 })
             },
-            workerEvent: () => async (projectId, event) => {
+            workerEvent: (log: FastifyBaseLogger) => async (projectId: string, event: ApplicationEvent): Promise<void> => {
                 await eventDestinationService(log).trigger({
                     projectId,
                     event,

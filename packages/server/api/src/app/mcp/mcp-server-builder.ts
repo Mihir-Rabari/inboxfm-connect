@@ -5,7 +5,6 @@ import { FastifyBaseLogger } from 'fastify'
 import { z } from 'zod'
 import { rejectedPromiseHandler } from '../helper/promise-handler'
 import { telemetry } from '../helper/telemetry.utils'
-import { WebhookFlowVersionToRun, webhookService } from '../webhooks/webhook.service'
 import { ALLOW_ALL, PermissionChecker, resolvePermissionChecker } from './mcp-permissions'
 import { mcpProjectSelection, ProjectSelectionScope } from './mcp-project-selection'
 import { activepiecesTools, ALL_CONTROLLABLE_TOOL_NAMES, LOCKED_TOOL_NAMES, PLATFORM_LEVEL_TOOL_NAMES } from './tools'
@@ -130,54 +129,7 @@ function registerPlatformTools({ server, mcp, userId, selectionScope, resolvePro
 }
 
 function registerFlowTools({ server, mcp, projectId, permissionChecker, log }: RegisterToolsParams): void {
-    const enabledFlows = mcp.flows.filter((flow) => flow.status === FlowStatus.ENABLED)
-    for (const flow of enabledFlows) {
-        const mcpTrigger = flow.version.trigger.settings as McpTrigger
-        const mcpInputs = mcpTrigger.input?.inputSchema ?? []
-        const zodFromInputSchema = Object.fromEntries(mcpInputs.map((property) => [property.name, mcpPropertyToZod(property)]))
-
-        const baseName = (mcpTrigger.input?.toolName ?? flow.version.displayName) + '_' + flow.id.substring(0, 4)
-        const toolName = mcpToolNameUtils.createToolName(baseName)
-        const toolDescription: string = mcpTrigger.input?.toolDescription ?? ''
-
-        const flowPermissionError = permissionChecker.check(Permission.WRITE_RUN, toolName)
-        server.registerTool(toolName, { title: toolName, description: toolDescription, inputSchema: zodFromInputSchema }, async (args: Record<string, unknown>) => {
-            if (flowPermissionError) {
-                return flowPermissionError
-            }
-
-            const returnsResponse = mcpTrigger.input?.returnsResponse
-            const response = await webhookService.handleWebhook({
-                data: () => Promise.resolve({
-                    body: {},
-                    method: 'POST',
-                    headers: {},
-                    queryParams: {},
-                }),
-                logger: log,
-                flowId: flow.id,
-                async: !returnsResponse,
-                flowVersionToRun: WebhookFlowVersionToRun.LOCKED_FALL_BACK_TO_LATEST,
-                saveSampleData: false,
-                payload: args,
-                execute: true,
-                failParentOnFailure: false,
-                timeoutMs: MCP_TIMEOUT_MS,
-            })
-            const isOkay = Math.floor(response.status / 100) === 2
-
-            rejectedPromiseHandler(telemetry(log).trackProject(projectId, {
-                name: TelemetryEventName.MCP_TOOL_CALLED,
-                payload: { mcpId: projectId, toolName },
-            }), log)
-
-            const text = isOkay
-                ? `✅ Successfully executed flow ${flow.version.displayName}\n\nOutput:\n\`\`\`json\n${JSON.stringify(response, null, 2)}\n\`\`\``
-                : `❌ Error executing flow ${flow.version.displayName}\n\nError details:\n\`\`\`json\n${JSON.stringify(response, null, 2) || 'Unknown error occurred'}\n\`\`\``
-
-            return { content: [{ type: 'text' as const, text }] }
-        })
-    }
+    // No-op: Flow-based tools are deprecated in headless platform.
 }
 
 function registerStaticTools({ server, mcp, projectId, userId, permissionChecker, log }: RegisterToolsParams): void {

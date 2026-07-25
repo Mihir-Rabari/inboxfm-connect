@@ -1,0 +1,23 @@
+{
+  "name": "@inboxfm-connect/piece-google-forms",
+  "version": "0.5.4",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "dependencies": {
+    "@inboxfm-connect/pieces-common": "workspace:*",
+    "@inboxfm-connect/pieces-framework": "workspace:*",
+    "dayjs": "1.11.9",
+    "google-auth-library": "10.5.0",
+    "@inboxfm-connect/core-piece-types": "workspace:*",
+    "@inboxfm-connect/core-utils": "workspace:*"
+  },
+  "devDependencies": {
+    "tslib": "2.6.2"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && cp package.json dist/",
+    "bundle": "node ../../../../dist/packages/cli/src/index.js pieces bundle",
+    "lint": "eslint 'src/**/*.ts'"
+  }
+}
+

@@ -1,0 +1,53 @@
+{
+  "extends": [
+    "../../../../.eslintrc.json"
+  ],
+  "ignorePatterns": [
+    "!**/*"
+  ],
+  "overrides": [
+    {
+      "files": [
+        "*.ts",
+        "*.tsx",
+        "*.js",
+        "*.jsx"
+      ],
+      "rules": {},
+      "extends": [
+        "plugin:prettier/recommended"
+      ],
+      "plugins": [
+        "prettier"
+      ]
+    },
+    {
+      "files": [
+        "*.ts",
+        "*.tsx"
+      ],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              "lodash",
+              "lodash/*",
+              "@inboxfm-connect/core-*",
+              "@inboxfm-connect/server*",
+              "@inboxfm-connect/engine",
+              "@inboxfm-connect/shared"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "*.js",
+        "*.jsx"
+      ],
+      "rules": {}
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "name": "@inboxfm-connect/piece-mailchimp",
+  "version": "0.5.5",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "dependencies": {
+    "@inboxfm-connect/pieces-common": "workspace:*",
+    "@inboxfm-connect/pieces-framework": "workspace:*",
+    "@mailchimp/mailchimp_marketing": "3.0.80",
+    "@inboxfm-connect/core-piece-types": "workspace:*",
+    "@inboxfm-connect/core-utils": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && cp package.json dist/",
+    "bundle": "node ../../../../dist/packages/cli/src/index.js pieces bundle",
+    "lint": "eslint 'src/**/*.ts'"
+  },
+  "devDependencies": {
+    "@types/mailchimp__mailchimp_marketing": "3.0.22",
+    "tslib": "2.6.2"
+  }
+}
+

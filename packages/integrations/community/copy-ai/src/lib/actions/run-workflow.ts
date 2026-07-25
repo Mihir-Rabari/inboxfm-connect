@@ -1,0 +1,47 @@
+import { createAction, Property } from '@inboxfm-connect/pieces-framework';
+import { HttpMethod } from '@inboxfm-connect/pieces-common';
+import { makeRequest } from '../common/client';
+import { copyAiAuth } from '../auth';
+
+export const runWorkflowAction = createAction({
+    auth:copyAiAuth,
+	name: 'run_workflow',
+	displayName: 'Run Workflow',
+	description: 'Start a Copy.ai workflow execution.',
+	audience: 'both',
+	aiMetadata: { description: 'Starts a new execution of a Copy.ai workflow by its workflow ID, passing the supplied inputs as the run\'s start variables. Use this to kick off content generation or any configured Copy.ai workflow; it returns a run ID you then poll with Get Workflow Run Status and fetch results from with Get Workflow Run Outputs. Not idempotent: each call launches a separate run.', idempotent: false },
+	props: {
+		workflowId: Property.ShortText({
+			displayName: 'Workflow ID',
+			description: 'The ID of the workflow to run.',
+			required: true,
+		}),
+		inputs: Property.Object({
+			displayName: 'Workflow Inputs',
+			description: 'The input data for the workflow.',
+			required: true,
+		}),
+	},
+	async run({ propsValue, auth }) {
+		const response = (await makeRequest(
+			auth.secret_text,
+			HttpMethod.POST,	
+			`/workflow/${propsValue.workflowId}/run`,
+			{
+				startVariables: propsValue.inputs,
+			},
+		)) as CreateRunResponse;
+
+		return {
+			runId: response.data.id,
+		};
+	},
+});
+
+type CreateRunResponse = {
+	success: string;
+	data: {
+		id: string;
+	};
+};
+

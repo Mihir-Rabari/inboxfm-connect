@@ -1,0 +1,34 @@
+import { createCustomApiCallAction } from '@inboxfm-connect/pieces-common';
+import { createPiece } from '@inboxfm-connect/pieces-framework';
+import { PieceCategory } from '@inboxfm-connect/pieces-framework';
+import {
+  ContentfulCreateRecordAction,
+  ContentfulGetRecordAction,
+  ContentfulSearchRecordsAction,
+} from './lib/actions/records';
+import { ContentfulAuth } from './lib/common';
+
+export const contentful = createPiece({
+  displayName: 'Contentful',
+  description: 'Content infrastructure for digital teams',
+
+  auth: ContentfulAuth,
+  minimumSupportedRelease: '0.30.0',
+  logoUrl: 'https://cdn.activepieces.com/pieces/contentful.png',
+  categories: [PieceCategory.MARKETING],
+  authors: ["cyrilselasi","kishanprmr","MoShizzle","abuaboud"],
+  actions: [
+    ContentfulSearchRecordsAction,
+    ContentfulGetRecordAction,
+    ContentfulCreateRecordAction,
+    createCustomApiCallAction({
+      baseUrl: () => `https://api.contentful.com`,
+      auth: ContentfulAuth,
+      authMapping: async (auth) => ({
+        Authorization: `Bearer ${auth.props.apiKey}`,
+      }),
+    }),
+  ],
+  triggers: [],
+});
+

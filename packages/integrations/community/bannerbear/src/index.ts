@@ -1,0 +1,28 @@
+import { createCustomApiCallAction } from '@inboxfm-connect/pieces-common';
+import { PieceAuth, createPiece } from '@inboxfm-connect/pieces-framework';
+import { PieceCategory } from '@inboxfm-connect/pieces-framework';
+import { bannerbearCreateImageAction } from './lib/actions/create-image';
+import { bannerbearAuth } from './lib/auth';
+
+export const bannerbear = createPiece({
+  displayName: 'Bannerbear',
+  description: 'Automate image generation',
+
+  minimumSupportedRelease: '0.30.0',
+  logoUrl: 'https://cdn.activepieces.com/pieces/bannerbear.png',
+  categories: [PieceCategory.MARKETING],
+  authors: ["kishanprmr","MoShizzle","khaledmashaly","abuaboud"],
+  auth: bannerbearAuth,
+  actions: [
+    bannerbearCreateImageAction,
+    createCustomApiCallAction({
+      baseUrl: () => 'https://sync.api.bannerbear.com/v2',
+      auth: bannerbearAuth,
+      authMapping: async (auth) => ({
+        Authorization: `Bearer ${auth.secret_text}`,
+      }),
+    }),
+  ],
+  triggers: [],
+});
+

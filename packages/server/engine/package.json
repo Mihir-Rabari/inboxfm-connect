@@ -1,0 +1,33 @@
+{
+  "name": "@inboxfm-connect/engine",
+  "version": "0.7.0",
+  "type": "commonjs",
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "serve": "node esbuild.config.mjs --watch",
+    "lint": "eslint 'src/**/*.ts'",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@inboxfm-connect/pieces-common": "workspace:*",
+    "@inboxfm-connect/pieces-framework": "workspace:*",
+    "@inboxfm-connect/shared": "workspace:*",
+    "ai": "^6.0.0",
+    "async-mutex": "0.4.0",
+    "cron-validator": "1.3.1",
+    "dayjs": "1.11.9",
+    "fetch-retry": "6.0.0",
+    "isolated-vm": "6.0.2",
+    "nanoid": "3.3.8",
+    "socket.io-client": "4.8.1",
+    "tslib": "2.6.2",
+    "undici": "7.28.0",
+    "zod": "4.3.6",
+    "@inboxfm-connect/core-utils": "workspace:*",
+    "@inboxfm-connect/core-formula": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.11.0",
+    "vitest": "3.2.6"
+  }
+}

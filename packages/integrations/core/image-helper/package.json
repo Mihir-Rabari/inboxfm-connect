@@ -1,0 +1,28 @@
+{
+  "name": "@inboxfm-connect/piece-image-helper",
+  "version": "0.1.14",
+  "main": "./dist/src/index.js",
+  "types": "./dist/src/index.d.ts",
+  "dependencies": {
+    "@inboxfm-connect/pieces-common": "workspace:*",
+    "@inboxfm-connect/pieces-framework": "workspace:*",
+    "exifreader": "4.39.0",
+    "heic-convert": "2.1.0",
+    "jimp": "^0.22.12",
+    "sharp": "^0.35.2",
+    "mime-types": "2.1.35",
+    "@inboxfm-connect/core-piece-types": "workspace:*",
+    "@inboxfm-connect/core-utils": "workspace:*"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json && cp package.json dist/",
+    "bundle": "node ../../../../dist/packages/cli/src/index.js pieces bundle",
+    "lint": "eslint 'src/**/*.ts'",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/mime-types": "2.1.1",
+    "vitest": "3.2.6",
+    "tslib": "2.6.2"
+  }
+}

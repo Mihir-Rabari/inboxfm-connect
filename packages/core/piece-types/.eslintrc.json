@@ -1,0 +1,28 @@
+{
+  "extends": ["../../../.eslintrc.json"],
+  "ignorePatterns": ["!**/*", "dist"],
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": [
+                  "@inboxfm-connect/shared",
+                  "@inboxfm-connect/server*",
+                  "@inboxfm-connect/pieces*",
+                  "@inboxfm-connect/web*"
+                ],
+                "message": "core/* packages are the framework-agnostic foundation; they must not import shared, server, pieces, or web. core-piece-types may depend only on core-utils."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}
+

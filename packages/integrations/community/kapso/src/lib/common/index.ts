@@ -1,0 +1,19 @@
+import { PieceAuth } from '@inboxfm-connect/pieces-framework';
+import { WhatsAppClient } from '@kapso/whatsapp-cloud-api';
+
+export const KAPSO_BASE_URL = 'https://api.kapso.ai/meta/whatsapp';
+
+export const kapsoAuth = PieceAuth.SecretText({
+  displayName: 'API Key',
+  description:
+    'Your Kapso API key. You can obtain it from your [Kapso dashboard](https://app.kapso.ai).',
+  required: true,
+});
+
+export function makeClient(apiKey: string): WhatsAppClient {
+  return new WhatsAppClient({
+    baseUrl: KAPSO_BASE_URL,
+    kapsoApiKey: apiKey,
+  });
+}
+

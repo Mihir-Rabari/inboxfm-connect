@@ -1,0 +1,20 @@
+{
+  "name": "@inboxfm-connect/runtime",
+  "version": "0.1.0",
+  "type": "commonjs",
+  "main": "./dist/src/index.js",
+  "typings": "./dist/src/index.d.ts",
+  "scripts": {
+    "build": "tsc -p tsconfig.lib.json",
+    "lint": "eslint 'src/**/*.ts'"
+  },
+  "dependencies": {
+    "@inboxfm-connect/core-utils": "workspace:*",
+    "@inboxfm-connect/shared": "workspace:*",
+    "@inboxfm-connect/sandbox": "workspace:*",
+    "@inboxfm-connect/pieces-framework": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/node": "24.11.0"
+  }
+}

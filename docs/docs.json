@@ -1,0 +1,665 @@
+{
+   "$schema": "https://mintlify.com/docs.json",
+   "theme": "mint",
+   "name": "Inboxfm Connect",
+   "colors": {
+      "primary": "#9675FF",
+      "light": "#9675FF",
+      "dark": "#9675FF"
+   },
+   "navbar": {
+      "links": [
+         {
+            "label": "GitHub",
+            "href": "https://github.com/inboxfm-connect/inboxfm-connect"
+         },
+         {
+            "label": "Integrations",
+            "href": "https://www.inboxfm-connect.com/integrations"
+         }
+      ],
+      "primary": {
+         "type": "button",
+         "label": "Get Started",
+         "href": "https://www.inboxfm-connect.com/plans"
+      }
+   },
+   "redirects": [
+      {
+         "source": "/getting-started/introduction",
+         "destination": "/overview/welcome"
+      },
+      {
+         "source": "/install/configuration/overview",
+         "destination": "/install/configure-operate/production-setup"
+      },
+      {
+         "source": "/install/configuration/telemetry",
+         "destination": "/install/configure-operate/telemetry"
+      },
+      {
+         "source": "/install/configuration/environment-variables",
+         "destination": "/install/reference/environment-variables"
+      },
+      {
+         "source": "/install/configuration/breaking-changes",
+         "destination": "/install/reference/breaking-changes"
+      },
+      {
+         "source": "/install/architecture/recommended-setup",
+         "destination": "/install/configure-operate/production-setup"
+      },
+      {
+         "source": "/install/configure-operate/recommended-setup",
+         "destination": "/install/configure-operate/production-setup"
+      },
+      {
+         "source": "/install/configure-operate/deployment-checklist",
+         "destination": "/install/configure-operate/production-setup"
+      },
+      {
+         "source": "/flows/known-limits",
+         "destination": "/install/reference/limits"
+      },
+      {
+         "source": "/install/guides/setup-ssl",
+         "destination": "/install/configure-operate/setup-ssl"
+      },
+      {
+         "source": "/install/guides/setup-s3",
+         "destination": "/install/configure-operate/setup-s3"
+      },
+      {
+         "source": "/install/guides/setup-opentelemetry",
+         "destination": "/install/configure-operate/setup-opentelemetry"
+      },
+      {
+         "source": "/install/guides/separate-workers",
+         "destination": "/install/configure-operate/separate-workers"
+      },
+      {
+         "source": "/install/guides/setup-app-webhooks",
+         "destination": "/install/configure-operate/setup-app-webhooks"
+      },
+      {
+         "source": "/install/guides/rollback",
+         "destination": "/install/configure-operate/rollback"
+      }
+   ],
+   "background": {
+      "color": {
+         "light": "#ffffff",
+         "dark": "#090d0d"
+      }
+   },
+   "favicon": "/favicon.svg",
+   "navigation": {
+      "tabs": [
+         {
+            "tab": "Overview",
+            "groups": [
+               {
+                  "group": "Overview",
+                  "pages": [
+                     "overview/welcome"
+                  ]
+               },
+               {
+                  "group": "Flows",
+                  "pages": [
+                     "flows/building-flows",
+                     "flows/passing-data",
+                     "flows/using-formulas",
+                     "flows/formula-reference",
+                     "flows/publishing-flows",
+                     "flows/debugging-runs",
+                     "flows/versioning"
+                  ]
+               },
+               {
+                  "group": "MCP Server",
+                  "pages": [
+                     "mcp/overview",
+                     "mcp/tools"
+                  ]
+               },
+               {
+                  "group": "About",
+                  "pages": [
+                     "about/i18n",
+                     "about/changelog",
+                     "about/license"
+                  ]
+               }
+            ]
+         },
+         {
+            "tab": "Admin Guide",
+            "groups": [
+               {
+                  "group": "Guides",
+                  "pages": [
+                    "admin-guide/guides/structure-projects",
+                    "admin-guide/guides/manage-integrations",
+                    "admin-guide/guides/sso",
+                  {
+                     "group": "SCIM",
+                     "icon": "users",
+                     "pages": [
+                        "admin-guide/guides/scim/overview",
+                        "admin-guide/guides/scim/providers/okta",
+                        "admin-guide/guides/scim/providers/microsoft-entra-id"
+                     ]
+                  },
+                    "admin-guide/guides/manage-oauth2",
+                    "admin-guide/guides/setup-ai-providers",
+                    {
+                      "group": "Secret Managers",
+                      "icon": "key",
+                      "pages": [
+                        "admin-guide/guides/secret-managers/overview",
+                        "admin-guide/guides/secret-managers/aws",
+                        "admin-guide/guides/secret-managers/hashicorp",
+                        "admin-guide/guides/secret-managers/cyberark-conjur",
+                        "admin-guide/guides/secret-managers/onepassword"
+                      ]
+                    },
+                    "admin-guide/guides/permissions",
+                    "admin-guide/guides/event-streaming",
+                    "admin-guide/guides/project-releases",
+                    "admin-guide/guides/project-replace-cli",
+                    "admin-guide/guides/manage-concurrency"
+                  ]
+               },
+               {
+                  "group": "Security",
+                  "pages": [
+                     "admin-guide/security/practices",
+                     {
+                        "group": "Audit Logs",
+                        "icon": "book",
+                        "pages": [
+                           "admin-guide/security/audit-logs/overview",
+                           "admin-guide/security/audit-logs/flow-created",
+                           "admin-guide/security/audit-logs/flow-updated",
+                           "admin-guide/security/audit-logs/flow-deleted",
+                           "admin-guide/security/audit-logs/flow-published",
+                           "admin-guide/security/audit-logs/flow-activated",
+                           "admin-guide/security/audit-logs/flow-deactivated",
+                           "admin-guide/security/audit-logs/connection-upserted",
+                           "admin-guide/security/audit-logs/connection-deleted",
+                           "admin-guide/security/audit-logs/flow-run-started",
+                           "admin-guide/security/audit-logs/flow-run-finished",
+                           "admin-guide/security/audit-logs/folder-created",
+                           "admin-guide/security/audit-logs/folder-updated",
+                           "admin-guide/security/audit-logs/folder-deleted",
+                           "admin-guide/security/audit-logs/user-signed-in",
+                           "admin-guide/security/audit-logs/user-signed-up",
+                           "admin-guide/security/audit-logs/user-email-verified",
+                           "admin-guide/security/audit-logs/user-password-reset",
+                           "admin-guide/security/audit-logs/signing-key-created"
+                        ]
+                     }
+                  ]
+               }
+            ]
+         },
+         {
+            "tab": "Deploy",
+            "groups": [
+               {
+                  "group": "Get Started",
+                  "pages": [
+                     "install/overview",
+                     "install/options/docker",
+                     "install/options/docker-compose",
+                     {
+                        "group": "Other Options",
+                        "pages": [
+                           "install/options/helm",
+                           "install/options/easypanel",
+                           "install/options/aws",
+                           "install/options/gcp",
+                           "install/options/railway",
+                           "install/options/elestio"
+                        ]
+                     }
+                  ]
+               },
+               {
+                  "group": "Configure & Operate",
+                  "pages": [
+                     "install/configure-operate/production-setup",
+                     {
+                        "group": "Production Essentials",
+                        "icon": "rocket",
+                        "pages": [
+                           "install/configure-operate/separate-workers",
+                           "install/configure-operate/sandboxing",
+                           "install/configure-operate/enterprise-license",
+                           "install/configure-operate/setup-ssl",
+                           "install/configure-operate/setup-s3"
+                        ]
+                     },
+                     {
+                        "group": "Operations",
+                        "icon": "screwdriver-wrench",
+                        "pages": [
+                           "install/configure-operate/worker-groups",
+                           "install/configure-operate/setup-app-webhooks",
+                           "install/configure-operate/setup-opentelemetry",
+                           "install/configure-operate/telemetry",
+                           "install/configure-operate/rollback"
+                        ]
+                     }
+                  ]
+               },
+               {
+                  "group": "Troubleshooting",
+                  "pages": [
+                     "install/troubleshooting/bullboard",
+                     "install/troubleshooting/reset-password",
+                     "install/troubleshooting/truncated-logs",
+                     "install/troubleshooting/websocket-issues"
+                  ]
+               },
+               {
+                  "group": "Reference",
+                  "pages": [
+                     "install/reference/environment-variables",
+                     "install/reference/limits",
+                     "install/reference/breaking-changes"
+                  ]
+               },
+               {
+                  "group": "Guarantees",
+                  "icon": "shield-check",
+                  "pages": [
+                     "install/guarantees/crash-recovery",
+                     "install/guarantees/reserved-resources",
+                     "install/guarantees/execution-isolation"
+                  ]
+               },
+               {
+                  "group": "Architecture",
+                  "pages": [
+                     "install/architecture/overview",
+                     "install/architecture/workers",
+                     "install/architecture/sandboxing",
+                     "install/architecture/durable-execution",
+                     "install/architecture/waitpoints",
+                     "install/architecture/network-security",
+                     "install/architecture/integration-syncing",
+                     "install/architecture/benchmark",
+                     "install/architecture/latency",
+                     "install/architecture/autoscaling"
+                  ]
+               }
+            ]
+         },
+         {
+            "tab": "Embedding",
+            "groups": [
+               {
+                  "group": "Essentials",
+                  "pages": [
+                     "embedding/overview",
+                     "embedding/configure-embedding",
+                     "embedding/provision-users",
+                     "embedding/embed-builder"
+                  ]
+               },
+               {
+                  "group": "Misc",
+                  "pages": [
+                     "embedding/customize-integrations",
+                     "embedding/embed-connections",
+                     "embedding/embeddable-mcp",
+                     "embedding/navigation",
+                     "embedding/predefined-connection",
+                     "embedding/sdk-changelog",
+                     "embedding/sdk-server-requests"
+                  ]
+               }
+            ]
+         },
+         {
+            "tab": "Build Integrations",
+            "description": "Learn how to build, test, and publish your own custom integrations in Inboxfm Connect.",
+            "groups": [
+               {
+                  "group": "Build a Integration",
+                  "pages": [
+                     "build-integrations/building-integrations/overview",
+                     "build-integrations/building-integrations/start-building",
+                     "build-integrations/building-integrations/setup-fork",
+                     "build-integrations/building-integrations/development-setup",
+                     "build-integrations/building-integrations/integration-definition",
+                     "build-integrations/building-integrations/integration-authentication",
+                     "build-integrations/building-integrations/create-action",
+                     "build-integrations/building-integrations/create-trigger",
+                     {
+                        "group": "Sharing Integrations",
+                        "icon": "circle-7",
+                        "pages": [
+                           "build-integrations/sharing-integrations/overview",
+                           "build-integrations/sharing-integrations/contribute",
+                           "build-integrations/sharing-integrations/community",
+                           "build-integrations/sharing-integrations/private"
+                        ]
+                     }
+                  ]
+               },
+               {
+                  "group": "Integration Reference",
+                  "pages": [
+                     "build-integrations/integration-reference/authentication",
+                     {
+                        "group": "Triggers",
+                        "icon": "bolt",
+                        "pages": [
+                           "build-integrations/integration-reference/triggers/overview",
+                           "build-integrations/integration-reference/triggers/polling-trigger",
+                           "build-integrations/integration-reference/triggers/webhook-trigger"
+                        ]
+                     },
+                     "build-integrations/integration-reference/properties",
+                     "build-integrations/integration-reference/properties-validation",
+                     "build-integrations/integration-reference/flow-control",
+                     "build-integrations/integration-reference/persistent-storage",
+                     "build-integrations/integration-reference/files",
+                     "build-integrations/integration-reference/external-libraries",
+                     "build-integrations/integration-reference/integration-versioning",
+                     "build-integrations/integration-reference/examples",
+                     "build-integrations/integration-reference/custom-api-calls",
+                     "build-integrations/integration-reference/output-schema",
+                     "build-integrations/integration-reference/i18n"
+                  ]
+               },
+               {
+                  "group": "Misc",
+                  "pages": [
+                     "build-integrations/misc/build-integration",
+                     "build-integrations/misc/bundling-integrations",
+                     "build-integrations/misc/publish-integration",
+                     "build-integrations/misc/integrations-ci-cd",
+                     "build-integrations/misc/migrate-nx-to-turbo",
+                     "build-integrations/misc/migrate-integrations-to-bundles",
+                     "build-integrations/misc/private-fork",
+                     "build-integrations/misc/testing-integrations",
+                     "build-integrations/misc/dev-container",
+                     "build-integrations/misc/codespaces"
+                  ]
+               }
+            ]
+         },
+         {
+            "tab": "API Reference",
+            "groups": [
+               {
+                  "group": "Get Started",
+                  "pages": [
+                     "endpoints/overview"
+                  ]
+               },
+               {
+                  "group": "Endpoints",
+                  "pages": [
+                     {
+                        "group": "Projects",
+                        "icon": "building",
+                        "pages": [
+                           "endpoints/projects/schema",
+                           "endpoints/projects/create",
+                           "endpoints/projects/update",
+                           "endpoints/projects/list",
+                           "endpoints/projects/delete"
+                        ]
+                     },
+                     {
+                        "group": "Users",
+                        "icon": "user",
+                        "pages": [
+                           "endpoints/users/schema",
+                           "endpoints/users/update",
+                           "endpoints/users/list",
+                           "endpoints/users/delete"
+                        ]
+                     },
+                     {
+                        "group": "User Invitations",
+                        "icon": "paper-plane",
+                        "pages": [
+                           "endpoints/user-invitations/schema",
+                           "endpoints/user-invitations/upsert",
+                           "endpoints/user-invitations/list",
+                           "endpoints/user-invitations/delete"
+                        ]
+                     },
+                     {
+                        "group": "Project Members",
+                        "icon": "user",
+                        "pages": [
+                           "endpoints/project-members/schema",
+                           "endpoints/project-members/list",
+                           "endpoints/project-members/delete"
+                        ]
+                     },
+                     {
+                        "group": "Connections",
+                        "icon": "link",
+                        "pages": [
+                           "endpoints/connections/schema",
+                           "endpoints/connections/upsert",
+                           "endpoints/connections/list",
+                           "endpoints/connections/get",
+                           "endpoints/connections/delete"
+                        ]
+                     },
+                     {
+                        "group": "Flows",
+                        "icon": "bolt",
+                        "pages": [
+                           "endpoints/flows/schema",
+                           "endpoints/flows/create",
+                           "endpoints/flows/update",
+                           "endpoints/flows/get",
+                           "endpoints/flows/list",
+                           "endpoints/flows/delete"
+                        ]
+                     },
+                     {
+                        "group": "Flow Runs",
+                        "icon": "play",
+                        "pages": [
+                           "endpoints/flow-runs/schema",
+                           "endpoints/flow-runs/get",
+                           "endpoints/flow-runs/list"
+                        ]
+                     },
+                     {
+                        "group": "Sample Data",
+                        "icon": "database",
+                        "pages": [
+                           "endpoints/sample-data/get"
+                        ]
+                     },
+                     {
+                        "group": "Integrations",
+                        "icon": "plug",
+                        "pages": [
+                           "endpoints/integrations/schema",
+                           "endpoints/integrations/install"
+                        ]
+                     },
+                     {
+                        "group": "Project Releases",
+                        "icon": "cube",
+                        "pages": [
+                           "endpoints/project-releases/schema",
+                           "endpoints/project-releases/create"
+                        ]
+                     },
+                     {
+                        "group": "Global Connections",
+                        "icon": "globe",
+                        "pages": [
+                           "endpoints/global-connections/schema",
+                           "endpoints/global-connections/upsert",
+                           "endpoints/global-connections/update",
+                           "endpoints/global-connections/list",
+                           "endpoints/global-connections/delete"
+                        ]
+                     },
+                     {
+                        "group": "Git Sync",
+                        "icon": "git",
+                        "pages": [
+                           "endpoints/git-repos/schema",
+                           "endpoints/git-repos/configure"
+                        ]
+                     },
+                     {
+                        "group": "Folders",
+                        "icon": "folder",
+                        "pages": [
+                           "endpoints/folders/schema",
+                           "endpoints/folders/create",
+                           "endpoints/folders/update",
+                           "endpoints/folders/get",
+                           "endpoints/folders/list",
+                           "endpoints/folders/delete"
+                        ]
+                     },
+                     {
+                        "group": "Templates",
+                        "icon": "copy",
+                        "pages": [
+                           "endpoints/templates/schema",
+                           "endpoints/templates/create",
+                           "endpoints/templates/delete",
+                           "endpoints/templates/get",
+                           "endpoints/templates/list"
+                        ]
+                     },
+                     {
+                        "group": "Worker Machines",
+                        "icon": "server",
+                        "pages": [
+                           "endpoints/worker-machines/queue-metrics"
+                        ]
+                     },
+                     {
+                        "group": "Embedding",
+                        "icon": "code",
+                        "pages": [
+                           "endpoints/embedding/add-allowed-embed-origins"
+                        ]
+                     }
+                  ]
+               }
+            ]
+         },
+         {
+            "tab": "Handbook",
+            "groups": [
+               {
+                  "group": "Handbook",
+                  "pages": [
+                     "handbook/overview",
+                     "handbook/team"
+                  ]
+               },
+               {
+                  "group": "Hiring",
+                  "icon": "user",
+                  "pages": [
+                     "handbook/hiring/hiring",
+                     "handbook/hiring/levels",
+                     "handbook/hiring/team",
+                     "handbook/hiring/compensation"
+                  ]
+               },
+               {
+                  "group": "Customer Support",
+                  "icon": "hero",
+                  "pages": [
+                     "handbook/customer-support/overview",
+                     "handbook/customer-support/tone",
+                     "handbook/customer-support/pylon",
+                     "handbook/customer-support/handle-requests"
+                  ]
+               },
+               {
+                  "group": "Engineering Onboarding",
+                  "icon": "code",
+                  "pages": [
+                     "handbook/engineering/overview",
+                     "handbook/engineering/onboarding/onboarding-check-list",
+                     "handbook/engineering/onboarding/how-we-work",
+                     "handbook/engineering/onboarding/on-call",
+                     "handbook/engineering/onboarding/downtime-incident",
+                     "handbook/engineering/onboarding/stack",
+                     "handbook/engineering/onboarding/release-cycle"
+                  ]
+               },
+               {
+                  "group": "Engineering Playbooks",
+                  "icon": "code",
+                  "pages": [
+                     "handbook/engineering/playbooks/run-ee",
+                     "handbook/engineering/playbooks/building-for-self-hosting",
+                     "handbook/engineering/playbooks/setup-betterstack",
+                     "handbook/engineering/playbooks/releases",
+                     "handbook/engineering/playbooks/canary-deployment",
+                     "handbook/engineering/playbooks/infrastructure",
+                     "handbook/engineering/playbooks/database-migration",
+                     "handbook/engineering/playbooks/structured-logging",
+                     "handbook/engineering/playbooks/security-advisory-response",
+                     "handbook/engineering/playbooks/product-announcement",
+                     "handbook/engineering/playbooks/frontend-best-practices",
+                     "handbook/engineering/playbooks/e2e-tests",
+                     "handbook/engineering/playbooks/testing-strategy",
+                     "handbook/engineering/playbooks/connect-claude-to-chrome",
+                     "handbook/engineering/playbooks/ai-engineering-guide",
+                     {
+                        "group": "Postmortems",
+                        "icon": "triangle-exclamation",
+                        "pages": [
+                           "handbook/engineering/postmortems/2026-03-19-redis-and-delay-overload",
+                           "handbook/engineering/postmortems/2026-03-redis-queue-events-overload",
+                           "handbook/engineering/postmortems/2026-03-16-infrastructure-upgrade"
+                        ]
+                     }
+                  ]
+               },
+               {
+                  "group": "Product",
+                  "icon": "tool",
+                  "pages": [
+                     "handbook/product/interface-design"
+                  ]
+               }
+            ]
+         }
+      ],
+      "global": {}
+   },
+   "logo": {
+      "light": "./resources/logo/light.svg",
+      "dark": "./resources/logo/dark.svg",
+      "href": "https://www.inboxfm-connect.com"
+   },
+   "api": {
+      "openapi": [
+         "openapi.json"
+      ]
+   },
+   "footer": {
+      "socials": {
+         "x": "https://x.com/inboxfm-connect",
+         "github": "https://github.com/inboxfm-connect/inboxfm-connect",
+         "linkedin": "https://linkedin.com/company/inboxfm-connect"
+      }
+   }
+}

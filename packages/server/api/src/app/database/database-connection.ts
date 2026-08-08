@@ -24,6 +24,7 @@ import { ProjectRoleEntity } from '../ee/projects/project-role/project-role.enti
 import { SecretManagerEntity } from '../ee/secret-managers/secret-manager.entity'
 import { SigningKeyEntity } from '../ee/signing-key/signing-key-entity'
 import { EventDestinationEntity } from '../event-destinations/event-destinations.entity'
+import { ExecutionEntity } from '../execution/execution-entity'
 import { FileEntity } from '../file/file.entity'
 import { FlagEntity } from '../flags/flag.entity'
 import { system } from '../helper/system/system'
@@ -53,6 +54,7 @@ const databaseType = system.get(AppSystemProp.DB_TYPE)
 
 function getEntities(): EntitySchema<unknown>[] {
     return [
+        ExecutionEntity,
         FileEntity,
         FlagEntity,
         ProjectEntity,

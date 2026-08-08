@@ -4,7 +4,6 @@ import { isNil } from '@inboxfm-connect/core-utils'
 import { ResumeReason, StreamStepProgress, TriggerHookType, TriggerPayload } from '../engine'
 import { ExecutionType } from '../flow-run/execution/execution-output'
 import { RunEnvironment } from '../flow-run/flow-run'
-import { FlowVersion } from '../flows/flow-version'
 import { FlowTriggerType } from '../flows/triggers/trigger'
 import { AppConnectionValue, PiecePackage } from '@inboxfm-connect/core-piece-types'
 
@@ -195,8 +194,9 @@ export const ExecuteTriggerHookJobData = z.object({
     platformId: z.string(),
     projectId: z.string(),
     schemaVersion: z.number(),
-    flowId: z.string(),
-    flowVersionId: z.string(),
+    triggerBindingId: z.string().optional(),
+    flowId: z.string().optional(),
+    flowVersionId: z.string().optional(),
     test: z.boolean(),
     hookType: z.nativeEnum(TriggerHookType),
     triggerPayload: TriggerPayload.optional(),
@@ -210,7 +210,7 @@ export const ExecutePropertyJobData = z.object({
     projectId: z.string(),
     platformId: z.string(),
     schemaVersion: z.number(),
-    flowVersion: FlowVersion.optional(),
+    flowVersion: z.unknown().optional(),
     propertyName: z.string(),
     piece: PiecePackage,
     actionOrTriggerName: z.string(),

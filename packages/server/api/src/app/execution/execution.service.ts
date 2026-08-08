@@ -1,7 +1,8 @@
 import { ActivepiecesError, apId, ErrorCode, isNil, SeekPage } from '@inboxfm-connect/core-utils'
-import { Execution, ExecutionStatus, executionUtils, TokenUsage } from '@inboxfm-connect/shared'
+import { Execution, ExecutionEventType, ExecutionStatus, executionUtils, TokenUsage } from '@inboxfm-connect/shared'
 import { repoFactory } from '../core/db/repo-factory'
 import { ExecutionEntity, ExecutionSchema } from './execution-entity'
+import { executionEventService } from './execution-event.service'
 
 const executionRepo = repoFactory<ExecutionSchema>(ExecutionEntity)
 
@@ -34,7 +35,18 @@ const executionService = {
             finishTime: null,
         }
 
-        return executionRepo().save(newExecution)
+        const saved = await executionRepo().save(newExecution)
+        await executionEventService.emit({
+            executionId: saved.id,
+            type: ExecutionEventType.ExecutionStarted,
+            payload: {
+                executionId: saved.id,
+                prompt: saved.prompt,
+                timestamp: saved.created,
+            },
+        })
+
+        return saved
     },
 
     async getOne({
@@ -92,7 +104,41 @@ const executionService = {
         }
 
         await executionRepo().update({ id, projectId }, updatedFields)
-        return this.getOne({ id, projectId })
+        const updated = await this.getOne({ id, projectId })
+
+        if (status === ExecutionStatus.COMPLETED) {
+            await executionEventService.emit({
+                executionId: id,
+                type: ExecutionEventType.ExecutionCompleted,
+                payload: {
+                    executionId: id,
+                    totalTokens: tokenUsage?.totalTokens ?? null,
+                    finishTime: updated.finishTime,
+                },
+            })
+        }
+        else if (status === ExecutionStatus.FAILED) {
+            await executionEventService.emit({
+                executionId: id,
+                type: ExecutionEventType.ExecutionFailed,
+                payload: {
+                    executionId: id,
+                    error: { message: 'Execution failed' },
+                },
+            })
+        }
+        else if (status === ExecutionStatus.CANCELLED) {
+            await executionEventService.emit({
+                executionId: id,
+                type: ExecutionEventType.ExecutionCancelled,
+                payload: {
+                    executionId: id,
+                    reason: 'Cancelled by request',
+                },
+            })
+        }
+
+        return updated
     },
 
     async list({

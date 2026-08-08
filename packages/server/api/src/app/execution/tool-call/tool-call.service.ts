@@ -1,6 +1,7 @@
 import { apId, ActivepiecesError, ErrorCode, isNil, sanitizeObjectForPostgresql } from '@inboxfm-connect/core-utils'
-import { ExecutionToolCallStatus, ToolCall, ToolCallError, toolCallUtils } from '@inboxfm-connect/shared'
+import { ExecutionEventType, ExecutionToolCallStatus, ToolCall, ToolCallError, toolCallUtils } from '@inboxfm-connect/shared'
 import { repoFactory } from '../../core/db/repo-factory'
+import { executionEventService } from '../execution-event.service'
 import { ToolCallEntity, ToolCallSchema } from './tool-call-entity'
 
 const toolCallRepo = repoFactory<ToolCallSchema>(ToolCallEntity)
@@ -96,7 +97,20 @@ const toolCallService = {
             },
         )
 
-        return this.getOne({ id, executionId, projectId })
+        const updated = await this.getOne({ id, executionId, projectId })
+        await executionEventService.emit({
+            executionId,
+            type: ExecutionEventType.ToolStarted,
+            payload: {
+                executionId,
+                toolCallId: id,
+                pieceName: updated.pieceName,
+                actionName: updated.actionName,
+                input: updated.input,
+            },
+        })
+
+        return updated
     },
 
     async markSucceeded({
@@ -136,7 +150,19 @@ const toolCallService = {
             },
         )
 
-        return this.getOne({ id, executionId, projectId })
+        const updated = await this.getOne({ id, executionId, projectId })
+        await executionEventService.emit({
+            executionId,
+            type: ExecutionEventType.ToolFinished,
+            payload: {
+                executionId,
+                toolCallId: id,
+                output: updated.output,
+                latencyMs,
+            },
+        })
+
+        return updated
     },
 
     async markFailed({
@@ -174,7 +200,18 @@ const toolCallService = {
             },
         )
 
-        return this.getOne({ id, executionId, projectId })
+        const updated = await this.getOne({ id, executionId, projectId })
+        await executionEventService.emit({
+            executionId,
+            type: ExecutionEventType.ToolFailed,
+            payload: {
+                executionId,
+                toolCallId: id,
+                error: updated.error ?? error,
+            },
+        })
+
+        return updated
     },
 
     async listForExecution({

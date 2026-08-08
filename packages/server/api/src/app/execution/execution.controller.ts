@@ -1,4 +1,4 @@
-import { CreateExecutionRequestBody, Execution, ListExecutionsRequestQuery, Permission, PrincipalType } from '@inboxfm-connect/shared'
+import { CreateExecutionRequestBody, Execution, ListExecutionsRequestQuery, Permission, PrincipalType, ToolCall } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
@@ -6,6 +6,7 @@ import { ProjectResourceType } from '../core/security/authorization/common'
 import { securityAccess } from '../core/security/authorization/fastify-security'
 import { securityHelper } from '../helper/security-helper'
 import { executionService } from './execution.service'
+import { toolCallService } from './tool-call/tool-call.service'
 
 export const executionController: FastifyPluginAsyncZod = async (fastify) => {
     fastify.post('/', CreateExecutionOptions, async (request, reply) => {
@@ -29,6 +30,13 @@ export const executionController: FastifyPluginAsyncZod = async (fastify) => {
     fastify.get('/:id', GetExecutionOptions, async (request) => {
         return executionService.getOne({
             id: request.params.id,
+            projectId: request.projectId,
+        })
+    })
+
+    fastify.get('/:id/tool-calls', ListToolCallsOptions, async (request) => {
+        return toolCallService.listForExecution({
+            executionId: request.params.id,
             projectId: request.projectId,
         })
     })
@@ -80,6 +88,23 @@ const GetExecutionOptions = {
     },
 }
 
+const ListToolCallsOptions = {
+    config: {
+        security: securityAccess.project(
+            [PrincipalType.USER, PrincipalType.ENGINE, PrincipalType.SERVICE],
+            Permission.READ_RUN,
+            { type: ProjectResourceType.PARAM, paramName: 'id' },
+        ),
+    },
+    schema: {
+        tags: ['executions'],
+        params: GetExecutionParams,
+        response: {
+            [StatusCodes.OK]: z.array(ToolCall),
+        },
+    },
+}
+
 const ListExecutionsOptions = {
     config: {
         security: securityAccess.project(
@@ -100,3 +125,4 @@ const ListExecutionsOptions = {
         },
     },
 }
+

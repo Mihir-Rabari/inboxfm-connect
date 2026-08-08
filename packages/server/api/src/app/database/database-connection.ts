@@ -55,6 +55,7 @@ const databaseType = system.get(AppSystemProp.DB_TYPE)
 function getEntities(): EntitySchema<unknown>[] {
     return [
         ExecutionEntity,
+        ToolCallEntity,
         FileEntity,
         FlagEntity,
         ProjectEntity,

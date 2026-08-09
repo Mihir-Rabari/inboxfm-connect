@@ -38,18 +38,7 @@ export const CreateStepRunRequestBody = z.object({
 
 export type CreateStepRunRequestBody = z.infer<typeof CreateStepRunRequestBody>
 
-export const StepRunResponse = z.object({
-    runId: z.string(),
-    success: z.boolean(),
-    input: z.unknown(),
-    output: z.unknown(),
-    sampleDataFileId: z.string().optional(),
-    sampleDataInputFileId: z.string().optional(),
-    standardError: z.string(),
-    standardOutput: z.string(),
-})
-
-export type StepRunResponse = z.infer<typeof StepRunResponse>
+export { StepRunResponse } from '../../engine/step-run-response'
 
 export const StepExecutionPath = z.array(z.tuple([z.string(), z.number()]))
 export type StepExecutionPath = z.infer<typeof StepExecutionPath>

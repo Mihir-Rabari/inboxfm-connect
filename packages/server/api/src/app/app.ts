@@ -62,6 +62,7 @@ import { domainHelper } from './helper/domain-helper'
 import { exceptionHandler } from './helper/exception-handler'
 import { clientLogsModule } from './helper/logs/client-logs.module'
 import { openapiModule } from './helper/openapi/openapi.module'
+import { rejectedPromiseHandler } from './helper/promise-handler'
 import { system } from './helper/system/system'
 import { AppSystemProp } from './helper/system/system-props'
 import { SystemJobName } from './helper/system-jobs/common'
@@ -70,6 +71,9 @@ import { systemJobsSchedule } from './helper/system-jobs/system-job'
 import { systemSnapshot } from './helper/system-snapshot'
 import { validateEnvPropsOnStartup } from './helper/system-validator'
 import { shutdownTelemetry } from './helper/telemetry.utils'
+import { knowledgeSearchModule } from './knowledge-search/knowledge-search.module'
+import { storeEntryModule } from './store-entry/store-entry.module'
+import { toolSearchReindexJob } from './tool-search/tool-search-reindex.job'
 import { communityPiecesModule } from './pieces/community-piece-module'
 import { startDevPieceWatcher } from './pieces/dev-piece-watcher'
 import { pieceModule } from './pieces/metadata/piece-metadata-controller'
@@ -78,7 +82,6 @@ import { pieceSyncService } from './pieces/piece-sync-service'
 import { platformBackgroundJobs } from './platform/platform-jobs'
 import { platformModule } from './platform/platform.module'
 import { projectHooks } from './project/project-hooks'
-import { storeEntryModule } from './store-entry/store-entry.module'
 import { platformUserModule } from './user/platform/platform-user-module'
 import { invitationModule } from './user-invitations/user-invitation.module'
 
@@ -184,11 +187,11 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     await app.register(storeEntryModule)
     // await app.register(folderModule)
     await pieceSyncService(app.log).setup()
-    // toolSearchReindexJob(app.log).register()
+    toolSearchReindexJob(app.log).register()
     // Cold-start backfill: build the tool-search index once if the flag is on but it has never been
     // built (existing deployment whose piece_metadata is already populated, so no sync delta fires).
     // Fire-and-forget — a no-op once the index has rows, and must never block or fail boot.
-    // rejectedPromiseHandler(toolSearchReindexJob(app.log).backfillIfEmpty(), app.log)
+    rejectedPromiseHandler(toolSearchReindexJob(app.log).backfillIfEmpty(), app.log)
     await pieceMetadataService(app.log).setup()
     await app.register(pieceModule)
     // await app.register(collaborativeModule)
@@ -205,6 +208,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     await app.register(platformModule)
     await app.register(executeModule)
     await app.register(executionModule)
+    await app.register(knowledgeSearchModule)
     // await app.register(humanInputModule)
     // await app.register(tagsModule)
     // await app.register(mcpServerModule)

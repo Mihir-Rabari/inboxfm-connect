@@ -74,7 +74,7 @@ export const triggerHelper = {
     },
 
     async executeTrigger({ params, constants }: ExecuteTriggerParams): Promise<ExecuteTriggerResponse<TriggerHookType>> {
-        const { pieceName, pieceVersion, triggerName, input, propertySettings } = (params.flowVersion.trigger as PieceTrigger).settings
+        const { pieceName, pieceVersion, triggerName, input, propertySettings, flowId, flowVersionId } = extractTriggerContext(params)
 
         if (isNil(triggerName)) {
             throw new EngineGenericError('TriggerNameNotSetError', 'Trigger name is not set')
@@ -100,7 +100,7 @@ export const triggerHelper = {
             store: createContextStore({
                 apiUrl: constants.internalApiUrl,
                 prefix,
-                flowId: params.flowVersion.flowId,
+                flowId,
                 engineToken: params.engineToken,
             }),
             step: {
@@ -124,8 +124,8 @@ export const triggerHelper = {
             flows: createFlowsContext({
                 engineToken: params.engineToken,
                 internalApiUrl: constants.internalApiUrl,
-                flowId: params.flowVersion.flowId,
-                flowVersionId: params.flowVersion.id,
+                flowId,
+                flowVersionId,
             }),
             webhookUrl: params.webhookUrl,
             auth: processedInput[AUTHENTICATION_PROPERTY_NAME],
@@ -284,3 +284,31 @@ type PrepareTriggerExecutionParams = {
     devPieces: string[]
     stepNames: string[]
 }
+
+function extractTriggerContext(params: ResolvedExecuteTriggerOperation<TriggerHookType>) {
+    if (!isNil(params.triggerBinding)) {
+        return {
+            pieceName: params.triggerBinding.pieceName,
+            pieceVersion: params.triggerBinding.pieceVersion,
+            triggerName: params.triggerBinding.triggerName,
+            input: params.triggerBinding.settings,
+            propertySettings: (params.triggerBinding.propertySettings ?? {}) as Record<string, PropertySettings>,
+            flowId: params.triggerBinding.id,
+            flowVersionId: params.triggerBinding.id,
+        }
+    }
+    if (!isNil(params.flowVersion)) {
+        const settings = (params.flowVersion.trigger as PieceTrigger).settings
+        return {
+            pieceName: settings.pieceName,
+            pieceVersion: settings.pieceVersion,
+            triggerName: settings.triggerName,
+            input: settings.input,
+            propertySettings: settings.propertySettings,
+            flowId: params.flowVersion.flowId,
+            flowVersionId: params.flowVersion.id,
+        }
+    }
+    throw new EngineGenericError('TriggerContextNotSetError', 'Neither triggerBinding nor flowVersion were provided for trigger execution')
+}
+

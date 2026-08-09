@@ -88,14 +88,14 @@ const executionService = {
 
         if (!executionUtils.isValidExecutionStatusTransition({ from: current.status, to: status })) {
             throw new ActivepiecesError({
-                code: ErrorCode.INVALID_PARAMS,
+                code: ErrorCode.VALIDATION,
                 params: {
                     message: `Invalid execution status transition from ${current.status} to ${status}`,
                 },
             })
         }
 
-        const updatedFields: Partial<Execution> = {
+        const updatedFields = {
             status,
             updated: new Date().toISOString(),
             ...(tokenUsage !== undefined ? { tokenUsage } : {}),

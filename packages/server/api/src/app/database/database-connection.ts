@@ -25,6 +25,9 @@ import { SecretManagerEntity } from '../ee/secret-managers/secret-manager.entity
 import { SigningKeyEntity } from '../ee/signing-key/signing-key-entity'
 import { EventDestinationEntity } from '../event-destinations/event-destinations.entity'
 import { ExecutionEntity } from '../execution/execution-entity'
+import { ScheduledTaskEntity } from '../execution/scheduled-task/scheduled-task-entity'
+import { ToolCallEntity } from '../execution/tool-call/tool-call-entity'
+import { TriggerBindingEntity } from '../execution/trigger-binding/trigger-binding-entity'
 import { FileEntity } from '../file/file.entity'
 import { FlagEntity } from '../flags/flag.entity'
 import { system } from '../helper/system/system'
@@ -56,6 +59,8 @@ function getEntities(): EntitySchema<unknown>[] {
     return [
         ExecutionEntity,
         ToolCallEntity,
+        TriggerBindingEntity,
+        ScheduledTaskEntity,
         FileEntity,
         FlagEntity,
         ProjectEntity,

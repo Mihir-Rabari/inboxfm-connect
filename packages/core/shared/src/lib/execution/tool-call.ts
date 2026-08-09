@@ -15,7 +15,7 @@ const VALID_TOOL_CALL_TRANSITIONS: Record<ExecutionToolCallStatus, ExecutionTool
     [ExecutionToolCallStatus.FAILED]: [],
 }
 
-function isValidToolCallStatusTransition({ from, to }: { from: ExecutionToolCallStatus; to: ExecutionToolCallStatus }): boolean {
+function isValidToolCallStatusTransition({ from, to }: { from: ExecutionToolCallStatus, to: ExecutionToolCallStatus }): boolean {
     const allowed = VALID_TOOL_CALL_TRANSITIONS[from]
     return allowed ? allowed.includes(to) : false
 }

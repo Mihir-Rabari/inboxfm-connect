@@ -100,4 +100,34 @@ describe('triggerHookOperation payload resolution', () => {
         expect(mockDownload).not.toHaveBeenCalled()
         expect(mockExecuteTrigger.mock.calls[0][0].params.triggerPayload).toBeUndefined()
     })
+
+    it('handles ExecuteTriggerOperation with triggerBinding', async () => {
+        const op = {
+            hookType: TriggerHookType.RUN,
+            test: false,
+            triggerBinding: {
+                id: 'tb-1',
+                projectId: 'project-1',
+                platformId: 'platform-1',
+                pieceName: '@inboxfm-connect/piece-slack',
+                pieceVersion: '0.1.0',
+                triggerName: 'new_message',
+                settings: {},
+            },
+            webhookUrl: 'http://localhost:4200/webhook',
+            triggerPayload: { type: 'inline', value: { text: 'hello' } },
+            projectId: 'project-1',
+            platformId: 'platform-1',
+            engineToken: 'test-token',
+            internalApiUrl: 'http://localhost:3000/',
+            publicApiUrl: 'http://localhost:4200/api/',
+            timeoutInSeconds: 30,
+        } as unknown as ExecuteTriggerOperation<TriggerHookType.RUN>
+
+        await triggerHookOperation.execute(op)
+
+        expect(mockExecuteTrigger).toHaveBeenCalledTimes(1)
+        expect(mockExecuteTrigger.mock.calls[0][0].params.triggerBinding.id).toBe('tb-1')
+    })
 })
+

@@ -3,11 +3,10 @@ import { applyFunctionToValues, extractMustacheTokens, isNil, isString } from '@
 import { ContextVersion } from '@inboxfm-connect/pieces-framework'
 import { FormulaEvaluationError } from '@inboxfm-connect/shared'
 
-import { initCodeSandbox } from '../core/code/code-sandbox'
 import { ExecutionContext } from '../handler/context/execution-context'
 import { createConnectionResolver } from '../piece-context/connection-resolver'
 import { createVariableResolver } from '../piece-context/variable-resolver'
-import { utils } from '../utils'
+import { expressionEvaluator } from './expression-evaluator'
 
 const CONNECTIONS = 'connections'
 const VARIABLES = 'variables'
@@ -246,24 +245,12 @@ function parseSquareBracketConnectionPath(variableName: string): string | null {
     return null
 }
 
-// eslint-disable-next-line @typescript-eslint/ban-types
-async function evalInScope(js: string, contextAsScope: Record<string, unknown>, functions: Record<string, Function>): Promise<unknown> {
-    const { data: result, error: resultError } = await utils.tryCatchAndThrowOnEngineError((async () => {
-        const codeSandbox = await initCodeSandbox()
-
-        const result = await codeSandbox.runScript({
-            script: js,
-            scriptContext: contextAsScope,
-            functions,
-        })
-        return result ?? ''
-    }))
-
-    if (resultError) {
-        console.warn('[evalInScope] Error evaluating variable', resultError)
-        return ''
-    }
-    return result ?? ''
+async function evalInScope(js: string, contextAsScope: Record<string, unknown>, functions: Record<string, (...args: unknown[]) => unknown>): Promise<unknown> {
+    return expressionEvaluator.evaluate({
+        script: js,
+        scriptContext: contextAsScope,
+        functions,
+    })
 }
 
 function flattenNestedKeys(data: unknown, pathToMatch: string[]): unknown[] {

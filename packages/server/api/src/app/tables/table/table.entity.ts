@@ -59,16 +59,6 @@ export const TableEntity = new EntitySchema<TableSchema>({
                 foreignKeyConstraintName: 'fk_table_project_id',
             },
         },
-        folder: {
-            type: 'many-to-one',
-            target: 'folder',
-            onDelete: 'SET NULL',
-            nullable: true,
-            joinColumn: {
-                name: 'folderId',
-                foreignKeyConstraintName: 'fk_table_folder_id',
-            },
-        },
         fields: {
             type: 'one-to-many',
             target: 'field',
@@ -77,11 +67,6 @@ export const TableEntity = new EntitySchema<TableSchema>({
         records: {
             type: 'one-to-many',
             target: 'record',
-            inverseSide: 'table',
-        },
-        tableWebhooks: {
-            type: 'one-to-many',
-            target: 'table_webhook',
             inverseSide: 'table',
         },
     },

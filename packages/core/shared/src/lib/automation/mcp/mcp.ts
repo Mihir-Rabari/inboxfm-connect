@@ -1,4 +1,3 @@
-import { PopulatedFlow } from '@inboxfm-connect/core-execution'
 import { ApId, BaseModelSchema, Permission } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
 
@@ -21,7 +20,7 @@ export const McpServer = z.object({
 })
 
 export const PopulatedMcpServer = McpServer.extend({
-    flows: z.array(PopulatedFlow),
+    flows: z.array(z.unknown()),
 })
 export type PopulatedMcpServer = z.infer<typeof PopulatedMcpServer>
 

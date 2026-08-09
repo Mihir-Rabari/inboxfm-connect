@@ -54,6 +54,7 @@ import { secretManagersModule } from './ee/secret-managers/secret-managers.modul
 import { signingKeyModule } from './ee/signing-key/signing-key-module'
 import { userModule } from './ee/users/user.module'
 import { executeModule } from './execute/execute.module'
+import { executionModule } from './execution/execution.module'
 import { fileModule } from './file/file.module'
 import { flagModule } from './flags/flag.module'
 import { flagHooks } from './flags/flags.hooks'
@@ -203,6 +204,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     // await app.register(triggerModule)
     await app.register(platformModule)
     await app.register(executeModule)
+    await app.register(executionModule)
     // await app.register(humanInputModule)
     // await app.register(tagsModule)
     // await app.register(mcpServerModule)

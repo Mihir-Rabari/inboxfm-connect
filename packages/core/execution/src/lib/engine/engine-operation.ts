@@ -1,10 +1,8 @@
-import { FlowRunId, PlatformId, ProjectId } from '@inboxfm-connect/core-utils'
+import { PlatformId, ProjectId } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
-import { ExecutionToolStatus, PredefinedInputsStructure } from '../agents'
+import { ExecutionToolStatus } from '../agents'
 import { AppConnectionValue } from '@inboxfm-connect/core-piece-types'
-import { ExecutionType } from '../flow-run/execution/execution-output'
-import { RunEnvironment } from '../flow-run/flow-run'
-import { FlowVersion } from '../flows/flow-version'
+
 import { PiecePackage } from '@inboxfm-connect/core-piece-types'
 import { ScheduleOptions } from '@inboxfm-connect/core-piece-types'
 import { JobPayload } from '../workers/job-data'
@@ -85,7 +83,7 @@ export type ExecutePropsOptions = BaseEngineOperation & {
     piece: PiecePackage
     propertyName: string
     actionOrTriggerName: string
-    flowVersion?: FlowVersion
+    flowVersion?: unknown
     input: Record<string, unknown>
     sampleData: Record<string, unknown>
     searchValue?: string
@@ -102,15 +100,31 @@ export enum ResumeReason {
 }
 
 
+export type TriggerBindingInfo = {
+    id: string
+    projectId: string
+    platformId: string
+    pieceName: string
+    pieceVersion: string
+    triggerName: string
+    connectionId?: string | null
+    promptTemplate?: string
+    settings: Record<string, unknown>
+    propertySettings?: Record<string, unknown>
+    status?: 'ENABLED' | 'DISABLED'
+}
+
 export type ExecuteTriggerOperation<HT extends TriggerHookType> = BaseEngineOperation & {
     hookType: HT
     test: boolean
-    flowVersion: FlowVersion
+    triggerBinding?: TriggerBindingInfo
+    flowVersion?: unknown
     webhookUrl: string
     triggerPayload?: JobPayload
     appWebhookUrl?: string
     webhookSecret?: string | Record<string, string>
 }
+
 
 
 export const TriggerPayload = z.object({

@@ -1,5 +1,5 @@
 import { apId, isNil, tryCatch } from '@inboxfm-connect/core-utils'
-import { McpServer as McpServerSchema, McpServerType, PopulatedFlow, PopulatedMcpServer } from '@inboxfm-connect/shared'
+import { McpServer as McpServerSchema, McpServerType, PopulatedMcpServer } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { repoFactory } from '../core/db/repo-factory'
 import { McpServerEntity } from './mcp-entity'
@@ -25,8 +25,7 @@ export const mcpServerService = (log: FastifyBaseLogger) => ({
 
     getPopulatedByProjectId: async (projectId: string): Promise<PopulatedMcpServer> => {
         const mcp = await mcpServerService(log).getByProjectId(projectId)
-        const flows = await listMcpFlows(projectId, log)
-        return { ...mcp, flows }
+        return { ...mcp, flows: [] }
     },
 
     getPopulatedByPlatformId: async (platformId: string): Promise<PopulatedMcpServer> => {
@@ -94,10 +93,6 @@ async function getOrCreate({ where, defaults }: {
         throw error
     }
     return created
-}
-
-async function listMcpFlows(projectId: string, logger: FastifyBaseLogger): Promise<PopulatedFlow[]> {
-    return []
 }
 
 type UpdateParams = {

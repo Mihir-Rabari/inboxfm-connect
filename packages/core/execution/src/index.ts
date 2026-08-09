@@ -24,7 +24,7 @@ export * from './lib/flows'
 export * from './lib/flow-run/dto/list-flow-runs-request'
 export * from './lib/flow-run/execution'
 export * from './lib/flow-run/flow-run'
-export * from './lib/flow-run/test-flow-run-request'
+
 export * from './lib/flow-run/log-serializer'
 export * from './lib/flow-run/waitpoint'
 export * from './lib/engine'

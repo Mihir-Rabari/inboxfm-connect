@@ -3,7 +3,7 @@ import { RunInternalError } from '../flow-run/execution/execution-output'
 import { FlowRunStatus } from '../flow-run/execution/flow-execution'
 import { StepOutput } from '../flow-run/execution/step-output'
 import { FailedStep, FlowRun } from '../flow-run/flow-run'
-import { StepRunResponse } from '../flows/sample-data'
+import { StepRunResponse } from '../flows/sample-data/index'
 import { StreamStepProgress } from './engine-operation'
 
 

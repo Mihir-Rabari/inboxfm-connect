@@ -5,9 +5,11 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { databaseConnection, resetDatabaseConnection } from '../../../../src/app/database/database-connection'
 import { encryptUtils } from '../../../../src/app/helper/encryption'
 import { system } from '../../../../src/app/helper/system/system'
+import { buildRetrievalDoc } from '../../../../src/app/tool-search/retrieval-doc'
 import { l2normalize, ToolSearchEmbedder } from '../../../../src/app/tool-search/embedder'
 import { toolSearchReindexService } from '../../../../src/app/tool-search/tool-search-reindex.service'
 import { toolSearchService } from '../../../../src/app/tool-search/tool-search.service'
+import { knowledgeSearchService } from '../../../../src/app/knowledge-search/knowledge-search.service'
 import { db } from '../../../helpers/db'
 import { createMockPieceMetadata } from '../../../helpers/mocks'
 
@@ -52,7 +54,7 @@ function trigger(over: Pick<TriggerBase, 'name' | 'displayName' | 'description'>
 }
 
 async function seedCatalog(): Promise<void> {
-    await db.save('piece_metadata', createMockPieceMetadata({
+    await db.save('integration_metadata', createMockPieceMetadata({
         name: '@inboxfm-connect/piece-slack',
         displayName: 'Slack',
         version: '1.0.0',
@@ -61,7 +63,7 @@ async function seedCatalog(): Promise<void> {
         actions: { send_channel_message: action({ name: 'send_channel_message', displayName: 'Send Channel Message', description: 'Send a message to a Slack channel' }) },
         triggers: { new_message: trigger({ name: 'new_message', displayName: 'New Message', description: 'Triggers when a new message is posted to a Slack channel' }) },
     }))
-    await db.save('piece_metadata', createMockPieceMetadata({
+    await db.save('integration_metadata', createMockPieceMetadata({
         name: '@inboxfm-connect/piece-google-calendar',
         displayName: 'Google Calendar',
         version: '1.0.0',
@@ -70,7 +72,7 @@ async function seedCatalog(): Promise<void> {
         actions: { create_event: action({ name: 'create_event', displayName: 'Create Event', description: 'Create a new event in a Google Calendar' }) },
         triggers: {},
     }))
-    await db.save('piece_metadata', createMockPieceMetadata({
+    await db.save('integration_metadata', createMockPieceMetadata({
         name: '@inboxfm-connect/piece-gmail',
         displayName: 'Gmail',
         version: '1.0.0',
@@ -116,7 +118,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
     await databaseConnection().getRepository('tool_search_index').createQueryBuilder().delete().execute()
-    await databaseConnection().getRepository('piece_metadata').createQueryBuilder().delete().execute()
+    await databaseConnection().getRepository('integration_metadata').createQueryBuilder().delete().execute()
 })
 
 describe('Tool Search Engine (Phase 1)', () => {
@@ -216,7 +218,7 @@ describe('Tool Search Engine (Phase 3 — incremental catalog sync)', () => {
         const before = await getIndexRow('@inboxfm-connect/piece-slack', 'send_channel_message')
 
         // New version row, identical actions/triggers text → same retrieval doc → same hash.
-        await db.save('piece_metadata', createMockPieceMetadata({
+        await db.save('integration_metadata', createMockPieceMetadata({
             name: '@inboxfm-connect/piece-slack',
             displayName: 'Slack',
             version: '1.0.1',
@@ -242,7 +244,7 @@ describe('Tool Search Engine (Phase 3 — incremental catalog sync)', () => {
         await toolSearchReindexService(log).reindex({ embedder: fakeEmbedder })
         expect(await indexRowCount()).toBe(4)
 
-        await databaseConnection().getRepository('piece_metadata').delete({ name: '@inboxfm-connect/piece-gmail' })
+        await databaseConnection().getRepository('integration_metadata').delete({ name: '@inboxfm-connect/piece-gmail' })
         const result = await toolSearchReindexService(log).reindex({ embedder: fakeEmbedder })
 
         expect(result.objectsDeleted).toBe(1)
@@ -279,7 +281,7 @@ describe('Tool Search Engine (Phase 3 — incremental catalog sync)', () => {
         expect(await indexRowCount()).toBe(4)
 
         // A custom piece is installed for one tenant.
-        await db.save('piece_metadata', createMockPieceMetadata({
+        await db.save('integration_metadata', createMockPieceMetadata({
             name: '@acme/piece-internal',
             displayName: 'Acme Internal',
             version: '1.0.0',
@@ -338,7 +340,7 @@ describe('Tool Search Engine (Phase 3 — incremental catalog sync)', () => {
         const first = await toolSearchReindexService(log).reindex({ embedder: fakeEmbedder })
         expect(first.objectsEmbedded).toBe(4)
 
-        await db.save('piece_metadata', createMockPieceMetadata({
+        await db.save('integration_metadata', createMockPieceMetadata({
             name: '@inboxfm-connect/piece-trello',
             displayName: 'Trello',
             version: '1.0.0',
@@ -362,7 +364,7 @@ describe('Tool Search Engine (Phase 3 — incremental catalog sync)', () => {
         const before = await getIndexRow('@inboxfm-connect/piece-gmail', 'send_email')
 
         // New version of gmail with different action text → hash changes for that one object only.
-        await db.save('piece_metadata', createMockPieceMetadata({
+        await db.save('integration_metadata', createMockPieceMetadata({
             name: '@inboxfm-connect/piece-gmail',
             displayName: 'Gmail',
             version: '1.0.1',
@@ -410,7 +412,7 @@ describe('Tool Search Engine (bulk upsert — crosses the chunk boundary)', () =
                 description: `Send bulk message number ${i}`,
             })
         }
-        await db.save('piece_metadata', createMockPieceMetadata({
+        await db.save('integration_metadata', createMockPieceMetadata({
             name: '@inboxfm-connect/piece-bulk',
             displayName: 'Bulk',
             version: '1.0.0',
@@ -444,7 +446,7 @@ describe('Tool Search Engine (bulk upsert — crosses the chunk boundary)', () =
 // One piece whose four actions span every audience value (incl. an unset/NULL one) so the
 // COALESCE-based exclusion can be exercised without dropping NULL-audience rows.
 async function seedAudiences(): Promise<void> {
-    await db.save('piece_metadata', createMockPieceMetadata({
+    await db.save('integration_metadata', createMockPieceMetadata({
         name: '@inboxfm-connect/piece-notify',
         displayName: 'Notify',
         version: '1.0.0',
@@ -493,7 +495,7 @@ describe('Tool Search Engine (Phase 4 — multi-tenancy & filtering)', () => {
 
     it('a tenant query returns base-catalog + its own custom pieces, never another tenant’s', async () => {
         await seedCatalog()
-        await db.save('piece_metadata', createMockPieceMetadata({
+        await db.save('integration_metadata', createMockPieceMetadata({
             name: '@acme/piece-internal',
             displayName: 'Acme Internal',
             version: '1.0.0',
@@ -503,7 +505,7 @@ describe('Tool Search Engine (Phase 4 — multi-tenancy & filtering)', () => {
             actions: { send_alert: action({ name: 'send_alert', displayName: 'Send Alert', description: 'Send an internal alert message to a channel' }) },
             triggers: {},
         }))
-        await db.save('piece_metadata', createMockPieceMetadata({
+        await db.save('integration_metadata', createMockPieceMetadata({
             name: '@globex/piece-secret',
             displayName: 'Globex Secret',
             version: '1.0.0',
@@ -545,7 +547,7 @@ describe('Tool Search Engine (Phase 4 — multi-tenancy & filtering)', () => {
 
     it('applies tenant + audience + enabled-piece + connected filters together', async () => {
         await seedAudiences() // @inboxfm-connect/piece-notify: send_human/ai/both/unset
-        await db.save('piece_metadata', createMockPieceMetadata({
+        await db.save('integration_metadata', createMockPieceMetadata({
             name: '@inboxfm-connect/piece-other',
             displayName: 'Other',
             version: '1.0.0',
@@ -691,7 +693,7 @@ describe('Tool Search Engine (Phase 5 — keyword floor / degradation)', () => {
 // Two pieces each carrying both an action and a trigger, so the trigger-side query path can be
 // exercised for ranking, action/trigger isolation, and pieceName scope on the same vocabulary.
 async function seedTriggerCatalog(): Promise<void> {
-    await db.save('piece_metadata', createMockPieceMetadata({
+    await db.save('integration_metadata', createMockPieceMetadata({
         name: '@inboxfm-connect/piece-slack',
         displayName: 'Slack',
         version: '1.0.0',
@@ -700,7 +702,7 @@ async function seedTriggerCatalog(): Promise<void> {
         actions: { send_channel_message: action({ name: 'send_channel_message', displayName: 'Send Channel Message', description: 'Send a message to a Slack channel' }) },
         triggers: { new_message: trigger({ name: 'new_message', displayName: 'New Message', description: 'Triggers when a new message is posted to a Slack channel' }) },
     }))
-    await db.save('piece_metadata', createMockPieceMetadata({
+    await db.save('integration_metadata', createMockPieceMetadata({
         name: '@inboxfm-connect/piece-google-calendar',
         displayName: 'Google Calendar',
         version: '1.0.0',
@@ -780,5 +782,43 @@ describe('Tool Search Engine (Phase 6 — ap_search_triggers)', () => {
 
         expect(results.length).toBeGreaterThan(0)
         expect(results.every((r) => r.pieceName === '@inboxfm-connect/piece-slack')).toBe(true)
+    })
+
+    describe('buildRetrievalDoc Determinism & Symmetry', () => {
+        it('buildRetrievalDoc produces exact deterministic strings for indexing and retrieval', () => {
+            const input = {
+                pieceDisplayName: 'Slack',
+                objectDisplayName: 'Send Channel Message',
+                objectKind: 'action' as const,
+                description: 'Send a message to a channel',
+                aiDescription: 'Post a notification message to a Slack channel',
+            }
+
+            const doc1 = buildRetrievalDoc(input)
+            const doc2 = buildRetrievalDoc(input)
+
+            expect(doc1).toBe(doc2)
+            expect(doc1).toBe('Slack · Send Channel Message\nPost a notification message to a Slack channel\n[kind: action]')
+        })
+    })
+
+    describe('knowledgeSearchService API Contract', () => {
+        it('knowledgeSearchService query returns unified action & trigger results', async () => {
+            await seedCatalog()
+            await seedTriggerCatalog()
+            await toolSearchReindexService(log).reindex({ embedder: fakeEmbedder })
+
+            const res = await knowledgeSearchService(log).query({
+                query: 'send slack message',
+                limit: 5,
+                objectKind: 'all',
+                embedder: fakeEmbedder,
+            })
+
+            expect(res.results.length).toBeGreaterThan(0)
+            expect(res.results[0]).toHaveProperty('pieceName')
+            expect(res.results[0]).toHaveProperty('objectName')
+            expect(res.results[0]).toHaveProperty('objectKind')
+        })
     })
 })

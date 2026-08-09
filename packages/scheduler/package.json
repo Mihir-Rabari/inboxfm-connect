@@ -6,7 +6,7 @@
   "typings": "./dist/src/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
-    "lint": "eslint 'src/**/*.ts'"
+    "lint": "eslint 'src/**/*.ts' --no-error-on-unmatched-pattern"
   },
   "dependencies": {
     "node-cron": "3.0.3"

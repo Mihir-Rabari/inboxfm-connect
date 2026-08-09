@@ -166,11 +166,19 @@ export class EngineConstants {
     }
 
     public static fromExecuteTriggerInput(input: ResolvedExecuteTriggerOperation<TriggerHookType>): EngineConstants {
+        const flowId = input.triggerBinding?.id ?? input.flowVersion?.flowId ?? ''
+        const flowVersionId = input.triggerBinding?.id ?? input.flowVersion?.id ?? ''
+        const flowVersionState = input.flowVersion?.state ?? FlowVersionState.LOCKED
+        const triggerPieceName = input.triggerBinding?.pieceName ?? input.flowVersion?.trigger?.settings?.pieceName ?? ''
+        const stepNames = input.flowVersion?.trigger
+            ? flowStructureUtil.getAllSteps(input.flowVersion.trigger).map((step) => step.name)
+            : input.triggerBinding?.triggerName ? [input.triggerBinding.triggerName] : []
+
         return new EngineConstants({
-            flowId: input.flowVersion.flowId,
-            flowVersionId: input.flowVersion.id,
-            flowVersionState: input.flowVersion.state,
-            triggerPieceName: input.flowVersion.trigger.settings.pieceName,
+            flowId,
+            flowVersionId,
+            flowVersionState,
+            triggerPieceName,
             flowRunId: DEFAULT_TRIGGER_EXECUTION,
             publicApiUrl: input.publicApiUrl,
             internalApiUrl: ensureTrailingSlash(input.internalApiUrl),
@@ -185,7 +193,7 @@ export class EngineConstants {
             stepNameToTest: undefined,
             timeoutInSeconds: input.timeoutInSeconds,
             platformId: input.platformId,
-            stepNames: flowStructureUtil.getAllSteps(input.flowVersion.trigger).map((step) => step.name),
+            stepNames,
         })
     }
     public getPropsResolver(contextVersion: ContextVersion | undefined): PropsResolver {

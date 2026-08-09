@@ -1,4 +1,4 @@
-import { apId, ActivepiecesError, ErrorCode, isNil, sanitizeObjectForPostgresql } from '@inboxfm-connect/core-utils'
+import { ActivepiecesError, apId, ErrorCode, isNil, sanitizeObjectForPostgresql } from '@inboxfm-connect/core-utils'
 import { ExecutionEventType, ExecutionToolCallStatus, ToolCall, ToolCallError, toolCallUtils } from '@inboxfm-connect/shared'
 import { repoFactory } from '../../core/db/repo-factory'
 import { executionEventService } from '../execution-event.service'
@@ -82,7 +82,7 @@ const toolCallService = {
 
         if (!toolCallUtils.isValidToolCallStatusTransition({ from: current.status, to: ExecutionToolCallStatus.RUNNING })) {
             throw new ActivepiecesError({
-                code: ErrorCode.INVALID_PARAMS,
+                code: ErrorCode.VALIDATION,
                 params: {
                     message: `Invalid tool call status transition from ${current.status} to ${ExecutionToolCallStatus.RUNNING}`,
                 },
@@ -130,14 +130,14 @@ const toolCallService = {
 
         if (!toolCallUtils.isValidToolCallStatusTransition({ from: current.status, to: ExecutionToolCallStatus.SUCCEEDED })) {
             throw new ActivepiecesError({
-                code: ErrorCode.INVALID_PARAMS,
+                code: ErrorCode.VALIDATION,
                 params: {
                     message: `Invalid tool call status transition from ${current.status} to ${ExecutionToolCallStatus.SUCCEEDED}`,
                 },
             })
         }
 
-        const sanitizedOutput = sanitizeObjectForPostgresql(output)
+        const sanitizedOutput = sanitizeObjectForPostgresql(output) as Record<string, unknown>
 
         await toolCallRepo().update(
             { id, executionId, projectId },
@@ -157,6 +157,7 @@ const toolCallService = {
             payload: {
                 executionId,
                 toolCallId: id,
+                status: ExecutionToolCallStatus.SUCCEEDED,
                 output: updated.output,
                 latencyMs,
             },
@@ -182,7 +183,7 @@ const toolCallService = {
 
         if (!toolCallUtils.isValidToolCallStatusTransition({ from: current.status, to: ExecutionToolCallStatus.FAILED })) {
             throw new ActivepiecesError({
-                code: ErrorCode.INVALID_PARAMS,
+                code: ErrorCode.VALIDATION,
                 params: {
                     message: `Invalid tool call status transition from ${current.status} to ${ExecutionToolCallStatus.FAILED}`,
                 },

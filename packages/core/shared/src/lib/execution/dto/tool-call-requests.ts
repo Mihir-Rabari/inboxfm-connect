@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { ExecutionToolCallStatus, ToolCall, ToolCallError } from '../tool-call'
+import { ToolCallError } from '../tool-call'
 
 export const CreateToolCallRequestBody = z.object({
     executionId: z.string(),

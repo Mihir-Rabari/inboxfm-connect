@@ -1,3 +1,4 @@
+import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
 import { CreateExecutionRequestBody, Execution, ExecutionEvent, ListExecutionsRequestQuery, Permission, PrincipalType, ToolCall } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
@@ -14,7 +15,10 @@ export const executionController: FastifyPluginAsyncZod = async (fastify) => {
         const userId = await securityHelper.getUserIdFromRequest(request)
         const projectId = request.projectId || request.body.projectId
         if (!projectId) {
-            return reply.status(StatusCodes.BAD_REQUEST).send({ message: 'projectId is required' })
+            throw new ActivepiecesError({
+                code: ErrorCode.VALIDATION,
+                params: { message: 'projectId is required' },
+            })
         }
 
         const execution = await executionService.create({
@@ -49,41 +53,19 @@ export const executionController: FastifyPluginAsyncZod = async (fastify) => {
             projectId: request.projectId,
         })
 
-        const rawHeader = request.headers['last-event-id']
-        const lastEventId = Array.isArray(rawHeader) ? rawHeader[0] : (rawHeader || (request.query as Record<string, string>)['last-event-id'])
-
         reply.raw.writeHead(StatusCodes.OK, {
             'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache, no-transform',
+            'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
-            'X-Accel-Buffering': 'no',
         })
-
-        const missedEvents = await executionEventService.getEventsSince({
-            executionId,
-            lastEventId,
-        })
-
-        for (const event of missedEvents) {
-            reply.raw.write(`id: ${event.id}\n`)
-            reply.raw.write(`event: ${event.type}\n`)
-            reply.raw.write(`data: ${JSON.stringify(event.payload)}\n\n`)
-        }
 
         const listener = (event: ExecutionEvent) => {
-            reply.raw.write(`id: ${event.id}\n`)
-            reply.raw.write(`event: ${event.type}\n`)
-            reply.raw.write(`data: ${JSON.stringify(event.payload)}\n\n`)
+            reply.raw.write(`data: ${JSON.stringify(event)}\n\n`)
         }
 
         await executionEventService.subscribe({ executionId, listener })
 
-        const heartbeatTimer = setInterval(() => {
-            reply.raw.write(': heartbeat\n\n')
-        }, 15000)
-
         request.raw.on('close', () => {
-            clearInterval(heartbeatTimer)
             executionEventService.unsubscribe({ executionId }).catch(() => {})
         })
 
@@ -125,7 +107,7 @@ const GetExecutionOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.ENGINE, PrincipalType.SERVICE],
             Permission.READ_RUN,
-            { type: ProjectResourceType.PARAM, paramName: 'id' },
+            { type: ProjectResourceType.PARAM },
         ),
     },
     schema: {
@@ -142,7 +124,7 @@ const ListToolCallsOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.ENGINE, PrincipalType.SERVICE],
             Permission.READ_RUN,
-            { type: ProjectResourceType.PARAM, paramName: 'id' },
+            { type: ProjectResourceType.PARAM },
         ),
     },
     schema: {
@@ -159,7 +141,7 @@ const GetExecutionEventsOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.ENGINE, PrincipalType.SERVICE],
             Permission.READ_RUN,
-            { type: ProjectResourceType.PARAM, paramName: 'id' },
+            { type: ProjectResourceType.PARAM },
         ),
     },
     schema: {

@@ -25,7 +25,7 @@ export class DropWorkflowTablesSqlite1807000000000 implements MigrationInterface
         }
     }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        // No-op
+    public async down(_queryRunner: QueryRunner): Promise<void> {
+        // Drop migration has no down action as workflows are dropped permanently
     }
 }

@@ -21,6 +21,8 @@ const sandboxRuntime = createSandboxRuntime({
     } as any),
 })
 
+let nextWorkerIndex = 0
+
 const userInteractionWatcherImpl = {
     submitAndWaitForResponse: async <T>(request: any, log: FastifyBaseLogger): Promise<T> => {
         let operationType: EngineOperationType
@@ -48,8 +50,10 @@ const userInteractionWatcherImpl = {
 
         log.info({ jobType: request.jobType, pieceName: piecePackage.pieceName }, '[userInteractionWatcher] Executing user interaction job synchronously in-process')
 
+        const selectedWorkerIndex = (nextWorkerIndex++) % 10
+
         const result = await sandboxRuntime.execute({
-            workerIndex: 0,
+            workerIndex: selectedWorkerIndex,
             log: log as any,
             operationType,
             operation: request,

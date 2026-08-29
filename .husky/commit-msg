@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-
-npx --no -- commitlint --edit ${1}
+# Use the locally installed commitlint binary to avoid npx version-resolution
+# failures when the network is unavailable or cache is cold.
+node_modules/@commitlint/cli/cli.js --edit ${1}

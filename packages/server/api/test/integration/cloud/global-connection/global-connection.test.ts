@@ -40,7 +40,7 @@ describe('GlobalConnection API', () => {
                 platformId: mockPlatform.id,
                 packageType: PackageType.REGISTRY,
             })
-            await db.save('piece_metadata', [mockPieceMetadata])
+            await db.save('integration_metadata', [mockPieceMetadata])
 
             
 
@@ -95,7 +95,7 @@ describe('GlobalConnection API', () => {
             const mockPieceMetadata = createMockPieceMetadata({
                 platformId: mockPlatform.id,
             })
-            await db.save('piece_metadata', [mockPieceMetadata])
+            await db.save('integration_metadata', [mockPieceMetadata])
 
             
 
@@ -145,7 +145,7 @@ describe('GlobalConnection API', () => {
                 platformId: mockPlatform.id,
                 packageType: PackageType.REGISTRY,
             })
-            await db.save('piece_metadata', [mockPieceMetadata])
+            await db.save('integration_metadata', [mockPieceMetadata])
 
             
 
@@ -254,7 +254,7 @@ describe('GlobalConnection API', () => {
                 platformId: mockPlatform.id,
                 packageType: PackageType.REGISTRY,
             })
-            await db.save('piece_metadata', [mockPieceMetadata])
+            await db.save('integration_metadata', [mockPieceMetadata])
 
             const mockToken = await generateMockToken({
                 id: mockOwner.id,
@@ -313,7 +313,7 @@ describe('GlobalConnection API', () => {
                 platformId: mockPlatform.id,
                 packageType: PackageType.REGISTRY,
             })
-            await db.save('piece_metadata', [mockPieceMetadata])
+            await db.save('integration_metadata', [mockPieceMetadata])
 
             
 
@@ -382,7 +382,7 @@ describe('GlobalConnection API', () => {
                 platformId: mockPlatform.id,
                 packageType: PackageType.REGISTRY,
             })
-            await db.save('piece_metadata', [mockPieceMetadata])
+            await db.save('integration_metadata', [mockPieceMetadata])
 
             
 
@@ -453,7 +453,7 @@ describe('GlobalConnection API', () => {
                 platformId: mockPlatform.id,
                 packageType: PackageType.REGISTRY,
             })
-            await db.save('piece_metadata', [mockPieceMetadata])
+            await db.save('integration_metadata', [mockPieceMetadata])
 
             
 
@@ -526,7 +526,7 @@ describe('GlobalConnection API', () => {
                 platformId: mockPlatform.id,
                 packageType: PackageType.REGISTRY,
             })
-            await db.save('piece_metadata', [mockPieceMetadata])
+            await db.save('integration_metadata', [mockPieceMetadata])
 
             
 

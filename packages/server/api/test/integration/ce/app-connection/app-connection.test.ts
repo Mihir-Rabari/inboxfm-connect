@@ -25,7 +25,7 @@ afterAll(async () => {
 })
 
 describe('AppConnection CE API', () => {
-    describeWithAuth('POST /v1/app-connections (Create)', () => app!, (setup) => {
+    describeWithAuth('POST /v1/connections (Create)', () => app!, (setup) => {
         it('should create a SECRET_TEXT connection', async () => {
             const ctx = await setup()
 
@@ -34,10 +34,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            const response = await ctx.post('/v1/app-connections', {
+            const response = await ctx.post('/v1/connections', {
                 externalId: 'test-secret-connection',
                 displayName: 'Test Secret Connection',
                 pieceName: mockPiece.name,
@@ -66,10 +66,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            const response = await ctx.post('/v1/app-connections', {
+            const response = await ctx.post('/v1/connections', {
                 externalId: 'test-no-auth-connection',
                 displayName: 'Test No Auth',
                 pieceName: mockPiece.name,
@@ -94,10 +94,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            const response = await ctx.post('/v1/app-connections', {
+            const response = await ctx.post('/v1/connections', {
                 externalId: 'test-placeholder-connection',
                 displayName: 'Placeholder Slack',
                 pieceName: mockPiece.name,
@@ -123,10 +123,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            const active = await ctx.post('/v1/app-connections', {
+            const active = await ctx.post('/v1/connections', {
                 externalId: 'placeholder-no-clobber',
                 displayName: 'Active Secret',
                 pieceName: mockPiece.name,
@@ -143,7 +143,7 @@ describe('AppConnection CE API', () => {
             expect(activeBody.status).toBe(AppConnectionStatus.ACTIVE)
             expect(activeBody.type).toBe(AppConnectionType.SECRET_TEXT)
 
-            const placeholder = await ctx.post('/v1/app-connections', {
+            const placeholder = await ctx.post('/v1/connections', {
                 externalId: 'placeholder-no-clobber',
                 displayName: 'Should Not Win',
                 pieceName: mockPiece.name,
@@ -167,10 +167,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            const placeholder = await ctx.post('/v1/app-connections', {
+            const placeholder = await ctx.post('/v1/connections', {
                 externalId: 'placeholder-fill-in',
                 displayName: 'Pending',
                 pieceName: mockPiece.name,
@@ -181,7 +181,7 @@ describe('AppConnection CE API', () => {
             expect(placeholder?.statusCode).toBe(StatusCodes.CREATED)
             const placeholderId = placeholder?.json().id
 
-            const filled = await ctx.post('/v1/app-connections', {
+            const filled = await ctx.post('/v1/connections', {
                 externalId: 'placeholder-fill-in',
                 displayName: 'Filled In',
                 pieceName: mockPiece.name,
@@ -209,7 +209,7 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
             const createPayload = {
@@ -225,11 +225,11 @@ describe('AppConnection CE API', () => {
                 pieceVersion: mockPiece.version,
             }
 
-            const first = await ctx.post('/v1/app-connections', createPayload)
+            const first = await ctx.post('/v1/connections', createPayload)
             expect(first?.statusCode).toBe(StatusCodes.CREATED)
             const firstId = first?.json().id
 
-            const second = await ctx.post('/v1/app-connections', {
+            const second = await ctx.post('/v1/connections', {
                 ...createPayload,
                 displayName: 'Second Name',
                 value: {
@@ -244,7 +244,7 @@ describe('AppConnection CE API', () => {
         })
     })
 
-    describeWithAuth('POST /v1/app-connections/:id (Update)', () => app!, (setup) => {
+    describeWithAuth('POST /v1/connections/:id (Update)', () => app!, (setup) => {
         it('should update display name', async () => {
             const ctx = await setup()
 
@@ -253,10 +253,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            const createResponse = await ctx.post('/v1/app-connections', {
+            const createResponse = await ctx.post('/v1/connections', {
                 externalId: 'update-test-connection',
                 displayName: 'Original Name',
                 pieceName: mockPiece.name,
@@ -270,7 +270,7 @@ describe('AppConnection CE API', () => {
             })
             const connectionId = createResponse?.json().id
 
-            const updateResponse = await ctx.post(`/v1/app-connections/${connectionId}`, {
+            const updateResponse = await ctx.post(`/v1/connections/${connectionId}`, {
                 displayName: 'Updated Name',
             })
 
@@ -282,7 +282,7 @@ describe('AppConnection CE API', () => {
             const ctx = await setup()
             const nonExistentId = apId()
 
-            const response = await ctx.post(`/v1/app-connections/${nonExistentId}`, {
+            const response = await ctx.post(`/v1/connections/${nonExistentId}`, {
                 displayName: 'Updated Name',
             })
 
@@ -290,7 +290,7 @@ describe('AppConnection CE API', () => {
         })
     })
 
-    describeWithAuth('GET /v1/app-connections (List)', () => app!, (setup) => {
+    describeWithAuth('GET /v1/connections (List)', () => app!, (setup) => {
         it('should list connections', async () => {
             const ctx = await setup()
 
@@ -299,10 +299,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            await ctx.post('/v1/app-connections', {
+            await ctx.post('/v1/connections', {
                 externalId: 'list-test-connection',
                 displayName: 'Test Connection',
                 pieceName: mockPiece.name,
@@ -315,7 +315,7 @@ describe('AppConnection CE API', () => {
                 pieceVersion: mockPiece.version,
             })
 
-            const response = await ctx.get('/v1/app-connections', {
+            const response = await ctx.get('/v1/connections', {
                 projectId: ctx.project.id,
             })
 
@@ -339,10 +339,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', [mockPieceA, mockPieceB])
+            await db.save('integration_metadata', [mockPieceA, mockPieceB])
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPieceA)
 
-            await ctx.post('/v1/app-connections', {
+            await ctx.post('/v1/connections', {
                 externalId: 'filter-a',
                 displayName: 'Connection A',
                 pieceName: mockPieceA.name,
@@ -354,7 +354,7 @@ describe('AppConnection CE API', () => {
 
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPieceB)
 
-            await ctx.post('/v1/app-connections', {
+            await ctx.post('/v1/connections', {
                 externalId: 'filter-b',
                 displayName: 'Connection B',
                 pieceName: mockPieceB.name,
@@ -364,7 +364,7 @@ describe('AppConnection CE API', () => {
                 pieceVersion: mockPieceB.version,
             })
 
-            const response = await ctx.get('/v1/app-connections', {
+            const response = await ctx.get('/v1/connections', {
                 projectId: ctx.project.id,
                 pieceName: mockPieceA.name,
             })
@@ -376,7 +376,7 @@ describe('AppConnection CE API', () => {
         })
     })
 
-    describeWithAuth('GET /v1/app-connections/:id', () => app!, (setup) => {
+    describeWithAuth('GET /v1/connections/:id', () => app!, (setup) => {
         it('should get a connection by id without sensitive data', async () => {
             const ctx = await setup()
 
@@ -385,10 +385,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            const createResponse = await ctx.post('/v1/app-connections', {
+            const createResponse = await ctx.post('/v1/connections', {
                 externalId: 'get-by-id-test',
                 displayName: 'Get Me',
                 pieceName: mockPiece.name,
@@ -399,26 +399,28 @@ describe('AppConnection CE API', () => {
             })
             const connectionId = createResponse?.json().id
 
-            const response = await ctx.get(`/v1/app-connections/${connectionId}`)
+            const response = await ctx.get(`/v1/connections/${connectionId}`)
 
             expect(response?.statusCode).toBe(StatusCodes.OK)
             const body = response?.json()
             expect(body.id).toBe(connectionId)
             expect(body.externalId).toBe('get-by-id-test')
             expect(body.value).toBeUndefined()
-            expect(body.flowIds).toEqual([])
+            // `flowIds` (the flows consuming a connection) went away with the Flow
+            // Runtime; assert it is absent rather than an empty array.
+            expect(body.flowIds).toBeUndefined()
         })
 
         it('should return 404 for a non-existent connection', async () => {
             const ctx = await setup()
 
-            const response = await ctx.get(`/v1/app-connections/${apId()}`)
+            const response = await ctx.get(`/v1/connections/${apId()}`)
 
             expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
         })
     })
 
-    describe('GET /v1/app-connections (Isolation)', () => {
+    describe('GET /v1/connections (Isolation)', () => {
         it('should isolate connections between projects', async () => {
             const ctx1 = await createTestContext(app!)
             const ctx2 = await createTestContext(app!)
@@ -428,10 +430,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            await ctx1.post('/v1/app-connections', {
+            await ctx1.post('/v1/connections', {
                 externalId: 'isolation-test',
                 displayName: 'Project 1 Connection',
                 pieceName: mockPiece.name,
@@ -441,7 +443,7 @@ describe('AppConnection CE API', () => {
                 pieceVersion: mockPiece.version,
             })
 
-            const response = await ctx2.get('/v1/app-connections', {
+            const response = await ctx2.get('/v1/connections', {
                 projectId: ctx2.project.id,
             })
 
@@ -460,10 +462,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            const createResponse = await ctx1.post('/v1/app-connections', {
+            const createResponse = await ctx1.post('/v1/connections', {
                 externalId: 'cross-project-get',
                 displayName: 'Project 1 Connection',
                 pieceName: mockPiece.name,
@@ -474,13 +476,13 @@ describe('AppConnection CE API', () => {
             })
             const connectionId = createResponse?.json().id
 
-            const response = await ctx2.get(`/v1/app-connections/${connectionId}`)
+            const response = await ctx2.get(`/v1/connections/${connectionId}`)
 
             expect(response?.statusCode).toBe(StatusCodes.FORBIDDEN)
         })
     })
 
-    describeWithAuth('DELETE /v1/app-connections/:id', () => app!, (setup) => {
+    describeWithAuth('DELETE /v1/connections/:id', () => app!, (setup) => {
         it('should delete a connection', async () => {
             const ctx = await setup()
 
@@ -489,10 +491,10 @@ describe('AppConnection CE API', () => {
                 packageType: PackageType.REGISTRY,
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPiece)
+            await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            const createResponse = await ctx.post('/v1/app-connections', {
+            const createResponse = await ctx.post('/v1/connections', {
                 externalId: 'delete-test',
                 displayName: 'Delete Me',
                 pieceName: mockPiece.name,
@@ -503,7 +505,7 @@ describe('AppConnection CE API', () => {
             })
             const connectionId = createResponse?.json().id
 
-            const response = await ctx.delete(`/v1/app-connections/${connectionId}`)
+            const response = await ctx.delete(`/v1/connections/${connectionId}`)
 
             expect(response?.statusCode).toBe(StatusCodes.NO_CONTENT)
         })
@@ -512,7 +514,7 @@ describe('AppConnection CE API', () => {
             const ctx = await setup()
             const nonExistentId = apId()
 
-            const response = await ctx.delete(`/v1/app-connections/${nonExistentId}`)
+            const response = await ctx.delete(`/v1/connections/${nonExistentId}`)
 
             expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
         })
@@ -530,7 +532,7 @@ describe('AppConnection CE API', () => {
             }
             await db.save('app_connection', platformConnection)
 
-            const response = await ctx.delete(`/v1/app-connections/${platformConnection.id}`)
+            const response = await ctx.delete(`/v1/connections/${platformConnection.id}`)
 
             expect(response?.statusCode).toBe(StatusCodes.FORBIDDEN)
 

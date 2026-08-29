@@ -12,7 +12,7 @@ import { StatusCodes } from 'http-status-codes'
 import { MockInstance } from 'vitest'
 import { databaseConnection } from '../../../../src/app/database/database-connection'
 import { pieceMetadataService } from '../../../../src/app/pieces/metadata/piece-metadata-service'
-import { userInteractionWatcher } from '../../../../src/app/workers/user-interaction-watcher'
+import { userInteractionWatcher } from '../../../../src/app/helper/user-interaction/user-interaction-watcher'
 import { createMemberContext, createTestContext } from '../../../helpers/test-context'
 import { setupTestEnvironment, teardownTestEnvironment } from '../../../helpers/test-setup'
 
@@ -53,7 +53,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
-    await databaseConnection().getRepository('piece_metadata').createQueryBuilder().delete().execute()
+    await databaseConnection().getRepository('integration_metadata').createQueryBuilder().delete().execute()
     interactionSpy = vi.spyOn(userInteractionWatcher, 'submitAndWaitForResponse').mockResolvedValue({
         status: EngineResponseStatus.OK,
         response: mockPieceMetadata,
@@ -65,7 +65,7 @@ afterEach(() => {
     interactionSpy.mockRestore()
 })
 
-describe('POST /v1/pieces — private piece installation', () => {
+describe('POST /v1/integrations — private piece installation', () => {
     it('should install a private piece from a tgz archive and persist metadata', async () => {
         const ctx = await createTestContext(app!)
 
@@ -82,7 +82,7 @@ describe('POST /v1/pieces — private piece installation', () => {
 
         const response = await ctx.inject({
             method: 'POST',
-            url: '/api/v1/pieces',
+            url: '/api/v1/integrations',
             body: formData,
         })
 
@@ -117,7 +117,7 @@ describe('POST /v1/pieces — private piece installation', () => {
 
         const response = await memberCtx.inject({
             method: 'POST',
-            url: '/api/v1/pieces',
+            url: '/api/v1/integrations',
             body: formData,
         })
 

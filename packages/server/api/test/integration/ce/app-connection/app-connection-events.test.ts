@@ -46,11 +46,11 @@ describe('App connection application events', () => {
         vi.restoreAllMocks()
     })
 
-    it('emits CONNECTION_UPSERTED on POST /v1/app-connections', async () => {
+    it('emits CONNECTION_UPSERTED on POST /v1/connections', async () => {
         const ctx = await createTestContext(app)
         const piece = await seedPieceMetadata(ctx)
 
-        const response = await ctx.post('/v1/app-connections', {
+        const response = await ctx.post('/v1/connections', {
             externalId: 'event-test-connection',
             displayName: 'Event Test Connection',
             pieceName: piece.name,
@@ -69,11 +69,11 @@ describe('App connection application events', () => {
         ])
     })
 
-    it('emits CONNECTION_DELETED on DELETE /v1/app-connections/:id', async () => {
+    it('emits CONNECTION_DELETED on DELETE /v1/connections/:id', async () => {
         const ctx = await createTestContext(app)
         const piece = await seedPieceMetadata(ctx)
 
-        const createResponse = await ctx.post('/v1/app-connections', {
+        const createResponse = await ctx.post('/v1/connections', {
             externalId: 'event-test-connection-to-delete',
             displayName: 'Event Test Connection',
             pieceName: piece.name,
@@ -90,7 +90,7 @@ describe('App connection application events', () => {
 
         sendUserEventSpy.mockClear()
 
-        const response = await ctx.delete(`/v1/app-connections/${connectionId}`)
+        const response = await ctx.delete(`/v1/connections/${connectionId}`)
 
         expect(response?.statusCode).toBe(StatusCodes.NO_CONTENT)
         expect(actionsEmitted(sendUserEventSpy)).toEqual([
@@ -98,11 +98,11 @@ describe('App connection application events', () => {
         ])
     })
 
-    it('records a connection.listed audit on GET /v1/app-connections', async () => {
+    it('records a connection.listed audit on GET /v1/connections', async () => {
         const ctx = await createTestContext(app)
         const auditSpy = vi.spyOn(wideEvent, 'audit')
 
-        const response = await ctx.get('/v1/app-connections', {
+        const response = await ctx.get('/v1/connections', {
             projectId: ctx.project.id,
         })
 
@@ -121,7 +121,7 @@ async function seedPieceMetadata(ctx: TestContext): Promise<{ name: string, vers
         packageType: PackageType.REGISTRY,
         pieceType: PieceType.OFFICIAL,
     })
-    await db.save('piece_metadata', piece)
+    await db.save('integration_metadata', piece)
     pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(piece)
     return { name: piece.name, version: piece.version }
 }

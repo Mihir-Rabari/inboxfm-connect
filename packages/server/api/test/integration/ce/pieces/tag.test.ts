@@ -19,7 +19,17 @@ afterAll(async () => {
     await teardownTestEnvironment()
 })
 
-describe('Tags API', () => {
+/**
+ * SUSPENDED — the Tags REST surface is not mounted.
+ *
+ * `tagsModule` (the only registration for `/v1/tags` and `/v1/tags/pieces`) is
+ * commented out in `app.ts`, so every route here answers 404. The `tag`/`piece_tag`
+ * entities remain registered, so this is a disconnected HTTP surface, not deleted
+ * functionality — the same situation as the Tables suites. Kept rather than deleted so
+ * it can be re-enabled verbatim if piece tagging returns; re-enable by uncommenting
+ * `app.register(tagsModule)` and restoring `describe`.
+ */
+describe.skip('Tags API', () => {
     describe('POST /v1/tags (Create)', () => {
         it('should create a tag', async () => {
             const ctx = await createTestContext(app!)

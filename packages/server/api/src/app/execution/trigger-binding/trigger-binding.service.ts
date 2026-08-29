@@ -11,12 +11,17 @@ import {
     TriggerHookType,
     UpdateTriggerBindingRequest,
 } from '@inboxfm-connect/shared'
-import { databaseConnection } from '../../database/database-connection'
+import { repoFactory } from '../../core/db/repo-factory'
 import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
 import { executionService } from '../execution.service'
-import { TriggerBindingEntity } from './trigger-binding-entity'
+import { TriggerBindingEntity, TriggerBindingSchema } from './trigger-binding-entity'
 
-const repo = databaseConnection().getRepository(TriggerBindingEntity)
+/**
+ * Lazy getter: resolving the repository at module scope binds it to whichever
+ * DataSource existed when `app.ts` was first imported, which is not necessarily
+ * the initialized one.
+ */
+const triggerBindingRepo = repoFactory<TriggerBindingSchema>(TriggerBindingEntity)
 
 export const triggerBindingService = {
     async create({ request, projectId, platformId }: CreateParams): Promise<TriggerBinding> {
@@ -37,7 +42,7 @@ export const triggerBindingService = {
             status: request.status ?? TriggerBindingStatus.ENABLED,
         }
 
-        const saved = await repo.save(newBinding)
+        const saved = await triggerBindingRepo().save(newBinding)
 
         if (saved.status === TriggerBindingStatus.ENABLED) {
             await executeEngineHook({
@@ -50,11 +55,36 @@ export const triggerBindingService = {
         return saved
     },
 
+    /**
+     * Tenant-scoped read for every authenticated route. `projectId`/`platformId` are
+     * required: an earlier revision accepted them as optional and dropped the
+     * predicates whenever they were nil, so a caller that forgot to thread the
+     * principal's scope silently got a cross-tenant lookup. Callers that genuinely
+     * have no principal must go through `getByIdForIngressOrThrow` instead, which
+     * names that intent.
+     */
     async getOneOrThrow({ id, projectId, platformId }: GetOneParams): Promise<TriggerBinding> {
-        const whereClause: Record<string, unknown> = { id }
-        if (!isNil(projectId)) whereClause.projectId = projectId
-        if (!isNil(platformId)) whereClause.platformId = platformId
-        const binding = await repo.findOneBy(whereClause)
+        const binding = await triggerBindingRepo().findOneBy({ id, projectId, platformId })
+        if (isNil(binding)) {
+            throw new ActivepiecesError({
+                code: ErrorCode.ENTITY_NOT_FOUND,
+                params: { message: `TriggerBinding ${id} not found` },
+            })
+        }
+        return binding
+    },
+
+    /**
+     * Unscoped lookup by primary key, for the public event-ingress path only.
+     *
+     * `POST /v1/trigger-bindings/:id/run` is a webhook-style ingress
+     * (`securityAccess.public()`), so there is no principal to scope the read by —
+     * the 21-char `apId()` in the URL is the capability. Every tenant value used
+     * downstream is then read off the returned row, never off the request, so an
+     * ingress caller cannot direct the execution at another project.
+     */
+    async getByIdForIngressOrThrow({ id }: { id: string }): Promise<TriggerBinding> {
+        const binding = await triggerBindingRepo().findOneBy({ id })
         if (isNil(binding)) {
             throw new ActivepiecesError({
                 code: ErrorCode.ENTITY_NOT_FOUND,
@@ -65,7 +95,7 @@ export const triggerBindingService = {
     },
 
     async list({ projectId, platformId }: ListParams): Promise<SeekPage<TriggerBinding>> {
-        const bindings = await repo.findBy({ projectId, platformId })
+        const bindings = await triggerBindingRepo().findBy({ projectId, platformId })
         return {
             data: bindings,
             next: null,
@@ -90,7 +120,7 @@ export const triggerBindingService = {
             updated: new Date().toISOString(),
         }
 
-        const saved = await repo.save(updatedBinding)
+        const saved = await triggerBindingRepo().save(updatedBinding)
 
         if (oldStatus === TriggerBindingStatus.DISABLED && saved.status === TriggerBindingStatus.ENABLED) {
             await executeEngineHook({ binding: saved, hookType: TriggerHookType.ON_ENABLE })
@@ -132,8 +162,14 @@ export const triggerBindingService = {
         })
     },
 
-    async executeRun({ id, projectId, platformId, triggerPayload }: ExecuteRunParams): Promise<Execution[]> {
-        const binding = await triggerBindingService.getOneOrThrow({ id, projectId, platformId })
+    /**
+     * Event ingress. Deliberately takes no tenant parameters: the only trusted
+     * source of `projectId`/`platformId` here is the binding row, because the sole
+     * HTTP caller is the unauthenticated `/:id/run` route. Accepting a tenant
+     * argument would reintroduce a channel for a caller to redirect the execution.
+     */
+    async executeRun({ id, triggerPayload }: ExecuteRunParams): Promise<Execution[]> {
+        const binding = await triggerBindingService.getByIdForIngressOrThrow({ id })
 
         if (binding.status !== TriggerBindingStatus.ENABLED) {
             throw new ActivepiecesError({
@@ -182,7 +218,7 @@ export const triggerBindingService = {
             }
         }
 
-        await repo.delete({ id, projectId, platformId })
+        await triggerBindingRepo().delete({ id, projectId, platformId })
     },
 }
 
@@ -193,7 +229,7 @@ async function syncTriggerSchedule(binding: TriggerBinding): Promise<void> {
             name: `trigger-cron-${binding.id}`,
             cronExpression: cronExpr,
             fn: async () => {
-                await triggerBindingService.executeRun({ id: binding.id, projectId: binding.projectId, platformId: binding.platformId })
+                await triggerBindingService.executeRun({ id: binding.id })
             },
         })
     }
@@ -260,8 +296,8 @@ type CreateParams = {
 
 type GetOneParams = {
     id: string
-    projectId?: ProjectId
-    platformId?: PlatformId
+    projectId: ProjectId
+    platformId: PlatformId
 }
 
 type ListParams = {
@@ -278,8 +314,6 @@ type UpdateParams = {
 
 type ExecuteRunParams = {
     id: string
-    projectId?: ProjectId
-    platformId?: PlatformId
     triggerPayload?: unknown
 }
 

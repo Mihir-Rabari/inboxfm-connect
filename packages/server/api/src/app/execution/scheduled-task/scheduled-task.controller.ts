@@ -2,8 +2,9 @@ import { CreateScheduledTaskRequest, Permission, PrincipalType, UpdateScheduledT
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
-import { ProjectResourceType } from '../../core/security/authorization/common'
+import { ProjectResourceType, ProjectTableResource } from '../../core/security/authorization/common'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
+import { ScheduledTaskEntity } from './scheduled-task-entity'
 import { scheduledTaskService } from './scheduled-task.service'
 
 export const scheduledTaskController: FastifyPluginAsyncZod = async (fastify) => {
@@ -70,6 +71,16 @@ export const scheduledTaskController: FastifyPluginAsyncZod = async (fastify) =>
     })
 }
 
+/**
+ * Every `/:id` route exposes `:id`, never `:projectId`, so ProjectResourceType.PARAM
+ * resolved `undefined` and rejected all USER principals. TABLE derives the tenant
+ * from the scheduled_task row, so ownership is never client-supplied.
+ */
+const ScheduledTaskProjectResource: ProjectTableResource = {
+    type: ProjectResourceType.TABLE,
+    tableName: ScheduledTaskEntity,
+}
+
 const CreateScheduledTaskRouteOptions = {
     config: {
         security: securityAccess.project(
@@ -98,7 +109,7 @@ const GetScheduledTaskRouteOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.SERVICE],
             Permission.READ_RUN,
-            { type: ProjectResourceType.PARAM },
+            ScheduledTaskProjectResource,
         ),
     },
     schema: {
@@ -113,7 +124,7 @@ const UpdateScheduledTaskRouteOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.SERVICE],
             Permission.WRITE_RUN,
-            { type: ProjectResourceType.PARAM },
+            ScheduledTaskProjectResource,
         ),
     },
     schema: {
@@ -129,7 +140,7 @@ const DeleteScheduledTaskRouteOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.SERVICE],
             Permission.WRITE_RUN,
-            { type: ProjectResourceType.PARAM },
+            ScheduledTaskProjectResource,
         ),
     },
     schema: {
@@ -144,7 +155,7 @@ const RunScheduledTaskRouteOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.SERVICE],
             Permission.WRITE_RUN,
-            { type: ProjectResourceType.PARAM },
+            ScheduledTaskProjectResource,
         ),
     },
     schema: {

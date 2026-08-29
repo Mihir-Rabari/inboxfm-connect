@@ -72,6 +72,7 @@ import { systemSnapshot } from './helper/system-snapshot'
 import { validateEnvPropsOnStartup } from './helper/system-validator'
 import { shutdownTelemetry } from './helper/telemetry.utils'
 import { knowledgeSearchModule } from './knowledge-search/knowledge-search.module'
+import { mcpServerModule } from './mcp/mcp-module'
 import { storeEntryModule } from './store-entry/store-entry.module'
 import { toolSearchReindexJob } from './tool-search/tool-search-reindex.job'
 import { communityPiecesModule } from './pieces/community-piece-module'
@@ -211,7 +212,12 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     await app.register(knowledgeSearchModule)
     // await app.register(humanInputModule)
     // await app.register(tagsModule)
-    // await app.register(mcpServerModule)
+    // The project MCP configuration endpoints the console reads (`/v1/projects/:projectId/mcp-server`
+    // and its rotate/token actions). The entities are already registered in `getEntities()` and the
+    // service is headless-adapted, so this only makes the existing contract reachable.
+    // Still absent by design: the `POST /mcp` protocol transport and the MCP OAuth
+    // authorize/approve flow were removed with the legacy runtime and are not restored here.
+    await app.register(mcpServerModule)
     // await app.register(mcpOAuthApproveController)
     // await app.register(agentsModule)
     await app.register(platformUserModule)

@@ -63,7 +63,16 @@ export const executeController: FastifyPluginAsyncZod = async (fastify) => {
     })
 }
 
+/**
+ * `projectId` is required by the security layer, not by the runtime.
+ * The route is configured with ProjectResourceType.BODY, and the authorization
+ * hook runs at `preHandler` — after zod has already stripped unknown keys — so
+ * the field must be declared here or every USER principal is rejected with
+ * "Project ID is required". Membership + WRITE permission on the named project
+ * are still enforced by the authorization layer.
+ */
 const ExecuteRequestBody = z.object({
+    projectId: z.string().optional(),
     integration: z.string(),
     tool: z.string(),
     connectionId: z.string(),

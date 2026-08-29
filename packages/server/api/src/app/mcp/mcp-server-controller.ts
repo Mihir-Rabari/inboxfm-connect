@@ -98,10 +98,13 @@ const RotateTokenRequest = {
     schema: {
         tags: ['mcp'],
         description: 'Rotate the MCP server token',
+        // `params` belongs inside `schema`; declared as a sibling it was never handed
+        // to Fastify, so `:projectId` went unvalidated on this route alone while the
+        // other three validated it.
+        params: z.object({
+            projectId: ApId,
+        }),
     },
-    params: z.object({
-        projectId: ApId,
-    }),
 }
 
 const GenerateMcpTokenResponse = z.object({

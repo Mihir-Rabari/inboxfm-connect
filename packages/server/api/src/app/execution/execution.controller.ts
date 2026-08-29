@@ -3,9 +3,10 @@ import { CreateExecutionRequestBody, Execution, ExecutionEvent, ListExecutionsRe
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
-import { ProjectResourceType } from '../core/security/authorization/common'
+import { ProjectResourceType, ProjectTableResource } from '../core/security/authorization/common'
 import { securityAccess } from '../core/security/authorization/fastify-security'
 import { securityHelper } from '../helper/security-helper'
+import { ExecutionEntity } from './execution-entity'
 import { executionEventService } from './execution-event.service'
 import { executionService } from './execution.service'
 import { toolCallService } from './tool-call/tool-call.service'
@@ -85,6 +86,19 @@ const GetExecutionParams = z.object({
     id: z.string(),
 })
 
+/**
+ * `/:id` routes must derive the tenant from the execution row itself.
+ * ProjectResourceType.PARAM reads `request.params.projectId`, which these routes
+ * never expose (the route param is `:id`), so every USER principal was rejected
+ * with "Project ID is required". TABLE resolves projectId from ExecutionEntity —
+ * the same pattern connections/tables/records use — so ownership can never be
+ * supplied by the client.
+ */
+const ExecutionProjectResource: ProjectTableResource = {
+    type: ProjectResourceType.TABLE,
+    tableName: ExecutionEntity,
+}
+
 const CreateExecutionOptions = {
     config: {
         security: securityAccess.project(
@@ -107,7 +121,7 @@ const GetExecutionOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.ENGINE, PrincipalType.SERVICE],
             Permission.READ_RUN,
-            { type: ProjectResourceType.PARAM },
+            ExecutionProjectResource,
         ),
     },
     schema: {
@@ -124,7 +138,7 @@ const ListToolCallsOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.ENGINE, PrincipalType.SERVICE],
             Permission.READ_RUN,
-            { type: ProjectResourceType.PARAM },
+            ExecutionProjectResource,
         ),
     },
     schema: {
@@ -141,7 +155,7 @@ const GetExecutionEventsOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.ENGINE, PrincipalType.SERVICE],
             Permission.READ_RUN,
-            { type: ProjectResourceType.PARAM },
+            ExecutionProjectResource,
         ),
     },
     schema: {

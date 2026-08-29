@@ -2,8 +2,9 @@ import { CreateTriggerBindingRequest, Permission, PrincipalType, UpdateTriggerBi
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
-import { ProjectResourceType } from '../../core/security/authorization/common'
+import { ProjectResourceType, ProjectTableResource } from '../../core/security/authorization/common'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
+import { TriggerBindingEntity } from './trigger-binding-entity'
 import { triggerBindingService } from './trigger-binding.service'
 
 export const triggerBindingController: FastifyPluginAsyncZod = async (fastify) => {
@@ -89,14 +90,28 @@ export const triggerBindingController: FastifyPluginAsyncZod = async (fastify) =
         })
     })
 
+    /**
+     * Public webhook-style event ingress (see `RunTriggerBindingRouteOptions`).
+     * No tenant value is forwarded from the request — `executeRun` resolves the
+     * binding by id and reads `projectId`/`platformId` off that row, so an ingress
+     * caller cannot aim the resulting execution at a project it does not own.
+     */
     fastify.post('/:id/run', RunTriggerBindingRouteOptions, async (request) => {
         return triggerBindingService.executeRun({
             id: request.params.id,
-            projectId: request.projectId,
-            platformId: request.principal?.platform?.id,
             triggerPayload: request.body,
         })
     })
+}
+
+/**
+ * Every `/:id` route exposes `:id`, never `:projectId`, so ProjectResourceType.PARAM
+ * resolved `undefined` and rejected all USER principals. TABLE derives the tenant
+ * from the trigger_binding row, so ownership is never client-supplied.
+ */
+const TriggerBindingProjectResource: ProjectTableResource = {
+    type: ProjectResourceType.TABLE,
+    tableName: TriggerBindingEntity,
 }
 
 const CreateTriggerBindingRouteOptions = {
@@ -127,7 +142,7 @@ const GetTriggerBindingRouteOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.SERVICE],
             Permission.READ_RUN,
-            { type: ProjectResourceType.PARAM },
+            TriggerBindingProjectResource,
         ),
     },
     schema: {
@@ -142,7 +157,7 @@ const UpdateTriggerBindingRouteOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.SERVICE],
             Permission.WRITE_RUN,
-            { type: ProjectResourceType.PARAM },
+            TriggerBindingProjectResource,
         ),
     },
     schema: {
@@ -158,7 +173,7 @@ const DeleteTriggerBindingRouteOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.SERVICE],
             Permission.WRITE_RUN,
-            { type: ProjectResourceType.PARAM },
+            TriggerBindingProjectResource,
         ),
     },
     schema: {
@@ -173,7 +188,7 @@ const EnableTriggerBindingRouteOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.SERVICE],
             Permission.WRITE_RUN,
-            { type: ProjectResourceType.PARAM },
+            TriggerBindingProjectResource,
         ),
     },
     schema: {
@@ -188,7 +203,7 @@ const DisableTriggerBindingRouteOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.SERVICE],
             Permission.WRITE_RUN,
-            { type: ProjectResourceType.PARAM },
+            TriggerBindingProjectResource,
         ),
     },
     schema: {
@@ -203,7 +218,7 @@ const RenewTriggerBindingRouteOptions = {
         security: securityAccess.project(
             [PrincipalType.USER, PrincipalType.SERVICE],
             Permission.WRITE_RUN,
-            { type: ProjectResourceType.PARAM },
+            TriggerBindingProjectResource,
         ),
     },
     schema: {
@@ -213,6 +228,17 @@ const RenewTriggerBindingRouteOptions = {
     },
 }
 
+/**
+ * Intentionally public: this is the event-ingress surface a third-party app posts to
+ * when the subscribed resource changes (TRIGGER_ARCHITECTURE.md "RUN", and the
+ * `webhookUrl` handed to the engine's ON_ENABLE hook). External senders hold no
+ * Inboxfm credential, so the unguessable `apId()` in the path is the capability.
+ *
+ * The schema exposes `:id` and an opaque payload body only — there is deliberately
+ * no `projectId` in the params, query or body for a caller to influence. The console
+ * also calls this route for "Run / Test" with its bearer token, which the public
+ * config simply ignores.
+ */
 const RunTriggerBindingRouteOptions = {
     config: {
         security: securityAccess.public(),

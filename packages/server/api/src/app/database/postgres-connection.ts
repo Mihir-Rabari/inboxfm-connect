@@ -335,6 +335,11 @@ import { AddChatRolloutFreeCreditGrant1802000000000 } from './migration/postgres
 import { DropDataManipulationEnabledFromPlatformPlan1803000000000 } from './migration/postgres/1803000000000-DropDataManipulationEnabledFromPlatformPlan'
 import { DropBadges1804000000000 } from './migration/postgres/1804000000000-DropBadges'
 import { DropWorkflowTables1807000000000 } from './migration/postgres/1807000000000-DropWorkflowTables'
+import { AddExecutionTable1808000000000 } from './migration/postgres/1808000000000-AddExecutionTable'
+import { AddToolCallTable1809000000000 } from './migration/postgres/1809000000000-AddToolCallTable'
+import { AddTriggerBindingTable1810000000000 } from './migration/postgres/1810000000000-AddTriggerBindingTable'
+import { AddScheduledTaskTable1811000000000 } from './migration/postgres/1811000000000-AddScheduledTaskTable'
+import { RenamePieceMetadataToIntegrationMetadata1812000000000 } from './migration/postgres/1812000000000-RenamePieceMetadataToIntegrationMetadata'
 
 const getSslConfig = (): boolean | TlsOptions => {
     const useSsl = system.get(AppSystemProp.POSTGRES_USE_SSL)
@@ -685,6 +690,16 @@ export const getMigrations = (): (new () => Migration)[] => {
         DropDataManipulationEnabledFromPlatformPlan1803000000000,
         DropBadges1804000000000,
         DropWorkflowTables1807000000000,
+        // The HeadlessRuntime tables. 1808-1810 existed as files but were never added
+        // to this array, so a migrated database had no `execution`, `tool_call` or
+        // `trigger_binding` relation and every console read answered 500. The test
+        // DataSource never caught it because it uses `synchronize` instead of
+        // migrations (see `pglite-connection.ts`: `migrations: [] when TESTING`).
+        AddExecutionTable1808000000000,
+        AddToolCallTable1809000000000,
+        AddTriggerBindingTable1810000000000,
+        AddScheduledTaskTable1811000000000,
+        RenamePieceMetadataToIntegrationMetadata1812000000000,
     ]
     return migrations
 }

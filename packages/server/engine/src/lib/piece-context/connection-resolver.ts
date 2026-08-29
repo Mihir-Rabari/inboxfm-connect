@@ -5,7 +5,13 @@ import { utils } from '../utils'
 export const createConnectionResolver = ({ projectId, engineToken, apiUrl, contextVersion }: CreateConnectionResolverParams): ConnectionResolver => {
     return {
         async obtain(externalId: string): Promise<AppConnectionValue> {
-            const url = `${apiUrl}v1/worker/app-connections/${encodeURIComponent(externalId)}?projectId=${projectId}`
+            // Must match the registered worker route prefix `/v1/worker/connections`
+            // (`app-connection.module.ts`). The old `/v1/worker/app-connections` path
+            // 404'd for every lookup, so the engine could not resolve ANY connection at
+            // runtime — every `obtain()` collapsed into ConnectionNotFoundError, breaking
+            // direct tool execution (FE5) and every trigger/scheduled run that reads a
+            // connection.
+            const url = `${apiUrl}v1/worker/connections/${encodeURIComponent(externalId)}?projectId=${projectId}`
 
             const { data: connectionValue, error: connectionValueError } = await utils.tryCatchAndThrowOnEngineError((async () => {
                 const response = await fetch(url, {

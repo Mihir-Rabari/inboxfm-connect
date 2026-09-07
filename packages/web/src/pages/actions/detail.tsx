@@ -319,7 +319,7 @@ export default function ActionDetailPage() {
                   }
                   getInput={getInput}
                   error={fieldErrors[propName]}
-                  disabled={executeMutation.isPending}
+                  disabled={executeMutation.isPending || (actionRequiresAuth && !selectedConnectionId)}
                 />
               ))}
             </div>

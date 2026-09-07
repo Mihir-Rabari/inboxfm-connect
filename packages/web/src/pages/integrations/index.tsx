@@ -132,7 +132,7 @@ export default function IntegrationsPage() {
         isLoading={isCategoriesLoading}
       />
 
-      <p className="text-xs text-muted-foreground" aria-live="polite">
+      <div className="text-xs text-muted-foreground" aria-live="polite">
         {isLoading ? (
           <Skeleton className="inline-block h-3 w-28 align-middle" />
         ) : (
@@ -141,7 +141,7 @@ export default function IntegrationsPage() {
             {hasActiveFilters ? ' matching filters' : ' available'}
           </>
         )}
-      </p>
+      </div>
 
       {isError ? (
         <ErrorState

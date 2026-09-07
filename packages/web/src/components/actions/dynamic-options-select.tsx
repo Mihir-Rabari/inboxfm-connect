@@ -67,6 +67,8 @@ export function DynamicOptionsSelect({
       propertyName,
       debouncedSearch,
     ],
+    enabled: !disabled,
+    retry: false,
     queryFn: () =>
       apiClient.post<DropdownState>('/integrations/options', {
         ...(projectId !== undefined ? { projectId } : {}),

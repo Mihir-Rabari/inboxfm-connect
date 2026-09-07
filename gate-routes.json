@@ -1,0 +1,52 @@
+[
+  {
+    "path": "/",
+    "label": "1 Dashboard"
+  },
+  {
+    "path": "/integrations",
+    "label": "2 Integrations list"
+  },
+  {
+    "path": "/integrations/%40inboxfm-connect%2Fpiece-google-sheets",
+    "label": "3 Integration detail"
+  },
+  {
+    "path": "/connections",
+    "label": "4 Connections"
+  },
+  {
+    "path": "/actions",
+    "label": "5 Actions catalog"
+  },
+  {
+    "path": "/actions/%40inboxfm-connect%2Fpiece-google-sheets/insert_row",
+    "label": "6 Action runner",
+    "settleMs": 5000
+  },
+  {
+    "path": "/triggers",
+    "label": "7 Triggers catalog"
+  },
+  {
+    "path": "/automations/triggers",
+    "label": "8 Trigger bindings"
+  },
+  {
+    "path": "/automations/schedules",
+    "label": "9 Scheduled tasks"
+  },
+  {
+    "path": "/mcp",
+    "label": "10 MCP hub"
+  },
+  {
+    "path": "/activity",
+    "label": "11 Activity list"
+  },
+  {
+    "path": "/activity/m5CLE5gUQTOEY7ug44ZHa",
+    "label": "12 Execution detail",
+    "settleMs": 6000
+  }
+]

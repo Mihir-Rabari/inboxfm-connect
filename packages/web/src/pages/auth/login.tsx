@@ -51,20 +51,50 @@ export default function LoginPage() {
     }
   }
 
+  const handleDevSignIn = async () => {
+    setIsLoading(true)
+    try {
+      const res = await apiClient.post<{
+        id: string
+        email: string
+        firstName: string
+        lastName: string
+        platformRole?: string
+        token: string
+        projectId: string
+      }>('/authentication/sign-in', {
+        email: 'dev@ap.com',
+        password: '12345678',
+      })
+      const { token, projectId, ...user } = res
+      signIn(token, user, projectId)
+      toast.success('Signed in as Dev user')
+      navigate('/')
+    } catch (err) {
+      toast.error('Dev authentication failed', {
+        description: err instanceof Error ? err.message : 'Invalid dev credentials',
+      })
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-sm border-border shadow-lg">
+    <div className="flex min-h-screen items-center justify-center bg-background/50 p-4">
+      <Card className="w-full max-w-sm border-border bg-card shadow-lg">
         <CardHeader className="text-center pb-4">
-          <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold mb-2 shadow-xs">
-            <span>IF</span>
+          <div className="mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-primary text-primary-foreground font-bold mb-3 shadow-md">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" className="h-6 w-6" fill="none">
+              <path d="M10 9H22V13H10V9ZM10 15H18V19H10V15ZM10 21H22V25H10V21Z" fill="currentColor"/>
+            </svg>
           </div>
-          <CardTitle className="text-lg font-bold">InboxFM Connect</CardTitle>
-          <CardDescription className="text-xs">
+          <CardTitle className="text-xl font-bold tracking-tight">InboxFM Connect</CardTitle>
+          <CardDescription className="text-xs text-muted-foreground mt-1">
             Sign in to your developer console
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
+        <CardContent className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-3.5">
             <div className="space-y-1.5">
               <label className="text-xs font-semibold text-foreground">Email</label>
               <Input
@@ -90,9 +120,26 @@ export default function LoginPage() {
             </div>
 
             <Button type="submit" loading={isLoading} className="w-full mt-2 font-semibold shadow-xs">
-              Sign In
+              Sign in
             </Button>
           </form>
+
+          {import.meta.env.DEV && (
+            <div className="pt-3 border-t border-border/80">
+              <div className="text-center mb-2">
+                <span className="text-[11px] text-muted-foreground">Local Development Mode</span>
+              </div>
+              <Button
+                type="button"
+                variant="outline"
+                loading={isLoading}
+                onClick={handleDevSignIn}
+                className="w-full text-xs font-medium border-primary/30 text-primary hover:bg-primary/5 hover:border-primary"
+              >
+                1-Click Sign in as Dev (dev@ap.com)
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

@@ -6,6 +6,7 @@ import { Header } from './header'
 import { Sidebar } from './sidebar'
 import { Toaster } from '@/components/ui/sonner'
 
+
 export function AppShell() {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
 
@@ -15,12 +16,12 @@ export function AppShell() {
       <Sidebar />
 
       {/* Main View Area */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         <Header onOpenCommandPalette={() => setCommandPaletteOpen(true)} />
 
-        {/* Floating Card Content Container */}
+        {/* Content Container */}
         <main className="flex-1 overflow-y-auto p-4 sm:p-6 bg-background/50">
-          <div className="mx-auto min-h-full max-w-7xl rounded-xl border border-border bg-card p-6 shadow-xs">
+          <div className="mx-auto max-w-7xl">
             <ErrorBoundary>
               <Outlet />
             </ErrorBoundary>

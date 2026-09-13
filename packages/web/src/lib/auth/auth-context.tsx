@@ -58,33 +58,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async function loadSession() {
       const storedToken = apiClient.getToken()
       if (!storedToken) {
-        // Mock default dev developer principal when running locally without explicit token
-        const devUser: User = {
-          id: 'usr_developer',
-          email: 'developer@inboxfm.local',
-          firstName: 'Developer',
-          lastName: 'Console',
-          platformRole: 'ADMIN',
+        // In browser dev mode, automatically sign into the seeded dev account
+        // so the developer console is immediately usable without manual sign-in
+        if (import.meta.env.DEV && import.meta.env.MODE !== 'test') {
+          try {
+            const res = await apiClient.post<{
+              id: string
+              email: string
+              firstName: string
+              lastName: string
+              platformRole?: string
+              token: string
+              projectId: string
+            }>('/authentication/sign-in', {
+              email: 'dev@ap.com',
+              password: '12345678',
+            })
+            const { token: devToken, projectId: devProjectId, ...devUser } = res
+            signIn(devToken, devUser, devProjectId)
+            try {
+              const projectsData = await apiClient.get<{ data: Project[] }>('/projects')
+              if (projectsData?.data?.length) {
+                setProjects(projectsData.data)
+                const matched = projectsData.data.find((p) => p.id === devProjectId) || projectsData.data[0]
+                if (matched) setCurrentProject(matched)
+              }
+            } catch {
+              // Ignore projects fetch error in dev fallback
+            }
+            setIsLoading(false)
+            return
+          } catch {
+            // Auto-login failed, fall through to unauthenticated state
+          }
         }
-        const devProject: Project = {
-          id: 'proj_default',
-          displayName: 'InboxFM Main Project',
-          platformId: 'platform_main',
-        }
-        setUser(devUser)
-        setProjects([devProject])
-        setCurrentProjectState(devProject)
-        apiClient.setProjectId(devProject.id)
+
+        setUser(null)
+        setProjects([])
+        setCurrentProjectState(null)
         setIsLoading(false)
         return
       }
 
       try {
-        // Identity comes from the session persisted at sign-in — the backend has no
-        // `GET /users/me` (only `GET /users/:id` and `POST /users/me`), so calling
-        // `/users/me` always 400'd and dropped every real session into the mock
-        // fallback below. `GET /projects` is a real authenticated route, so it both
-        // validates the stored token and yields the project list.
         const persistedUser = readPersistedUser()
         if (persistedUser) {
           setUser(persistedUser)
@@ -101,8 +117,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (!persistedUser) {
-          // Token is valid but we never stored the identity (e.g. token seeded
-          // out-of-band). Keep the session authenticated without fabricating a user.
           setUser({
             id: 'session',
             email: '',
@@ -111,23 +125,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           })
         }
       } catch (err) {
-        console.warn('Session load failed, falling back to local developer session', err)
-        const devUser: User = {
-          id: 'usr_developer',
-          email: 'developer@inboxfm.local',
-          firstName: 'Developer',
-          lastName: 'Console',
-          platformRole: 'ADMIN',
-        }
-        const devProject: Project = {
-          id: 'proj_default',
-          displayName: 'InboxFM Main Project',
-          platformId: 'platform_main',
-        }
-        setUser(devUser)
-        setProjects([devProject])
-        setCurrentProjectState(devProject)
-        apiClient.setProjectId(devProject.id)
+        console.warn('Session load failed, clearing session', err)
+        signOut()
       } finally {
         setIsLoading(false)
       }
@@ -143,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         currentProject,
         projects,
         token,
-        isAuthenticated: !!user,
+        isAuthenticated: Boolean(user && token),
         isLoading,
         signIn,
         signOut,

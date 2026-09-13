@@ -1,9 +1,10 @@
 import { BookOpen, Check, Code2, Copy, Key, Terminal } from 'lucide-react'
 import { useState } from 'react'
+import { toast } from 'sonner'
+import { ApiKeysManager } from '@/components/developers/api-keys-manager'
 import { PageHeader } from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { toast } from 'sonner'
 
 export default function DevelopersPage() {
   const [copiedKey, setCopiedKey] = useState<string | null>(null)
@@ -16,23 +17,28 @@ export default function DevelopersPage() {
   }
 
   const installNpm = `npm install @inboxfm-connect/sdk`
-  const installPip = `pip install inboxfm`
 
   const nodeSnippet = `import { InboxFM } from '@inboxfm-connect/sdk';
 
 const inboxfm = new InboxFM({
   apiKey: process.env.INBOXFM_API_KEY,
+  projectId: process.env.INBOXFM_PROJECT_ID,
+  baseUrl: '${window.location.origin}/api',
 });
 
-// Execute any tool directly on HeadlessRuntime
+// Let one of your end-users connect an account (Slack, Notion, ...)
+const session = await inboxfm.createConnectSession({
+  externalUserId: 'user_42',
+  allowedPieceNames: ['@inboxfm-connect/piece-slack'],
+});
+// Redirect your user to session.connectUrl to complete the connection
+
+// Then run an action on their behalf
 const result = await inboxfm.execute({
-  integration: '@inboxfm-connect/piece-github',
-  tool: 'create_issue',
-  connectionId: 'conn_123',
-  input: {
-    repository: 'owner/repo',
-    title: 'Bug report from app',
-  },
+  integration: '@inboxfm-connect/piece-slack',
+  tool: 'send_message',
+  externalUserId: 'user_42',
+  input: { channel: '#general', text: 'Hello from my app!' },
 });
 
 console.log(result);`
@@ -41,12 +47,13 @@ console.log(result);`
   -H "Authorization: Bearer <API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{
-    "integration": "github",
-    "tool": "create_issue",
-    "connectionId": "conn_123",
+    "projectId": "<PROJECT_ID>",
+    "integration": "@inboxfm-connect/piece-slack",
+    "tool": "send_message",
+    "externalUserId": "user_42",
     "input": {
-      "repository": "owner/repo",
-      "title": "New issue"
+      "channel": "#general",
+      "text": "Hello from my app!"
     }
   }'`
 
@@ -54,7 +61,7 @@ console.log(result);`
     <div className="space-y-6">
       <PageHeader
         title="Developers & SDK"
-        description="API keys, TypeScript & Python SDKs, and REST contracts for embedding InboxFM Connect into your application or AI agents."
+        description="API keys, the TypeScript SDK, and REST contracts for embedding InboxFM Connect into your application or AI agents."
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -67,7 +74,7 @@ console.log(result);`
                 <span>SDK Installation</span>
               </CardTitle>
               <CardDescription className="text-xs">
-                Install the official client SDKs for Node.js and Python.
+                Install the official Node.js/TypeScript client SDK.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -91,27 +98,6 @@ console.log(result);`
                   </Button>
                 </div>
               </div>
-
-              <div className="space-y-1">
-                <span className="text-[11px] font-semibold text-muted-foreground">Python (pip)</span>
-                <div className="relative">
-                  <pre className="p-3 rounded-md bg-muted/40 font-mono text-xs text-foreground">
-                    {installPip}
-                  </pre>
-                  <Button
-                    size="icon-xs"
-                    variant="outline"
-                    onClick={() => copySnippet(installPip, 'pip install')}
-                    className="absolute top-2 right-2"
-                  >
-                    {copiedKey === 'pip install' ? (
-                      <Check className="h-3 w-3 text-emerald-500" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
-                    )}
-                  </Button>
-                </div>
-              </div>
             </CardContent>
           </Card>
 
@@ -125,13 +111,8 @@ console.log(result);`
                 Manage service keys for headless programmatic execution.
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <p className="text-xs text-muted-foreground">
-                API keys authenticate external backend services and AI agents against your project.
-              </p>
-              <Button size="sm" variant="outline" className="text-xs" onClick={() => toast.info('API Key generation is wired to backend EE module.')}>
-                Manage Project API Keys
-              </Button>
+            <CardContent>
+              <ApiKeysManager />
             </CardContent>
           </Card>
         </div>

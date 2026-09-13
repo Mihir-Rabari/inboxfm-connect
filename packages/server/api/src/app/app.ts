@@ -16,6 +16,7 @@ import { setPlatformOAuthService } from './app-connection/app-connection-service
 import { appConnectionModule } from './app-connection/app-connection.module'
 import { platformAppConnectionModule } from './app-connection/platform-app-connection.module'
 import { authenticationModule } from './authentication/authentication.module'
+import { connectSessionModule } from './connect-sessions/connect-session.module'
 import { canaryRoutingMiddleware } from './core/canary/canary-routing.middleware'
 import { oidcModule } from './core/security/oidc/oidc.module'
 import { rateLimitModule } from './core/security/rate-limit'
@@ -73,8 +74,6 @@ import { validateEnvPropsOnStartup } from './helper/system-validator'
 import { shutdownTelemetry } from './helper/telemetry.utils'
 import { knowledgeSearchModule } from './knowledge-search/knowledge-search.module'
 import { mcpServerModule } from './mcp/mcp-module'
-import { storeEntryModule } from './store-entry/store-entry.module'
-import { toolSearchReindexJob } from './tool-search/tool-search-reindex.job'
 import { communityPiecesModule } from './pieces/community-piece-module'
 import { startDevPieceWatcher } from './pieces/dev-piece-watcher'
 import { pieceModule } from './pieces/metadata/piece-metadata-controller'
@@ -83,6 +82,8 @@ import { pieceSyncService } from './pieces/piece-sync-service'
 import { platformBackgroundJobs } from './platform/platform-jobs'
 import { platformModule } from './platform/platform.module'
 import { projectHooks } from './project/project-hooks'
+import { storeEntryModule } from './store-entry/store-entry.module'
+import { toolSearchReindexJob } from './tool-search/tool-search-reindex.job'
 import { platformUserModule } from './user/platform/platform-user-module'
 import { invitationModule } from './user-invitations/user-invitation.module'
 
@@ -287,6 +288,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             await app.register(enterpriseLocalAuthnModule)
             await app.register(federatedAuthModule)
             await app.register(apiKeyModule)
+            await app.register(connectSessionModule)
             await app.register(auditEventModule)
             await app.register(platformWebhooksModule)
             await app.register(projectRoleModule)
@@ -315,6 +317,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             await app.register(enterpriseLocalAuthnModule)
             await app.register(federatedAuthModule)
             await app.register(apiKeyModule)
+            await app.register(connectSessionModule)
             await app.register(auditEventModule)
             await app.register(platformWebhooksModule)
             await app.register(projectRoleModule)

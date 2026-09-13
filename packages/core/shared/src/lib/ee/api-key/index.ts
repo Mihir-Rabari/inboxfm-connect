@@ -4,6 +4,7 @@ import { z } from 'zod'
 export const ApiKey = z.object({
     ...BaseModelSchema,
     platformId: ApId,
+    projectId: Nullable(ApId),
     displayName: z.string(),
     hashedValue: z.string(),
     truncatedValue: z.string(),
@@ -29,4 +30,12 @@ export const CreateApiKeyRequest = z.object({
 })
 
 export type CreateApiKeyRequest = z.infer<typeof CreateApiKeyRequest>
+
+
+export const CreateProjectApiKeyRequest = z.object({
+    displayName: z.string(),
+    projectId: ApId,
+})
+
+export type CreateProjectApiKeyRequest = z.infer<typeof CreateProjectApiKeyRequest>
 

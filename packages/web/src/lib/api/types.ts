@@ -414,6 +414,20 @@ export interface Project {
   platformId: string
 }
 
+export interface ProjectApiKey {
+  id: string
+  created: string
+  displayName: string
+  platformId: string
+  projectId: string | null
+  truncatedValue: string
+  lastUsedAt: string | null
+}
+
+export interface ProjectApiKeyWithValue extends ProjectApiKey {
+  value: string
+}
+
 export interface SeekPage<T> {
   data: T[]
   next: string | null

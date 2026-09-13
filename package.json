@@ -358,6 +358,7 @@
     "packages/server/utils",
     "packages/server/sandbox",
     "packages/ee/embed-sdk",
+    "packages/connect-sdk",
     "packages/integrations/framework",
     "packages/integrations/common",
     "packages/integrations/core/*",

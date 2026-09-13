@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { apiKeysApi } from '../api/api-keys'
 import { automationsApi } from '../api/automations'
 import { apiClient } from '../api/client'
 import { connectionsApi } from '../api/connections'
@@ -87,6 +88,35 @@ export function useDeleteConnection() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['connections'] })
       void queryClient.invalidateQueries({ queryKey: ['connection'] })
+    },
+  })
+}
+
+export function useProjectApiKeysQuery() {
+  const projectId = apiClient.getProjectId()
+  return useQuery({
+    queryKey: ['project-api-keys', projectId],
+    queryFn: () => apiKeysApi.list(),
+    meta: { showErrorDialog: true },
+  })
+}
+
+export function useCreateProjectApiKey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (request: { displayName: string }) => apiKeysApi.create(request),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['project-api-keys'] })
+    },
+  })
+}
+
+export function useDeleteProjectApiKey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => apiKeysApi.remove({ id }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['project-api-keys'] })
     },
   })
 }

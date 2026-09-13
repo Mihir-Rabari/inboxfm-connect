@@ -16,7 +16,7 @@ import { useConnectionsQuery, useDeleteConnection, useIntegrations } from '@/lib
 import { connectionLinks } from '@/lib/utils/connection-links'
 import { connectionFormat } from '@/lib/utils/connection-format'
 
-const COLUMNS = ['Integration', 'Connection name', 'Auth type', 'Status', 'Created', 'Actions'] as const
+const COLUMNS = ['Integration', 'Connection name', 'External user', 'Auth type', 'Status', 'Created', 'Actions'] as const
 
 function usePieceLookup() {
   const { data: pieces } = useIntegrations()
@@ -140,6 +140,11 @@ export default function ConnectionsPage() {
                         >
                           {connection.displayName}
                         </Link>
+                      </td>
+                      <td className="max-w-[160px] px-4 py-3">
+                        <span className="block truncate font-mono text-[11px] text-muted-foreground" title={connection.externalId}>
+                          {connection.externalId}
+                        </span>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {connectionFormat.connectionTypeLabel(connection.type)}

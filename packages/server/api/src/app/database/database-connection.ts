@@ -8,6 +8,7 @@ import { AiToolConfigEntity } from '../ai/ai-tool-config-entity'
 import { PlatformAnalyticsReportEntity } from '../analytics/platform-analytics-report.entity'
 import { ConnectionEntity } from '../app-connection/app-connection.entity'
 import { UserIdentityEntity } from '../authentication/user-identity/user-identity-entity'
+import { ConnectSessionEntity } from '../connect-sessions/connect-session.entity'
 import { ApiKeyEntity } from '../ee/api-keys/api-key-entity'
 import { AppCredentialEntity } from '../ee/app-credentials/app-credentials.entity'
 import { AppSumoEntity } from '../ee/appsumo/appsumo.entity'
@@ -86,6 +87,7 @@ function getEntities(): EntitySchema<unknown>[] {
         McpOAuthAuthorizationCodeEntity,
         McpOAuthTokenEntity,
         ToolSearchIndexEntity,
+        ConnectSessionEntity,
         // Enterprise
         ConcurrencyPoolEntity,
         ProjectMemberEntity,

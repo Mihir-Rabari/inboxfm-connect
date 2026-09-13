@@ -97,10 +97,10 @@ function baseEnv({ settings, networkMode }: { settings: SandboxSettings, network
 
 function ssrfEnv(settings: SandboxSettings): Record<string, string> {
     const env: Record<string, string> = {}
-    if (settings.DEV_PIECES.length > 0) {
+    if ((settings.DEV_PIECES ?? []).length > 0) {
         env['AP_DEV_PIECES'] = settings.DEV_PIECES.join(',')
     }
-    if (settings.SSRF_ALLOW_LIST.length > 0) {
+    if ((settings.SSRF_ALLOW_LIST ?? []).length > 0) {
         env['AP_SSRF_ALLOW_LIST'] = settings.SSRF_ALLOW_LIST.join(',')
     }
     return env
@@ -108,7 +108,7 @@ function ssrfEnv(settings: SandboxSettings): Record<string, string> {
 
 function propagatedEnv(settings: SandboxSettings): Record<string, string> {
     const env: Record<string, string> = {}
-    for (const key of settings.SANDBOX_PROPAGATED_ENV_VARS) {
+    for (const key of settings.SANDBOX_PROPAGATED_ENV_VARS ?? []) {
         if (process.env[key]) {
             env[key] = process.env[key]!
         }

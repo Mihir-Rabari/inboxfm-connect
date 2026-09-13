@@ -1,4 +1,4 @@
-import { ApiKey, Platform } from '@inboxfm-connect/shared'
+import { ApiKey, Platform, Project } from '@inboxfm-connect/shared'
 import { EntitySchema } from 'typeorm'
 import {
     ApIdSchema,
@@ -7,6 +7,7 @@ import {
 
 type ApiKeySchema = ApiKey & {
     platform: Platform
+    project?: Project
 }
 
 export const ApiKeyEntity = new EntitySchema<ApiKeySchema>({
@@ -21,6 +22,10 @@ export const ApiKeyEntity = new EntitySchema<ApiKeySchema>({
             ...ApIdSchema,
             nullable: false,
         },
+        projectId: {
+            ...ApIdSchema,
+            nullable: true,
+        },
         hashedValue: {
             type: String,
             nullable: false,
@@ -34,7 +39,12 @@ export const ApiKeyEntity = new EntitySchema<ApiKeySchema>({
             nullable: true,
         },
     },
-    indices: [],
+    indices: [
+        {
+            name: 'idx_api_key_project_id',
+            columns: ['projectId'],
+        },
+    ],
     relations: {
         platform: {
             type: 'many-to-one',
@@ -45,6 +55,17 @@ export const ApiKeyEntity = new EntitySchema<ApiKeySchema>({
                 name: 'platformId',
                 referencedColumnName: 'id',
                 foreignKeyConstraintName: 'fk_api_key_platform_id',
+            },
+        },
+        project: {
+            type: 'many-to-one',
+            target: 'project',
+            cascade: true,
+            onDelete: 'CASCADE',
+            joinColumn: {
+                name: 'projectId',
+                referencedColumnName: 'id',
+                foreignKeyConstraintName: 'fk_api_key_project_id',
             },
         },
     },

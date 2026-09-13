@@ -1,7 +1,9 @@
+import { ActivepiecesError, ErrorCode, isNil, tryCatch } from '@inboxfm-connect/core-utils'
 import { HeadlessRuntime } from '@inboxfm-connect/runtime'
 import { Permission, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
+import { ArrayContains } from 'typeorm'
 import { z } from 'zod'
 import { appConnectionService, appConnectionsRepo } from '../app-connection/app-connection-service/app-connection-service'
 import { ProjectResourceType } from '../core/security/authorization/common'
@@ -50,23 +52,85 @@ const runtime = new HeadlessRuntime({
 export const executeController: FastifyPluginAsyncZod = async (fastify) => {
     fastify.post('/', ExecuteRequestOptions, async (request) => {
         const publicUrl = await system.get(AppSystemProp.FRONTEND_URL) || 'http://localhost:3000'
-        return runtime.execute({
+        const connectionId = await resolveConnectionId({
+            projectId: request.projectId,
+            connectionId: request.body.connectionId,
+            externalUserId: request.body.externalUserId,
+            pieceName: request.body.integration,
+        })
+
+        const { data, error } = await tryCatch(() => runtime.execute({
             integration: request.body.integration,
             tool: request.body.tool,
-            connectionId: request.body.connectionId,
+            connectionId,
             input: request.body.input,
             projectId: request.projectId,
             platformId: request.principal.platform.id,
             internalApiUrl: publicUrl,
             publicApiUrl: publicUrl,
-        })
+        }))
+        if (error) {
+            throw new ActivepiecesError({
+                code: ErrorCode.ENGINE_OPERATION_FAILURE,
+                params: {
+                    message: error instanceof Error ? error.message : 'Failed to execute piece action',
+                },
+            })
+        }
+        return data
     })
 }
 
+async function resolveConnectionId({ projectId, connectionId, externalUserId, pieceName }: ResolveConnectionIdParams): Promise<string> {
+    if (!isNil(connectionId)) {
+        return connectionId
+    }
+    if (isNil(externalUserId)) {
+        throw new ActivepiecesError({
+            code: ErrorCode.VALIDATION,
+            params: {
+                message: 'Either connectionId or externalUserId must be provided',
+            },
+        })
+    }
+    const connection = await appConnectionsRepo().findOneBy({
+        projectIds: ArrayContains([projectId]),
+        pieceName,
+        externalId: externalUserId,
+    })
+    if (isNil(connection)) {
+        throw new ActivepiecesError({
+            code: ErrorCode.ENTITY_NOT_FOUND,
+            params: {
+                entityType: 'app_connection',
+                message: `No connection found for piece "${pieceName}" and externalUserId "${externalUserId}"`,
+            },
+        })
+    }
+    return connection.id
+}
+
+type ResolveConnectionIdParams = {
+    projectId: string
+    connectionId: string | undefined
+    externalUserId: string | undefined
+    pieceName: string
+}
+
+/**
+ * `projectId` is required by the security layer, not by the runtime.
+ * The route is configured with ProjectResourceType.BODY, and the authorization
+ * hook runs at `preHandler` — after zod has already stripped unknown keys — so
+ * the field must be declared here or every USER principal is rejected with
+ * "Project ID is required". Membership + WRITE permission on the named project
+ * are still enforced by the authorization layer.
+ */
 const ExecuteRequestBody = z.object({
+    projectId: z.string().optional(),
     integration: z.string(),
     tool: z.string(),
-    connectionId: z.string(),
+    connectionId: z.string().optional(),
+    externalUserId: z.string().optional(),
     input: z.record(z.string(), z.unknown()),
 })
 
@@ -80,6 +144,7 @@ const ExecuteRequestOptions = {
     },
     schema: {
         tags: ['execute'],
+        description: 'Run a single piece action synchronously against one connection, resolved either by connectionId or by pieceName + externalUserId. Returns the raw action output.',
         body: ExecuteRequestBody,
         response: {
             [StatusCodes.OK]: z.unknown(),

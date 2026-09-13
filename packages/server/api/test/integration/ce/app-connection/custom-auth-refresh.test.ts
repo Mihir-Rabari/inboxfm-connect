@@ -41,7 +41,7 @@ const saveCustomAuthPiece = async ({ pieceName, pieceVersion, platformId, hasRef
         // refresh is a plain object, so detection only checks for its presence.
         auth: customAuthOf(hasRefresh ? { refresh: { defaultExpiresIn: 3300 } } : {}),
     })
-    await db.save('piece_metadata', mockPiece)
+    await db.save('integration_metadata', mockPiece)
 }
 
 const customAuthConnection = ({ platformId, pieceName, pieceVersion, value }: { platformId: string, pieceName: string, pieceVersion: string, value: CustomAuthConnectionValue }): AppConnection => ({
@@ -131,7 +131,7 @@ describe('Custom auth token refresh — needRefresh', () => {
 
     describe('token branch', () => {
         it('uses token staleness without a metadata lookup when a token is already present', async () => {
-            // No piece_metadata row is saved — if needRefresh consulted metadata it would throw.
+            // No integration_metadata row is saved — if needRefresh consulted metadata it would throw.
             const pieceName = `piece-${apId()}`
 
             const staleConnection = customAuthConnection({

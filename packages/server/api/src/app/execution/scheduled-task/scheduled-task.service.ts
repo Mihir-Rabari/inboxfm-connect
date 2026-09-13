@@ -9,11 +9,16 @@ import {
     ScheduledTaskStatus,
     UpdateScheduledTaskRequest,
 } from '@inboxfm-connect/shared'
-import { databaseConnection } from '../../database/database-connection'
+import { repoFactory } from '../../core/db/repo-factory'
 import { executionService } from '../execution.service'
-import { ScheduledTaskEntity } from './scheduled-task-entity'
+import { ScheduledTaskEntity, ScheduledTaskSchema } from './scheduled-task-entity'
 
-const repo = databaseConnection().getRepository(ScheduledTaskEntity)
+/**
+ * Lazy getter: resolving the repository at module scope binds it to whichever
+ * DataSource existed when `app.ts` was first imported, which is not necessarily
+ * the initialized one.
+ */
+const scheduledTaskRepo = repoFactory<ScheduledTaskSchema>(ScheduledTaskEntity)
 
 export const scheduledTaskService = {
     async create({ request, projectId, platformId }: CreateParams): Promise<ScheduledTask> {
@@ -32,7 +37,7 @@ export const scheduledTaskService = {
             nextRunAt: null,
         }
 
-        const saved = await repo.save(newTask)
+        const saved = await scheduledTaskRepo().save(newTask)
 
         if (saved.status === ScheduledTaskStatus.ENABLED) {
             await syncSchedule(saved)
@@ -42,7 +47,7 @@ export const scheduledTaskService = {
     },
 
     async getOneOrThrow({ id, projectId, platformId }: GetOneParams): Promise<ScheduledTask> {
-        const task = await repo.findOneBy({ id, projectId, platformId })
+        const task = await scheduledTaskRepo().findOneBy({ id, projectId, platformId })
         if (isNil(task)) {
             throw new ActivepiecesError({
                 code: ErrorCode.ENTITY_NOT_FOUND,
@@ -53,7 +58,7 @@ export const scheduledTaskService = {
     },
 
     async list({ projectId, platformId }: ListParams): Promise<SeekPage<ScheduledTask>> {
-        const tasks = await repo.findBy({ projectId, platformId })
+        const tasks = await scheduledTaskRepo().findBy({ projectId, platformId })
         return {
             data: tasks,
             next: null,
@@ -73,7 +78,7 @@ export const scheduledTaskService = {
             updated: new Date().toISOString(),
         }
 
-        const saved = await repo.save(updatedTask)
+        const saved = await scheduledTaskRepo().save(updatedTask)
 
         if (saved.status === ScheduledTaskStatus.ENABLED) {
             await syncSchedule(saved)
@@ -88,7 +93,7 @@ export const scheduledTaskService = {
     async delete({ id, projectId, platformId }: GetOneParams): Promise<void> {
         await scheduledTaskService.getOneOrThrow({ id, projectId, platformId })
         await scheduler.cancel(getJobName(id))
-        await repo.delete({ id, projectId, platformId })
+        await scheduledTaskRepo().delete({ id, projectId, platformId })
     },
 
     async triggerNow({ id, projectId, platformId }: GetOneParams): Promise<Execution> {
@@ -124,7 +129,7 @@ async function dispatchExecution(task: ScheduledTask): Promise<Execution> {
         platformId: task.platformId,
     })
 
-    await repo.update({ id: task.id }, { lastRunAt: new Date().toISOString() })
+    await scheduledTaskRepo().update({ id: task.id }, { lastRunAt: new Date().toISOString() })
     return execution
 }
 

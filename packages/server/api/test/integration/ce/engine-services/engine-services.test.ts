@@ -1,19 +1,16 @@
 import { AddressInfo } from 'net'
 import { apId } from '@inboxfm-connect/core-utils'
 import { ContextVersion, StoreScope } from '@inboxfm-connect/pieces-framework'
-import { AppConnectionStatus, AppConnectionType, ConnectionExpiredError, ConnectionNotFoundError, FetchError, FlowStatus, FlowVersionState, PrincipalType } from '@inboxfm-connect/shared'
+import { AppConnectionStatus, AppConnectionType, ConnectionExpiredError, ConnectionNotFoundError, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { createConnectionResolver } from '../../../../../engine/src/lib/piece-context/connection-resolver'
 import { createFileUploader } from '../../../../../engine/src/lib/piece-context/file-uploader'
-import { createFlowsContext } from '../../../../../engine/src/lib/piece-context/flows'
 import { createContextStore } from '../../../../../engine/src/lib/piece-context/store'
 import { encryptUtils } from '../../../../src/app/helper/encryption'
 import { generateMockToken } from '../../../helpers/auth'
 import { db } from '../../../helpers/db'
 import {
     createMockConnection,
-    createMockFlow,
-    createMockFlowVersion,
     mockAndSaveBasicSetup,
 } from '../../../helpers/mocks'
 import { setupTestEnvironment, teardownTestEnvironment } from '../../../helpers/test-setup'
@@ -54,98 +51,12 @@ describe('Engine Services Integration', () => {
         })
     })
 
-    describe('flows.service — createFlowsContext().list()', () => {
-        it('should return SeekPage<PopulatedFlow> with correct shape', async () => {
-            const flowId = apId()
-            const flowVersionId = apId()
-            const mockFlow = createMockFlow({
-                id: flowId,
-                projectId,
-                status: FlowStatus.ENABLED,
-                externalId: 'ext-flow-1',
-            })
-            const mockVersion = createMockFlowVersion({
-                id: flowVersionId,
-                flowId,
-                state: FlowVersionState.LOCKED,
-            })
-            await db.save('flow', mockFlow)
-            await db.save('flow_version', mockVersion)
-
-            const flowsContext = createFlowsContext({
-                engineToken,
-                internalApiUrl: apiUrl,
-                flowId,
-                flowVersionId,
-            })
-
-            const result = await flowsContext.list({})
-
-            expect(result).toHaveProperty('data')
-            expect(result).toHaveProperty('next')
-            expect(result).toHaveProperty('previous')
-            expect(Array.isArray(result.data)).toBe(true)
-            expect(result.data.length).toBeGreaterThanOrEqual(1)
-
-            const populatedFlow = result.data.find(f => f.id === flowId)
-            expect(populatedFlow).toBeDefined()
-            expect(populatedFlow!.id).toBe(flowId)
-            expect(populatedFlow!.projectId).toBe(projectId)
-            expect(populatedFlow!.externalId).toBe('ext-flow-1')
-            expect(populatedFlow!.status).toBe(FlowStatus.ENABLED)
-            expect(populatedFlow!.version).toBeDefined()
-            expect(populatedFlow!.version.id).toBe(flowVersionId)
-            expect(populatedFlow!.version.flowId).toBe(flowId)
-            expect(populatedFlow!.version.trigger).toBeDefined()
-            expect(populatedFlow!.version.trigger.type).toBeDefined()
-            expect(populatedFlow!.version.trigger.name).toBeDefined()
-            expect(populatedFlow!.version.trigger.settings).toBeDefined()
-            expect(populatedFlow!.version.trigger.displayName).toBeDefined()
-            expect(populatedFlow!.version.displayName).toBeDefined()
-            expect(populatedFlow!.version.state).toBe(FlowVersionState.LOCKED)
-        })
-
-        it('should filter by externalIds', async () => {
-            const flow1Id = apId()
-            const flow2Id = apId()
-            const ext1 = apId()
-            const ext2 = apId()
-
-            const flow1 = createMockFlow({ id: flow1Id, projectId, externalId: ext1 })
-            const flow2 = createMockFlow({ id: flow2Id, projectId, externalId: ext2 })
-            const version1 = createMockFlowVersion({ flowId: flow1Id })
-            const version2 = createMockFlowVersion({ flowId: flow2Id })
-
-            await db.save('flow', flow1)
-            await db.save('flow', flow2)
-            await db.save('flow_version', version1)
-            await db.save('flow_version', version2)
-
-            const flowsContext = createFlowsContext({
-                engineToken,
-                internalApiUrl: apiUrl,
-                flowId: flow1Id,
-                flowVersionId: version1.id,
-            })
-
-            const result = await flowsContext.list({ externalIds: [ext1] })
-
-            expect(result.data.length).toBe(1)
-            expect(result.data[0].externalId).toBe(ext1)
-        })
-
-        it('should throw FetchError with invalid token', async () => {
-            const flowsContext = createFlowsContext({
-                engineToken: 'invalid-token',
-                internalApiUrl: apiUrl,
-                flowId: apId(),
-                flowVersionId: apId(),
-            })
-
-            await expect(flowsContext.list({})).rejects.toThrow(FetchError)
-        })
-    })
-
+    // REMOVED: the `flows.service � createFlowsContext().list()` block tested the
+    // engine Flow Runtime context (`GET /v1/worker/flows` + the `flow`/`flow_version`
+    // tables), all deleted in the HeadlessRuntime migration. The context module still
+    // exists but has no backing route or tables, and the block depended on the removed
+    // `createMockFlow`/`createMockFlowVersion` mocks. The surviving engine services
+    // (connections, storage, step-files) are exercised below.
     describe('connections.service — createConnectionResolver().obtain()', () => {
         it('should obtain connection value with V1 context', async () => {
             const externalId = apId()

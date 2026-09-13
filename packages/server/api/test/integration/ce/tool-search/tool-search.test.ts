@@ -16,7 +16,7 @@ import { createMockPieceMetadata } from '../../../helpers/mocks'
 // Boots only the database (migrations run automatically on a POSTGRES DataSource via
 // migrationsRun:true) — deliberately NOT the full server, whose app-event-routing module statically
 // imports individual pieces that vite can't resolve in this test context. The engine only needs the
-// schema + seeded piece_metadata rows; no fastify/HTTP layer is involved.
+// schema + seeded integration_metadata rows; no fastify/HTTP layer is involved.
 const log: FastifyBaseLogger = system.globalLogger()
 
 // A deterministic bag-of-words embedder over a fixed vocabulary, L2-normalized with the real

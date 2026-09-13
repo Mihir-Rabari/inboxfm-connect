@@ -453,44 +453,13 @@ export const createMockCell = ({ recordId, fieldId, projectId }: { recordId: str
 }
 
 
-type Solution = {
-    table: Table
-    connection: AppConnection<AppConnectionType.SECRET_TEXT>
-    flow: Flow
-    flowRun: FlowRun
-    flowVersion: FlowVersion
-    cell: Cell
-}
+// REMOVED: `createMockSolutionAndSave` / `checkIfSolutionExistsInDb` / the `Solution`
+// type built a table+connection+flow+flowVersion+flowRun graph to assert project-delete
+// cascade. `flow`/`flow_version`/`flow_run` and their `createMockFlow*` mocks were
+// deleted with the Flow Runtime, so the helpers referenced undefined identifiers and
+// threw whenever called. The project-deletion tests that used them are migrated to the
+// surviving entities.
 
-export const createMockSolutionAndSave = async ({ projectId, platformId, userId }: { projectId: string, platformId: string, userId: string }): Promise<Solution> => {
-    const table = createMockTable({ projectId })
-    const field = createMockField({ tableId: table.id, projectId })
-    const record = createMockRecord({ tableId: table.id, projectId })
-    const cell = createMockCell({ recordId: record.id, fieldId: field.id, projectId })
-    const connection = createMockConnection({ projectIds: [projectId], platformId }, userId)
-    const flow = createMockFlow({ projectId })
-    const flowVersion = createMockFlowVersion({ flowId: flow.id })
-    const flowRun = createMockFlowRun({ projectId, flowId: flow.id, flowVersionId: flowVersion.id })
-    await databaseConnection().getRepository('table').save([table])
-    await databaseConnection().getRepository('field').save([field])
-    await databaseConnection().getRepository('record').save([record])
-    await databaseConnection().getRepository('cell').save([cell])
-    await databaseConnection().getRepository('app_connection').save([connection])
-    await databaseConnection().getRepository('flow').save([flow])
-    await databaseConnection().getRepository('flow_version').save([flowVersion])
-    await databaseConnection().getRepository('flow_run').save([flowRun])
-    return { table, connection, flow, flowRun, flowVersion, cell }
-}
-
-export const checkIfSolutionExistsInDb = async (solution: Solution): Promise<boolean> => {
-    const table = await databaseConnection().getRepository('table').findOneBy({ id: solution.table.id })
-    const connection = await databaseConnection().getRepository('app_connection').findOneBy({ id: solution.connection.id })
-    const flow = await databaseConnection().getRepository('flow').findOneBy({ id: solution.flow.id })
-    const flowRun = await databaseConnection().getRepository('flow_run').findOneBy({ id: solution.flowRun.id })
-    const flowVersion = await databaseConnection().getRepository('flow_version').findOneBy({ id: solution.flowVersion.id })
-    const cell = await databaseConnection().getRepository('cell').findOneBy({ id: solution.cell.id })
-    return table !== null && connection !== null && flow !== null && flowRun !== null && flowVersion !== null && cell !== null
-}
 export const mockBasicUser = async ({ userIdentity, user }: { userIdentity?: Partial<UserIdentity>, user?: Partial<User> }) => {
     const mockUserIdentity = createMockUserIdentity({
         verified: true,
@@ -638,7 +607,7 @@ export const mockPieceMetadata = async (mockLog: FastifyBaseLogger): Promise<Pie
         platformId: mockPlatform.id,
         packageType: PackageType.REGISTRY,
     })
-    await databaseConnection().getRepository('piece_metadata').save([mockPieceMetadata])
+    await databaseConnection().getRepository('integration_metadata').save([mockPieceMetadata])
     pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPieceMetadata)
     return mockPieceMetadata
 }

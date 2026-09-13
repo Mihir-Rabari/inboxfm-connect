@@ -138,7 +138,7 @@ describe('Managed Authentication API', () => {
                 version: '0.0.1',
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPieceMetadata1)
+            await db.save('integration_metadata', mockPieceMetadata1)
 
             const mockTag = createMockTag({
                 id: apId(),

@@ -24,7 +24,24 @@ afterAll(async () => {
     await teardownTestEnvironment()
 })
 
-describe('Record API', () => {
+/**
+ * SUSPENDED - the Tables REST surface is not mounted.
+ *
+ * `tablesModule` is the sole registration for `/v1/tables`, `/v1/fields` and
+ * `/v1/records`, and it is commented out in `app.ts`, so every route these specs
+ * exercise answers 404. The TypeORM entities (`table`, `field`, `record`, `cell`)
+ * are still registered in `getEntities()` and are still read by the MCP table
+ * tools, so the data layer is alive - only the HTTP surface is disconnected.
+ *
+ * Kept rather than deleted: MCP_ARCHITECTURE.md records that "whether Tables is a
+ * product is a separate decision, not a runtime one". This coverage is correct for
+ * the routes as written and should be re-enabled verbatim with `tablesModule`; it
+ * is not obsolete in the way the deleted Flow Runtime specs were, so throwing it
+ * away would destroy work needed by that pending decision.
+ *
+ * Re-enable: uncomment `app.register(tablesModule)` in `app.ts`, then change
+ * `describe.skip` back to `describe` here.
+ */describe.skip('Record API', () => {
 
     describeWithAuth('POST /v1/records (Create)', () => app!, (setup) => {
         it('should create a single record with cells', async () => {

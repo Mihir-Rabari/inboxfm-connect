@@ -17,10 +17,18 @@ vi.mock('../../../../src/app/core/db/repo-factory', () => ({
     })),
 }))
 
+/**
+ * `getNumber` is required even though `file.service.ts` never calls it: mocking this
+ * module replaces `system` for the whole import graph, and `redis-connections.ts`
+ * (pulled in transitively) reads `system.getNumber(AppSystemProp.REDIS_DB)` at module
+ * scope. Omitting it fails the suite at collection time with
+ * "system.getNumber is not a function".
+ */
 vi.mock('../../../../src/app/helper/system/system', () => ({
     system: {
         getOrThrow: vi.fn().mockReturnValue('DB'),
         getNumberOrThrow: vi.fn().mockReturnValue(30),
+        getNumber: vi.fn().mockReturnValue(undefined),
         get: vi.fn().mockReturnValue(undefined),
     },
 }))

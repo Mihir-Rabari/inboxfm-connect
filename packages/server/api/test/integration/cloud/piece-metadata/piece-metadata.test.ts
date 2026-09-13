@@ -29,7 +29,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
-    await databaseConnection().getRepository('piece_metadata').createQueryBuilder().delete().execute()
+    await databaseConnection().getRepository('integration_metadata').createQueryBuilder().delete().execute()
 })
 describe('Piece Metadata API', () => {
     describe('Get Piece metadata', () => {
@@ -39,7 +39,7 @@ describe('Piece Metadata API', () => {
                 name: '@inboxfm-connect/a',
                 pieceType: PieceType.OFFICIAL,
             })
-            await db.save('piece_metadata', mockPieceMetadata)
+            await db.save('integration_metadata', mockPieceMetadata)
 
             await pieceCache(mockLog).setup()
 
@@ -51,7 +51,7 @@ describe('Piece Metadata API', () => {
             })
 
             // act
-            const response = await ctx.get(`/v1/pieces/@inboxfm-connect/a?projectId=${ctx.project.id}`)
+            const response = await ctx.get(`/v1/integrations/@inboxfm-connect/a?projectId=${ctx.project.id}`)
 
             // assert
             const responseBody = response?.json()
@@ -67,7 +67,7 @@ describe('Piece Metadata API', () => {
                 pieceType: PieceType.OFFICIAL,
                 displayName: 'a',
             })
-            await db.save('piece_metadata', mockPieceMetadata)
+            await db.save('integration_metadata', mockPieceMetadata)
 
             await pieceCache(mockLog).setup()
             const testToken = await generateMockToken({
@@ -78,7 +78,7 @@ describe('Piece Metadata API', () => {
             // act
             const response = await app?.inject({
                 method: 'GET',
-                url: '/api/v1/pieces/@inboxfm-connect/a',
+                url: '/api/v1/integrations/@inboxfm-connect/a',
                 headers: {
                     authorization: `Bearer ${testToken}`,
                 },
@@ -156,7 +156,7 @@ describe('Piece Metadata API', () => {
                 platformId: mockPlatform.id,
                 displayName: 'd',
             })
-            await db.save('piece_metadata', [
+            await db.save('integration_metadata', [
                 mockPieceMetadataA,
                 mockPieceMetadataB,
                 mockPieceMetadataC,
@@ -177,7 +177,7 @@ describe('Piece Metadata API', () => {
             // act
             const response = await app?.inject({
                 method: 'GET',
-                url: `/api/v1/pieces?projectId=${mockProject.id}`,
+                url: `/api/v1/integrations?projectId=${mockProject.id}`,
                 headers: {
                     authorization: `Bearer ${testToken}`,
                 },
@@ -228,7 +228,7 @@ describe('Piece Metadata API', () => {
                 displayName: 'a',
                 version: '2.0.0',
             })
-            await db.save('piece_metadata', [officialPieceA, customPieceA])
+            await db.save('integration_metadata', [officialPieceA, customPieceA])
 
             await pieceCache(mockLog).setup()
 
@@ -249,7 +249,7 @@ describe('Piece Metadata API', () => {
 
             const responseA = await app?.inject({
                 method: 'GET',
-                url: `/api/v1/pieces?projectId=${projectA.id}`,
+                url: `/api/v1/integrations?projectId=${projectA.id}`,
                 headers: {
                     authorization: `Bearer ${tokenA}`,
                 },
@@ -257,7 +257,7 @@ describe('Piece Metadata API', () => {
 
             const responseB = await app?.inject({
                 method: 'GET',
-                url: `/api/v1/pieces?projectId=${projectB.id}`,
+                url: `/api/v1/integrations?projectId=${projectB.id}`,
                 headers: {
                     authorization: `Bearer ${tokenB}`,
                 },
@@ -304,7 +304,7 @@ describe('Piece Metadata API', () => {
                 displayName: 'a',
                 version: '0.1.1',
             })
-            await db.save('piece_metadata', [mockPieceMetadataA, mockPieceMetadataB, mockPieceMetadataC, mockPieceMetadataD])
+            await db.save('integration_metadata', [mockPieceMetadataA, mockPieceMetadataB, mockPieceMetadataC, mockPieceMetadataD])
 
             const testToken = await generateMockToken({
                 type: PrincipalType.UNKNOWN,
@@ -315,7 +315,7 @@ describe('Piece Metadata API', () => {
             // act
             const exactVersionResponse = await app?.inject({
                 method: 'GET',
-                url: '/api/v1/pieces/a?version=0.0.1',
+                url: '/api/v1/integrations/a?version=0.0.1',
                 headers: {
                     authorization: `Bearer ${testToken}`,
                 },
@@ -326,7 +326,7 @@ describe('Piece Metadata API', () => {
 
             const telda2VersionResponse = await app?.inject({
                 method: 'GET',
-                url: '/api/v1/pieces/a?version=~0.0.2',
+                url: '/api/v1/integrations/a?version=~0.0.2',
                 headers: {
                     authorization: `Bearer ${testToken}`,
                 },
@@ -337,7 +337,7 @@ describe('Piece Metadata API', () => {
 
             const teldaVersionResponse = await app?.inject({
                 method: 'GET',
-                url: '/api/v1/pieces/a?version=~0.0.1',
+                url: '/api/v1/integrations/a?version=~0.0.1',
                 headers: {
                     authorization: `Bearer ${testToken}`,
                 },
@@ -348,7 +348,7 @@ describe('Piece Metadata API', () => {
 
             const notFoundVersionResponse = await app?.inject({
                 method: 'GET',
-                url: '/api/v1/pieces/a?version=~0.1.2',
+                url: '/api/v1/integrations/a?version=~0.1.2',
                 headers: {
                     authorization: `Bearer ${testToken}`,
                 },
@@ -370,7 +370,7 @@ describe('Piece Metadata API', () => {
                 displayName: 'a',
                 version: '1.0.0',
             })
-            await db.save('piece_metadata', [mockPieceMetadataA, mockPieceMetadataB])
+            await db.save('integration_metadata', [mockPieceMetadataA, mockPieceMetadataB])
 
             await pieceCache(mockLog).setup()
 
@@ -382,7 +382,7 @@ describe('Piece Metadata API', () => {
             // act
             const response = await app?.inject({
                 method: 'GET',
-                url: '/api/v1/pieces',
+                url: '/api/v1/integrations',
                 headers: {
                     authorization: `Bearer ${testToken}`,
                 },
@@ -409,7 +409,7 @@ describe('Piece Metadata API', () => {
                 pieceType: PieceType.OFFICIAL,
                 displayName: 'b',
             })
-            await db.save('piece_metadata', [mockPieceMetadataA, mockPieceMetadataB])
+            await db.save('integration_metadata', [mockPieceMetadataA, mockPieceMetadataB])
 
             await pieceCache(mockLog).setup()
 
@@ -421,7 +421,7 @@ describe('Piece Metadata API', () => {
             // act
             const response = await app?.inject({
                 method: 'GET',
-                url: '/api/v1/pieces',
+                url: '/api/v1/integrations',
                 headers: {
                     authorization: `Bearer ${testToken}`,
                 },
@@ -469,7 +469,7 @@ describe('Piece Metadata API', () => {
                 pieceType: PieceType.OFFICIAL,
                 displayName: 'b',
             })
-            await db.save('piece_metadata', [mockPieceMetadataA, mockPieceMetadataB])
+            await db.save('integration_metadata', [mockPieceMetadataA, mockPieceMetadataB])
 
             await pieceCache(mockLog).setup()
 
@@ -485,7 +485,7 @@ describe('Piece Metadata API', () => {
             // act
             const response = await app?.inject({
                 method: 'GET',
-                url: `/api/v1/pieces?projectId=${mockProject.id}`,
+                url: `/api/v1/integrations?projectId=${mockProject.id}`,
                 headers: {
                     authorization: `Bearer ${testToken}`,
                 },
@@ -530,7 +530,7 @@ describe('Piece Metadata API', () => {
                 pieceType: PieceType.OFFICIAL,
                 displayName: 'b',
             })
-            await db.save('piece_metadata', [mockPieceMetadataA, mockPieceMetadataB])
+            await db.save('integration_metadata', [mockPieceMetadataA, mockPieceMetadataB])
 
             await pieceCache(mockLog).setup()
 
@@ -546,7 +546,7 @@ describe('Piece Metadata API', () => {
             // act
             const response = await app?.inject({
                 method: 'GET',
-                url: `/api/v1/pieces?projectId=${mockProject.id}`,
+                url: `/api/v1/integrations?projectId=${mockProject.id}`,
                 headers: {
                     authorization: `Bearer ${testToken}`,
                 },
@@ -591,7 +591,7 @@ describe('Piece Metadata API', () => {
                 pieceType: PieceType.OFFICIAL,
                 displayName: 'b',
             })
-            await db.save('piece_metadata', [mockPieceMetadataA, mockPieceMetadataB])
+            await db.save('integration_metadata', [mockPieceMetadataA, mockPieceMetadataB])
 
             await pieceCache(mockLog).setup()
 
@@ -607,7 +607,7 @@ describe('Piece Metadata API', () => {
             // act
             const response = await app?.inject({
                 method: 'GET',
-                url: `/api/v1/pieces?projectId=${mockProject.id}`,
+                url: `/api/v1/integrations?projectId=${mockProject.id}`,
                 headers: {
                     authorization: `Bearer ${testToken}`,
                 },

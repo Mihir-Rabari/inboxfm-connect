@@ -22,14 +22,6 @@ vi.mock('../../../../../src/app/ee/platform/platform-plan/worker-group.service',
     }),
 }))
 
-const mockFlowExecutionCacheGet = vi.fn()
-
-vi.mock('../../../../../src/app/flows/flow/flow-execution-cache', () => ({
-    flowExecutionCache: () => ({
-        get: (...args: unknown[]) => mockFlowExecutionCacheGet(...args),
-    }),
-}))
-
 import { canaryRoutingMiddleware } from '../../../../../src/app/core/canary/canary-routing.middleware'
 import { AppSystemProp } from '../../../../../src/app/helper/system/system-props'
 
@@ -172,22 +164,29 @@ describe('canaryRoutingMiddleware', () => {
         )
     })
 
-    it('proxies request for a canary platform resolved from flowId cache', async () => {
+    /**
+     * The former "resolved from flowId cache" case was removed with the Flow Runtime.
+     * `resolvePlatformId` now reads only `request.principal`; there is no
+     * `flow-execution-cache` and no `/v1/webhooks/:flowId` route to resolve a tenant
+     * from. This asserts the surviving contract: an unauthenticated request is never
+     * proxied, so a deleted resolution path cannot silently come back as a bypass.
+     */
+    it('does not proxy an unauthenticated request even for a canary platform', async () => {
         mockSystemGet.mockImplementation((prop: AppSystemProp) =>
             prop === AppSystemProp.CANARY_APP_URL ? 'http://canary:3000' : undefined,
         )
         mockIsCanaryPlatform.mockResolvedValue(true)
-        mockFlowExecutionCacheGet.mockResolvedValue({ exists: true, platformId: 'platform-xyz' })
 
         const request = makeRequest({
             method: 'POST',
-            url: '/v1/webhooks/flow-1',
-            params: { flowId: 'flow-1' },
+            url: '/v1/trigger-bindings/tb-1/run',
+            principal: undefined,
         })
         const reply = makeReply()
 
         await canaryRoutingMiddleware(request, reply)
 
-        expect(reply.from).toHaveBeenCalledWith('/v1/webhooks/flow-1', expect.anything())
+        expect(reply.from).not.toHaveBeenCalled()
+        expect(mockIsCanaryPlatform).not.toHaveBeenCalled()
     })
 })

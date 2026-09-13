@@ -35,10 +35,10 @@ describe('AppConnection API', () => {
                 platformId: ctx.platform.id,
                 packageType: PackageType.REGISTRY,
             })
-            await db.save('piece_metadata', mockPieceMetadata)
+            await db.save('integration_metadata', mockPieceMetadata)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPieceMetadata)
 
-            const response = await ctx.post('/v1/app-connections', {
+            const response = await ctx.post('/v1/connections', {
                 externalId: 'test-app-connection-with-metadata',
                 displayName: 'Test Connection with Metadata',
                 pieceName: mockPieceMetadata.name,
@@ -57,7 +57,7 @@ describe('AppConnection API', () => {
             expect(responseBody.metadata).toEqual({ foo: 'bar' })
             expect(responseBody.pieceVersion).toEqual(mockPieceMetadata.version)
 
-            const updateResponse = await ctx.post(`/v1/app-connections/${responseBody.id}`, {
+            const updateResponse = await ctx.post(`/v1/connections/${responseBody.id}`, {
                 displayName: 'Updated Connection Name',
                 metadata: { foo: 'baz' },
             })
@@ -74,10 +74,10 @@ describe('AppConnection API', () => {
                     platformId: ownerCtx.platform.id,
                     packageType: PackageType.REGISTRY,
                 })
-                await db.save('piece_metadata', mockPieceMetadata)
+                await db.save('integration_metadata', mockPieceMetadata)
                 pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPieceMetadata)
 
-                return memberCtx.post('/v1/app-connections', {
+                return memberCtx.post('/v1/connections', {
                     externalId: 'test-app-connection',
                     displayName: 'test-app-connection',
                     pieceName: mockPieceMetadata.name,
@@ -99,7 +99,7 @@ describe('AppConnection API', () => {
         describeRolePermissions({
             app: () => app!,
             request: (memberCtx, ownerCtx) => {
-                return memberCtx.get('/v1/app-connections', {
+                return memberCtx.get('/v1/connections', {
                     projectId: ownerCtx.project.id,
                 })
             },

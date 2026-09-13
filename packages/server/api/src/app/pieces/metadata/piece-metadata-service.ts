@@ -9,9 +9,11 @@ import { EntityManager, In, IsNull } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
 import { enterpriseFilteringUtils } from '../../ee/pieces/filters/piece-filtering-utils'
 import { pieceTagService } from '../tags/pieces/piece-tag.service'
+import { localPieceCatalog } from './local-piece-catalog'
 import { pieceCache, PieceRegistryEntry } from './piece-cache'
 import { PieceMetadataEntity, PieceMetadataSchema } from './piece-metadata-entity'
 import { filterPieceBasedOnType, isNewerVersion, isSupportedRelease, lastVersionOfEachPiece, loadDevPiecesIfEnabled, pieceListUtils } from './utils'
+import { filePiecesUtils } from './utils/file-pieces-utils'
 
 export const pieceRepos = repoFactory(PieceMetadataEntity)
 
@@ -297,8 +299,10 @@ const findExactVersion = async (
     const versionToSearch = findNextExcludedVersion(version)
     const currentRelease = apVersionUtil.getCurrentRelease()
     const registry = filterRegistry(await loadRegistry(log), { release: currentRelease, platformId })
+    const cleanTarget = localPieceCatalog.normalizePieceName(name)
     const matchingRegistryEntries = registry.filter((entry) => {
-        if (entry.name !== name) {
+        const cleanEntry = localPieceCatalog.normalizePieceName(entry.name)
+        if (entry.name !== name && cleanEntry !== cleanTarget) {
             return false
         }
         if (isNil(versionToSearch)) {
@@ -371,7 +375,11 @@ const increaseMajorVersion = (version: string): string => {
 async function fetchLatestPieces({ platformId, locale = LocalesEnum.ENGLISH, log }: FetchLatestPiecesParams): Promise<PieceMetadataSchema[]> {
     const currentRelease = apVersionUtil.getCurrentRelease()
 
-    const latestPieces = await dedupe(`latest-pieces:${currentRelease}`, () => fetchLatestCompatiblePiecesFromDB(currentRelease))
+    const latestPiecesFromDb = await dedupe(`latest-pieces:${currentRelease}`, () => fetchLatestCompatiblePiecesFromDB(currentRelease))
+    const localPieces = localPieceCatalog.getLocalCatalog()
+    const dbPieceNames = new Set(latestPiecesFromDb.map((p) => p.name))
+    const missingFromLocal = localPieces.filter((p) => !dbPieceNames.has(p.name))
+    const latestPieces = [...latestPiecesFromDb, ...missingFromLocal]
     const translatedPieces = translatePieces(latestPieces, locale)
 
     const devPieces = await loadDevPiecesIfEnabled(log)
@@ -388,19 +396,47 @@ async function fetchLatestPieces({ platformId, locale = LocalesEnum.ENGLISH, log
 
 async function fetchPieceVersion({ pieceName, version, platformId, log }: FetchPieceVersionParams): Promise<PieceMetadataSchema | null> {
     const devPieces = await loadDevPiecesIfEnabled(log)
-    const devPiece = devPieces.find((p) => p.name === pieceName && p.version === version)
+    const cleanName = localPieceCatalog.normalizePieceName(pieceName)
+    const devPiece = devPieces.find((p) => (p.name === pieceName || localPieceCatalog.normalizePieceName(p.name) === cleanName) && (isNil(version) || p.version === version))
     if (!isNil(devPiece)) {
         return devPiece
     }
 
+    const whereConditions = [
+        { name: pieceName, platformId: platformId ?? IsNull() },
+        { name: `@inboxfm-connect/piece-${cleanName}`, platformId: platformId ?? IsNull() },
+        { name: `@activepieces/piece-${cleanName}`, platformId: platformId ?? IsNull() },
+        { name: cleanName, platformId: platformId ?? IsNull() },
+    ].map((cond) => (isNil(version) ? cond : { ...cond, version }))
+
     const foundPiece = await pieceRepos().findOne({
-        where: {
-            name: pieceName,
-            version,
-            platformId: platformId ?? IsNull(),
-        },
+        where: whereConditions,
     })
-    return foundPiece ?? null
+    if (!isNil(foundPiece)) {
+        return foundPiece
+    }
+
+    // Attempt to load rich compiled piece from dist folder if available
+    const compiledPieces = await filePiecesUtils(log).loadDistPiecesMetadata([cleanName]).catch(() => [])
+    if (compiledPieces.length > 0) {
+        const compiled = compiledPieces[0]
+        return {
+            id: apId(),
+            ...compiled,
+            projectUsage: 0,
+            pieceType: PieceType.OFFICIAL,
+            packageType: PackageType.REGISTRY,
+            created: new Date().toISOString(),
+            updated: new Date().toISOString(),
+        }
+    }
+
+    const localPiece = localPieceCatalog.findLocalPiece({ name: pieceName, version })
+    if (!isNil(localPiece)) {
+        return localPiece
+    }
+
+    return null
 }
 
 export async function fetchLatestCompatiblePiecesFromDB(currentRelease: string): Promise<PieceMetadataSchema[]> {

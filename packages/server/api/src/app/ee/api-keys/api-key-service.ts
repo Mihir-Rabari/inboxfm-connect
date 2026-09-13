@@ -10,12 +10,14 @@ const repo = repoFactory<ApiKey>(ApiKeyEntity)
 export const apiKeyService = {
     async add({
         platformId,
+        projectId,
         displayName,
     }: AddParams): Promise<ApiKeyResponseWithValue> {
         const generatedApiKey = generateApiKey()
         const savedApiKey = await repo().save({
             id: apId(),
             platformId,
+            projectId: projectId ?? null,
             displayName,
             hashedValue: generatedApiKey.secretHashed,
             truncatedValue: generatedApiKey.secretTruncated,
@@ -37,9 +39,10 @@ export const apiKeyService = {
         }
         return apiKey
     },
-    async list({ platformId }: ListParams): Promise<SeekPage<ApiKey>> {
+    async list({ platformId, projectId }: ListParams): Promise<SeekPage<ApiKey>> {
         const data = await repo().findBy({
             platformId,
+            ...(projectId ? { projectId } : {}),
         })
 
         return {
@@ -48,10 +51,11 @@ export const apiKeyService = {
             previous: null,
         }
     },
-    async delete({ platformId, id }: DeleteParams): Promise<void> {
+    async delete({ platformId, projectId, id }: DeleteParams): Promise<void> {
         const apiKey = await repo().findOneBy({
             platformId,
             id,
+            ...(projectId ? { projectId } : {}),
         })
         if (isNil(apiKey)) {
             throw new ActivepiecesError({
@@ -62,8 +66,7 @@ export const apiKeyService = {
             })
         }
         await repo().delete({
-            platformId,
-            id,
+            id: apiKey.id,
         })
     },
 }
@@ -80,14 +83,17 @@ export function generateApiKey() {
 
 type AddParams = {
     platformId: string
+    projectId?: string
     displayName: string
 }
 
 type DeleteParams = {
     id: string
     platformId: string
+    projectId?: string
 }
 
 type ListParams = {
     platformId?: string
+    projectId?: string
 }

@@ -29,7 +29,7 @@ const setupPlatformWithGlobalConnections = async () => {
         platformId: ctx.platform.id,
         packageType: PackageType.REGISTRY,
     })
-    await db.save('piece_metadata', mockPieceMetadata)
+    await db.save('integration_metadata', mockPieceMetadata)
 
     return { ctx, mockPieceMetadata }
 }

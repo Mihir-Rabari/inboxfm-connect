@@ -9,6 +9,7 @@ export const ListAppConnectionsRequestQuery = z.object({
     scope: z.nativeEnum(AppConnectionScope).optional(),
     pieceName: z.string().optional(),
     displayName: z.string().optional(),
+    externalId: z.string().optional(),
     status: OptionalArrayFromQuery(z.nativeEnum(AppConnectionStatus)),
     limit: z.coerce.number().optional(),
 })

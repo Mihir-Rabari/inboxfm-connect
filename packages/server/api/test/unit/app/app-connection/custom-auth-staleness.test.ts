@@ -1,9 +1,26 @@
-import dayjs from 'dayjs'
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest'
 import { computeTokenRefreshAt, isCustomAuthTokenStale } from '../../../../src/app/app-connection/app-connection-service/app-connection.handler'
 
 const BUFFER_SECONDS = 15 * 60
-const NOW = dayjs().unix()
+
+/**
+ * The clock is frozen for the whole file. Both helpers read the current time
+ * internally, so comparing their output against a `NOW` sampled separately was an
+ * off-by-one whenever the wall clock crossed a second boundary between the two reads
+ * (`expected 1787847710 to be 1787847709`). A fixed instant makes the arithmetic
+ * exact instead of merely usually-exact.
+ */
+const FROZEN_NOW_MS = Date.UTC(2026, 0, 15, 12, 0, 0)
+const NOW = Math.floor(FROZEN_NOW_MS / 1000)
+
+beforeAll(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(FROZEN_NOW_MS)
+})
+
+afterAll(() => {
+    vi.useRealTimers()
+})
 
 describe('isCustomAuthTokenStale', () => {
     describe('when access_token is missing', () => {

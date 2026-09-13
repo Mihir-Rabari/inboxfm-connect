@@ -27,6 +27,8 @@ export enum Permission {
     WRITE_KNOWLEDGE_BASE = 'WRITE_KNOWLEDGE_BASE',
     READ_VARIABLE = 'READ_VARIABLE',
     WRITE_VARIABLE = 'WRITE_VARIABLE',
+    READ_API_KEY = 'READ_API_KEY',
+    WRITE_API_KEY = 'WRITE_API_KEY',
 }
 
 export enum RoleType {

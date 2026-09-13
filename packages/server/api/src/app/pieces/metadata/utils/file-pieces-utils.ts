@@ -9,8 +9,7 @@ import { FastifyBaseLogger } from 'fastify'
 import { AppSystemProp, environmentVariables } from '../../../helper/system/system-props'
 
 const SOURCE_PIECES_PATH = resolve(cwd(), 'packages', 'integrations')
-
-export const filePiecesUtils = (log: FastifyBaseLogger) => ({
+export const filePiecesUtils = (log: FastifyBaseLogger): FilePiecesUtils => ({
 
     getPackageNameFromFolderPath: async (folderPath: string): Promise<string> => {
         const packageJson = await readFile(join(folderPath, 'package.json'), 'utf-8').then(JSON.parse)
@@ -79,42 +78,40 @@ export const filePiecesUtils = (log: FastifyBaseLogger) => ({
 })
 
 const findAllPiecesFolder = async (folderPath: string): Promise<string[]> => {
-    const paths = []
     const files = await readdir(folderPath)
+    if (files.includes('package.json')) {
+        return [folderPath]
+    }
 
+    const paths: string[] = []
     const ignoredFiles = ['node_modules', 'dist', 'framework', 'common']
     for (const file of files) {
+        if (ignoredFiles.includes(file)) {
+            continue
+        }
         const filePath = join(folderPath, file)
         const fileStats = await stat(filePath)
-        if (
-            fileStats.isDirectory() &&
-            !ignoredFiles.includes(file)
-        ) {
+        if (fileStats.isDirectory()) {
             paths.push(...(await findAllPiecesFolder(filePath)))
-        }
-        else if (file === 'package.json') {
-            paths.push(folderPath)
         }
     }
     return paths
 }
 
+
 const findAllDistPiecesFolders = async (sourcePiecesPath: string): Promise<string[]> => {
     const sourceFolders = await findAllPiecesFolder(sourcePiecesPath)
-    const distFolders = []
-    for (const folder of sourceFolders) {
+    const distChecks = await Promise.all(sourceFolders.map(async (folder) => {
         const distPath = join(folder, 'dist')
         try {
             const distStats = await stat(distPath)
-            if (distStats.isDirectory()) {
-                distFolders.push(distPath)
-            }
+            return distStats.isDirectory() ? distPath : null
         }
         catch {
-            // dist folder doesn't exist for this piece, skip
+            return null
         }
-    }
-    return distFolders
+    }))
+    return distChecks.filter((p): p is string => p !== null)
 }
 
 const loadPieceFromFolder = async (
@@ -145,4 +142,13 @@ const loadPieceFromFolder = async (
     }
 
     return metadata
+}
+
+export type FilePiecesUtils = {
+    getPackageNameFromFolderPath: (folderPath: string) => Promise<string>
+    getPieceDependencies: (folderPath: string) => Promise<Record<string, string> | null>
+    findDistPiecePathByPackageName: (packageName: string) => Promise<string | null>
+    findSourcePiecePathByPieceName: (pieceName: string) => Promise<string | null>
+    loadDistPiecesMetadata: (piecesNames: string[]) => Promise<PieceMetadata[]>
+    clearPieceModuleCache: (distFolderPath: string) => void
 }

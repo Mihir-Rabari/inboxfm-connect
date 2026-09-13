@@ -43,7 +43,7 @@ describe('MCP piece visibility', () => {
             actions: {},
             triggers: {},
         })
-        await db.save('piece_metadata', blockedPiece)
+        await db.save('integration_metadata', blockedPiece)
         await pieceCache(mockLog).setup()
 
         const result = await apResearchPiecesTool(mcp, mockLog).execute({})
@@ -75,7 +75,7 @@ describe('MCP piece visibility', () => {
             actions: {},
             triggers: {},
         })
-        await db.save('piece_metadata', visiblePiece)
+        await db.save('integration_metadata', visiblePiece)
         await pieceCache(mockLog).setup()
 
         const result = await apResearchPiecesTool(mcp, mockLog).execute({})

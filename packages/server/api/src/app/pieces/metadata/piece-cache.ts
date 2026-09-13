@@ -5,6 +5,7 @@ import { repoFactory } from '../../core/db/repo-factory'
 import { pubsub } from '../../helper/pubsub'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
+import { localPieceCatalog } from './local-piece-catalog'
 import { PieceMetadataEntity, PieceMetadataSchema } from './piece-metadata-entity'
 import { loadDevPiecesIfEnabled } from './utils'
 
@@ -31,7 +32,14 @@ export const pieceCache = (log: FastifyBaseLogger) => {
         async loadRegistry(): Promise<PieceRegistryEntry[]> {
             const persistedRegistry = await loadPersistedRegistry()
             const devPieces = (await loadDevPiecesIfEnabled(log)).map(toRegistryEntry)
-            return [...persistedRegistry, ...devPieces]
+            const localEntries = localPieceCatalog.getLocalRegistry()
+            const existing = [...persistedRegistry, ...devPieces]
+            if (existing.length === 0) {
+                return localEntries
+            }
+            const seen = new Set(existing.map((p) => `${p.name}:${p.version}`))
+            const missing = localEntries.filter((p) => !seen.has(`${p.name}:${p.version}`))
+            return [...existing, ...missing]
         },
 
         async invalidate(): Promise<void> {

@@ -2,6 +2,7 @@ import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
 import { createSandboxRuntime } from '@inboxfm-connect/sandbox'
 import { EngineOperationType, PiecePackage, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
+import { domainHelper } from '../domain-helper'
 import { system } from '../system/system'
 import { AppSystemProp } from '../system/system-props'
 
@@ -16,6 +17,8 @@ const sandboxRuntime = createSandboxRuntime({
         MAX_FILE_SIZE_MB: Number(system.get(AppSystemProp.MAX_FILE_SIZE_MB) ?? '10'),
         NETWORK_MODE: (system.get(AppSystemProp.NETWORK_MODE) ?? 'STRICT') as any,
         DEV_PIECES: (system.get(AppSystemProp.DEV_PIECES) ?? '').split(',').map(s => s.trim()).filter(Boolean),
+        SSRF_ALLOW_LIST: [],
+        SANDBOX_PROPAGATED_ENV_VARS: [],
         WORKER_GROUP_ID: 'headless',
         PROJECT_WORKER: false,
     } as any),
@@ -51,19 +54,30 @@ const userInteractionWatcherImpl = {
         log.info({ jobType: request.jobType, pieceName: piecePackage.pieceName }, '[userInteractionWatcher] Executing user interaction job synchronously in-process')
 
         const selectedWorkerIndex = (nextWorkerIndex++) % 10
+        const rawPublicApiUrl = await domainHelper.getPublicApiUrl({ path: '' })
+        const rawInternalApiUrl = await domainHelper.getInternalApiUrl({ path: '' })
+        const publicApiUrl = rawPublicApiUrl.endsWith('/') ? rawPublicApiUrl : `${rawPublicApiUrl}/`
+        const internalApiUrl = rawInternalApiUrl.endsWith('/') ? rawInternalApiUrl : `${rawInternalApiUrl}/`
+        const engineToken = 'headless'
 
         const result = await sandboxRuntime.execute({
             workerIndex: selectedWorkerIndex,
             log: log as any,
             operationType,
-            operation: request,
+            operation: {
+                ...request,
+                publicApiUrl,
+                internalApiUrl,
+                engineToken,
+                timeoutInSeconds: 60,
+            },
             timeoutInSeconds: 60,
             provision: {
                 platformId: request.platformId,
                 pieces: [piecePackage],
                 codes: [],
-                publicApiUrl: 'http://localhost:3000',
-                engineToken: 'headless',
+                publicApiUrl,
+                engineToken,
             },
         })
 

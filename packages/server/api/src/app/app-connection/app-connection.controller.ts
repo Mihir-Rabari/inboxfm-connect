@@ -66,7 +66,7 @@ export const appConnectionController: FastifyPluginCallbackZod = (app, _opts, do
     })
 
     app.get('/', ListAppConnectionsRequest, async (request): Promise<SeekPage<AppConnectionWithoutSensitiveData>> => {
-        const { displayName, pieceName, status, cursor, limit, scope } = request.query
+        const { displayName, pieceName, status, cursor, limit, scope, externalId } = request.query
 
         const appConnections = await appConnectionService(request.log).list({
             pieceName,
@@ -77,7 +77,7 @@ export const appConnectionController: FastifyPluginCallbackZod = (app, _opts, do
             projectId: request.projectId,
             cursorRequest: cursor ?? null,
             limit: limit ?? DEFAULT_PAGE_SIZE,
-            externalIds: undefined,
+            externalIds: externalId ? [externalId] : undefined,
         })
 
         const appConnectionsWithoutSensitiveData: SeekPage<AppConnectionWithoutSensitiveData> = {

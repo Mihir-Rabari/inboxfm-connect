@@ -21,7 +21,7 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
-    await databaseConnection().getRepository('piece_metadata').createQueryBuilder().delete().execute()
+    await databaseConnection().getRepository('integration_metadata').createQueryBuilder().delete().execute()
 })
 
 describe('Piece Metadata Create', () => {
@@ -45,7 +45,7 @@ describe('Piece Metadata Create', () => {
             publishCacheRefresh: false,
         })
 
-        const repo = databaseConnection().getRepository('piece_metadata')
+        const repo = databaseConnection().getRepository('integration_metadata')
         const allPieces = await repo.find()
         expect(allPieces).toHaveLength(1)
         expect(allPieces[0].name).toBe('piece-a')
@@ -128,7 +128,7 @@ describe('Piece Metadata Create', () => {
 
         await service.bulkDelete([{ name: 'delete-me', version: '1.0.0' }])
 
-        const repo = databaseConnection().getRepository('piece_metadata')
+        const repo = databaseConnection().getRepository('integration_metadata')
         const allPieces = await repo.find()
         expect(allPieces).toHaveLength(1)
         expect(allPieces[0].name).toBe('keep-me')

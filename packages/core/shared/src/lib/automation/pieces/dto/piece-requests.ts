@@ -80,8 +80,13 @@ export const PieceOptionRequest = z.object({
     pieceVersion: VersionType,
     actionOrTriggerName: z.string(),
     propertyName: z.string(),
-    flowId: z.string(),
-    flowVersionId: z.string(),
+    // Optional since the HeadlessRuntime migration: the `/v1/integrations/options`
+    // handler resolves options purely from { projectId, piece, propertyName, input,
+    // searchValue } and no longer reads flow context. The headless console has no flow
+    // to reference, so requiring these would make every dynamic-options lookup in the
+    // action runner un-callable.
+    flowId: z.string().optional(),
+    flowVersionId: z.string().optional(),
     input: z.any(),
     searchValue: z.string().optional(),
 })

@@ -37,6 +37,7 @@ async function createPrincipalForApiKey(apiKeyValue: string): Promise<Principal>
         platform: {
             id: apiKey.platformId,
         },
+        ...(isNil(apiKey.projectId) ? {} : { projectId: apiKey.projectId }),
     }
 }
 

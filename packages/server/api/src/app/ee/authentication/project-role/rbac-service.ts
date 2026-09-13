@@ -58,15 +58,6 @@ export const rbacService = (log: FastifyBaseLogger) => ({
                         },
                     })
                 }
-                if (!isNil(principal.projectId) && principal.projectId !== projectId) {
-                    throw new ActivepiecesError({
-                        code: ErrorCode.AUTHORIZATION,
-                        params: {
-                            message: 'This API key is scoped to a different project',
-                            projectId,
-                        },
-                    })
-                }
                 break
             }
         }

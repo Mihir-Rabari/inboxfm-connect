@@ -100,7 +100,27 @@ async function assertAccessToProject(principal: Principal, projectSecurity: Proj
             },
         })
     }
+    assertServicePrincipalScope(principal, projectSecurity.projectId)
     await rbacService(log).assertPrinicpalAccessToProject({ principal, permission: projectSecurity.permission, projectId: projectSecurity.projectId })
+}
+
+// Original, non-ee enforcement for project-scoped Connect API keys (see
+// connect-api-key.service.ts): a SERVICE principal minted with a bound projectId
+// may only ever touch that one project, regardless of what the ee rbac check below
+// allows for platform-wide keys.
+function assertServicePrincipalScope(principal: Principal, projectId: string): void {
+    if (principal.type !== PrincipalType.SERVICE || isNil(principal.projectId)) {
+        return
+    }
+    if (principal.projectId !== projectId) {
+        throw new ActivepiecesError({
+            code: ErrorCode.AUTHORIZATION,
+            params: {
+                message: 'This API key is scoped to a different project',
+                projectId,
+            },
+        })
+    }
 }
 
 

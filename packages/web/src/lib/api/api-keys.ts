@@ -1,7 +1,7 @@
 import { apiClient } from './client'
 import { ProjectApiKey, ProjectApiKeyWithValue, SeekPage } from './types'
 
-const API_KEYS_PATH = '/api-keys/project'
+const API_KEYS_PATH = '/connect-api-keys'
 
 function resolveProjectId(projectId?: string): string | undefined {
   return projectId ?? apiClient.getProjectId() ?? undefined

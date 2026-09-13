@@ -16,9 +16,9 @@ import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { appConnectionService } from '../app-connection/app-connection-service/app-connection-service'
 import { oauth2Util } from '../app-connection/app-connection-service/oauth2/oauth2-util'
+import { connectOAuthAppService } from '../connect-oauth-apps/connect-oauth-app.service'
 import { ProjectResourceType } from '../core/security/authorization/common'
 import { securityAccess } from '../core/security/authorization/fastify-security'
-import { oauthAppService } from '../ee/oauth-apps/oauth-app.service'
 import { projectService } from '../project/project-service'
 import { connectSessionService } from './connect-session.service'
 
@@ -117,7 +117,7 @@ export const connectSessionPublicController: FastifyPluginAsyncZod = async (app)
 }
 
 async function resolvePlatformClientId({ platformId, pieceName }: { platformId: string, pieceName: string }): Promise<string> {
-    const { data: oauthApp, error } = await tryCatch(() => oauthAppService.getWithSecret({ platformId, pieceName }))
+    const { data: oauthApp, error } = await tryCatch(() => connectOAuthAppService.getWithSecretOrThrow({ platformId, pieceName }))
     if (error || isNil(oauthApp)) {
         throw new ActivepiecesError({
             code: ErrorCode.INVALID_APP_CONNECTION,

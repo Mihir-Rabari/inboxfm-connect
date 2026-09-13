@@ -1,4 +1,5 @@
 import { isNil } from '@inboxfm-connect/core-utils'
+import { apVersionUtil } from '@inboxfm-connect/server-utils'
 import { ApEnvironment, PieceType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { repoFactory } from '../../core/db/repo-factory'
@@ -6,6 +7,7 @@ import { pubsub } from '../../helper/pubsub'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 import { localPieceCatalog } from './local-piece-catalog'
+import { pieceListCache } from './piece-list-cache'
 import { PieceMetadataEntity, PieceMetadataSchema } from './piece-metadata-entity'
 import { loadDevPiecesIfEnabled } from './utils'
 
@@ -45,6 +47,7 @@ export const pieceCache = (log: FastifyBaseLogger) => {
         async invalidate(): Promise<void> {
             cachedRegistry = null
             registryGeneration++
+            await pieceListCache.invalidate(apVersionUtil.getCurrentRelease())
             if (!isTestingEnvironment) {
                 await pubsub.publish(PIECE_REGISTRY_INVALIDATION_CHANNEL, '1')
             }

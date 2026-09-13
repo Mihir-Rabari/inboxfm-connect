@@ -11,6 +11,7 @@ import { enterpriseFilteringUtils } from '../../ee/pieces/filters/piece-filterin
 import { pieceTagService } from '../tags/pieces/piece-tag.service'
 import { localPieceCatalog } from './local-piece-catalog'
 import { pieceCache, PieceRegistryEntry } from './piece-cache'
+import { pieceListCache } from './piece-list-cache'
 import { PieceMetadataEntity, PieceMetadataSchema } from './piece-metadata-entity'
 import { filterPieceBasedOnType, isNewerVersion, isSupportedRelease, lastVersionOfEachPiece, loadDevPiecesIfEnabled, pieceListUtils } from './utils'
 import { filePiecesUtils } from './utils/file-pieces-utils'
@@ -440,6 +441,11 @@ async function fetchPieceVersion({ pieceName, version, platformId, log }: FetchP
 }
 
 export async function fetchLatestCompatiblePiecesFromDB(currentRelease: string): Promise<PieceMetadataSchema[]> {
+    const cached = await pieceListCache.get(currentRelease)
+    if (!isNil(cached)) {
+        return cached
+    }
+
     const allKeys = await pieceRepos()
         .createQueryBuilder('pm')
         .select(['pm."id"', 'pm."name"', 'pm."version"', 'pm."platformId"', 'pm."minimumSupportedRelease"', 'pm."maximumSupportedRelease"'])
@@ -447,7 +453,10 @@ export async function fetchLatestCompatiblePiecesFromDB(currentRelease: string):
 
     const compatibleKeys = allKeys.filter((piece) => isSupportedRelease(currentRelease, piece))
     const latestIds = pickLatestVersionIds(compatibleKeys)
-    return latestIds.length > 0 ? pieceRepos().find({ where: { id: In(latestIds) } }) : []
+    const pieces = latestIds.length > 0 ? await pieceRepos().find({ where: { id: In(latestIds) } }) : []
+
+    await pieceListCache.put(currentRelease, pieces)
+    return pieces
 }
 
 function pickLatestVersionIds(pieces: PieceKey[]): string[] {

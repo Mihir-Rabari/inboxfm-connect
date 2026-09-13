@@ -16,6 +16,8 @@ import { setPlatformOAuthService } from './app-connection/app-connection-service
 import { appConnectionModule } from './app-connection/app-connection.module'
 import { platformAppConnectionModule } from './app-connection/platform-app-connection.module'
 import { authenticationModule } from './authentication/authentication.module'
+import { connectApiKeyModule } from './connect-api-keys/connect-api-key.module'
+import { connectOAuthAppModule } from './connect-oauth-apps/connect-oauth-app.module'
 import { connectSessionModule } from './connect-sessions/connect-session.module'
 import { canaryRoutingMiddleware } from './core/canary/canary-routing.middleware'
 import { oidcModule } from './core/security/oidc/oidc.module'
@@ -209,6 +211,11 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     // await app.register(triggerModule)
     await app.register(platformModule)
     await app.register(executeModule)
+    // Original, non-ee Connect platform — available on every edition (see
+    // connect-api-keys/, connect-oauth-apps/, connect-sessions/module.ts).
+    await app.register(connectApiKeyModule)
+    await app.register(connectOAuthAppModule)
+    await app.register(connectSessionModule)
     await app.register(executionModule)
     await app.register(knowledgeSearchModule)
     // await app.register(humanInputModule)
@@ -288,7 +295,6 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             await app.register(enterpriseLocalAuthnModule)
             await app.register(federatedAuthModule)
             await app.register(apiKeyModule)
-            await app.register(connectSessionModule)
             await app.register(auditEventModule)
             await app.register(platformWebhooksModule)
             await app.register(projectRoleModule)
@@ -317,7 +323,6 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             await app.register(enterpriseLocalAuthnModule)
             await app.register(federatedAuthModule)
             await app.register(apiKeyModule)
-            await app.register(connectSessionModule)
             await app.register(auditEventModule)
             await app.register(platformWebhooksModule)
             await app.register(projectRoleModule)

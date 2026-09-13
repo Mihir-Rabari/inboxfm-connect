@@ -419,7 +419,7 @@ export interface ProjectApiKey {
   created: string
   displayName: string
   platformId: string
-  projectId: string | null
+  projectId: string
   truncatedValue: string
   lastUsedAt: string | null
 }

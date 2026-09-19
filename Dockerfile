@@ -71,8 +71,9 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 # Copy remaining source code (turbo config, etc.)
 COPY . .
 
-# Build frontend, engine, server API, and worker
-RUN npx turbo run build --filter=web --filter=@activepieces/engine --filter=api --filter=worker
+# Build frontend, engine, and server API (there is no standalone worker package in
+# the current layout; the unified image runs app/worker modes via AP_CONTAINER_TYPE)
+RUN npx turbo run build --filter=web --filter=@inboxfm-connect/engine --filter=api
 
 # The web build emits hidden source maps (vite build.sourcemap='hidden') used to
 # symbolicate production stack traces in Sentry/BetterStack error tracking. Upload
@@ -88,10 +89,14 @@ RUN node -e "\
   process.stdout.write(JSON.stringify(names));\
 " > packages/server/api/dist/src/migration-manifest.json
 
-# Remove piece directories not needed at runtime (keeps only the 4 pieces api imports)
-# Then regenerate bun.lock so it matches the trimmed workspace
-RUN rm -rf packages/pieces/core packages/pieces/custom && \
-    find packages/pieces/community -mindepth 1 -maxdepth 1 -type d \
+# Remove integrations not needed at runtime. Pieces are distributed as registry/npm
+# tarballs (ADR 0002) and installed into the sandbox cache on first use, so the image
+# only ships the integrations the app links against: pieces-framework + pieces-common
+# (api runtime deps) and the 4 community pieces the api declares as workspace
+# devDependencies. Core pieces are registry-distributed like every other piece.
+# Then regenerate bun.lock so it matches the trimmed workspace.
+RUN rm -rf packages/integrations/core packages/integrations/custom && \
+    find packages/integrations/community -mindepth 1 -maxdepth 1 -type d \
       ! -name slack \
       ! -name square \
       ! -name facebook-leads \

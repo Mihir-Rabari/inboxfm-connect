@@ -96,6 +96,13 @@ When running in `--mode=cloud`, do not use OAuth2 connections — the OAuth prov
   - **`area/third-party-integrations`** — for third-party integrations (most integrations under `packages/integrations/community/`)
   - **`area/core-integrations`** — for core integrations (under `packages/integrations/core/`)
 
+## Multi-Agent Workflow
+
+- **Branch off `dev`, PR into `dev`** — `main` is the stable branch, `dev` is the integration branch multiple agents work against concurrently. Never push directly to `main`.
+- **One issue per branch/PR** — pick up a single tracked issue from the GitHub issue tracker rather than bundling unrelated work; reference the issue number in the PR description.
+- **A scheduled PR watcher reviews every open PR** (comment-only, never merges) — it specifically flags new `ee/` imports outside `ee/`, missing entity registration, and missing `projectId`/`platformId` scoping, since those are the highest-cost mistakes when many agents touch the codebase at once. Treat its comments like a human reviewer's.
+- **Check for in-flight work before starting** — another agent may already be on the same issue; check open PRs/branches first to avoid duplicate, conflicting work.
+
 ## Database Migrations
 
 - Before creating or modifying a database migration, **always read the [Database Migrations Playbook](https://www.inboxfm-connect.com/docs/handbook/engineering/playbooks/database-migration#database-migrations)** first. Follow its instructions for generating and structuring migrations.

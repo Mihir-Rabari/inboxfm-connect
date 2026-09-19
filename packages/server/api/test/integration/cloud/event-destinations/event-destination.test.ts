@@ -89,7 +89,7 @@ describe('Event Destinations API', () => {
             expect(body.events).toContain(ApplicationEventName.FLOW_DELETED)
         })
 
-        it('should return error for non-existent destination', async () => {
+        it('should return 404 for non-existent destination', async () => {
             const ctx = await createTestContext(app!)
             const nonExistentId = apId()
 
@@ -102,8 +102,59 @@ describe('Event Destinations API', () => {
                 },
             })
 
-            // TODO: Server returns 500 instead of 404 for non-existent destinations — this is a server bug
-            expect(response?.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR)
+            expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
+            const body = response?.json()
+            expect(body.code).toBe('ENTITY_NOT_FOUND')
+            expect(body.params.entityId).toBe(nonExistentId)
+            expect(body.params.entityType).toBe('event_destination')
+        })
+
+        it('should return 404 when updating a destination of another platform', async () => {
+            const ctx1 = await createTestContext(app!)
+            const ctx2 = await createTestContext(app!)
+
+            const createResponse = await ctx1.post('/v1/event-destinations', {
+                url: 'https://example.com/platform1',
+                events: [ApplicationEventName.FLOW_CREATED],
+            })
+            const destId = createResponse?.json().id
+
+            const response = await ctx2.inject({
+                method: 'PATCH',
+                url: `/api/v1/event-destinations/${destId}`,
+                body: {
+                    url: 'https://example.com/cross-tenant',
+                    events: [ApplicationEventName.FLOW_CREATED],
+                },
+            })
+
+            expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
+            const body = response?.json()
+            expect(body.code).toBe('ENTITY_NOT_FOUND')
+        })
+
+        it('should return 404 for a deleted destination', async () => {
+            const ctx = await createTestContext(app!)
+
+            const createResponse = await ctx.post('/v1/event-destinations', {
+                url: 'https://example.com/deleted',
+                events: [ApplicationEventName.FLOW_CREATED],
+            })
+            const destId = createResponse?.json().id
+            await ctx.delete(`/v1/event-destinations/${destId}`)
+
+            const response = await ctx.inject({
+                method: 'PATCH',
+                url: `/api/v1/event-destinations/${destId}`,
+                body: {
+                    url: 'https://example.com/updated',
+                    events: [ApplicationEventName.FLOW_CREATED],
+                },
+            })
+
+            expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
+            const body = response?.json()
+            expect(body.code).toBe('ENTITY_NOT_FOUND')
         })
     })
 

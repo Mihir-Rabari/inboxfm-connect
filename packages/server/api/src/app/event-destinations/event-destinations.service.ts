@@ -15,7 +15,7 @@
  *    any dispatchable execution events (such as `FLOW_RUN_STARTED` or `FLOW_RUN_FINISHED`).
  */
 
-import { apId, Cursor, PlatformId, ProjectId, SeekPage } from '@inboxfm-connect/core-utils'
+import { ActivepiecesError, apId, Cursor, ErrorCode, isNil, PlatformId, ProjectId, SeekPage } from '@inboxfm-connect/core-utils'
 import { ApplicationEvent, ApplicationEventName, buildMockEvent, CreatePlatformEventDestinationRequestBody, EventDestination, EventDestinationScope, LATEST_JOB_DATA_SCHEMA_VERSION, UpdatePlatformEventDestinationRequestBody, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { ArrayContains, FindOptionsWhere } from 'typeorm'
@@ -79,6 +79,17 @@ export const eventDestinationService = (log: FastifyBaseLogger): {
         return eventDestinationRepo().save(entity)
     },
     update: async ({ id, platformId, request }: UpdateParams): Promise<EventDestination> => {
+        const destination = await eventDestinationRepo().findOneBy({ id, platformId })
+        if (isNil(destination)) {
+            throw new ActivepiecesError({
+                code: ErrorCode.ENTITY_NOT_FOUND,
+                params: {
+                    entityType: 'event_destination',
+                    entityId: id,
+                    message: 'Event destination not found',
+                },
+            })
+        }
         await eventDestinationRepo().update({ id, platformId }, request)
         return eventDestinationRepo().findOneByOrFail({ id, platformId })
     },

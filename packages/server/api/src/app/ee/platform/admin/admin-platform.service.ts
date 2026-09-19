@@ -1,11 +1,11 @@
 import { ApplyLicenseKeyByEmailRequestBody, IncreaseAICreditsForPlatformRequestBody, PlatformRole } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { aiProviderService } from '../../../ai/ai-provider-service'
 import { userIdentityService } from '../../../authentication/user-identity/user-identity-service'
 import { platformRepo } from '../../../platform/platform.service'
 import { userRepo } from '../../../user/user-service'
 import { licenseKeysService } from '../../license-keys/license-keys-service'
 import { openRouterApi } from '../platform-plan/openrouter/openrouter-api'
+import { platformAiCreditsService } from '../platform-plan/platform-ai-credits.service'
 
 export const adminPlatformService = (log: FastifyBaseLogger) => ({
 
@@ -34,7 +34,7 @@ export const adminPlatformService = (log: FastifyBaseLogger) => ({
         await licenseKeysService(log).applyLimits(platform.id, key)
     },
     async increaseAiCredits({ amountInUsd, platformId }: IncreaseAICreditsForPlatformRequestBody): Promise<void> {
-        const { apiKeyHash } = await aiProviderService(log).getOrCreateActivePiecesProviderAuthConfig(platformId)
+        const { apiKeyHash } = await platformAiCreditsService(log).getOrCreateActivePiecesProviderAuthConfig({ platformId })
         const { data: key } = await openRouterApi.getKey({ hash: apiKeyHash })
 
         await openRouterApi.updateKey({

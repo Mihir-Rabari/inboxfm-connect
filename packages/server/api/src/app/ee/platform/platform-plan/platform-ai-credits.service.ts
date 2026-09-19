@@ -1,20 +1,26 @@
-import { assertNotNullOrUndefined, isNil, tryCatch } from '@inboxfm-connect/core-utils'
-import { AiCreditsAutoTopUpState, CreateAICreditCheckoutSessionParamsSchema, PlatformPlan, UpdateAICreditsAutoTopUpParamsSchema } from '@inboxfm-connect/shared'
+import { AIProviderName, apId, assertNotNullOrUndefined, isNil, tryCatch } from '@inboxfm-connect/core-utils'
+import { ActivePiecesProviderAuthConfig, AiCreditsAutoTopUpState, CreateAICreditCheckoutSessionParamsSchema, PlatformPlan, UpdateAICreditsAutoTopUpParamsSchema } from '@inboxfm-connect/shared'
 import dayjs from 'dayjs'
 import { FastifyBaseLogger } from 'fastify'
 import { aiProviderService } from '../../../ai/ai-provider-service'
+import { AIProviderEntity, AIProviderSchema } from '../../../ai/ai-provider-entity'
+import { repoFactory } from '../../../core/db/repo-factory'
 import { distributedLock, distributedStore } from '../../../database/redis-connections'
 import { flagService } from '../../../flags/flag.service'
 import { exceptionHandler } from '../../../helper/exception-handler'
+import { encryptUtils } from '../../../helper/encryption'
+import { rejectedPromiseHandler } from '../../../helper/promise-handler'
 import { sleep } from '../../../helper/sleep'
 import { SystemJobName } from '../../../helper/system-jobs/common'
 import { systemJobHandlers } from '../../../helper/system-jobs/job-handlers'
+import { systemJobsSchedule } from '../../../helper/system-jobs/system-job'
 import { openRouterApi, OpenRouterApikey } from './openrouter/openrouter-api'
 import { platformPlanService } from './platform-plan.service'
 import { StripeCheckoutType, stripeHelper } from './stripe-helper'
 
 const CREDIT_PER_DOLLAR = 1000
 const USAGE_CACHE_TTL_SECONDS = 180
+const aiProviderRepo = repoFactory<AIProviderSchema>(AIProviderEntity)
 
 export const platformAiCreditsService = (log: FastifyBaseLogger) => ({
     async init(): Promise<void> {
@@ -150,7 +156,7 @@ export const platformAiCreditsService = (log: FastifyBaseLogger) => ({
     },
 
     async aiCreditsPaymentSucceeded(platformId: string, amount: number, _paymentType: StripeCheckoutType): Promise<void> {
-        const { apiKeyHash } = await aiProviderService(log).getOrCreateActivePiecesProviderAuthConfig(platformId)
+        const { apiKeyHash } = await this.getOrCreateActivePiecesProviderAuthConfig({ platformId })
         const { data: key } = await openRouterApi.getKey({ hash: apiKeyHash })
 
         await openRouterApi.updateKey({
@@ -163,7 +169,7 @@ export const platformAiCreditsService = (log: FastifyBaseLogger) => ({
     // free-chat-credit grant). Resolving the auth config creates the OpenRouter key if needed,
     // so the worker later reuses the same key instead of minting a second one.
     async grantFreeChatCredits({ platformId, amountUsd }: { platformId: string, amountUsd: number }): Promise<void> {
-        const { apiKeyHash } = await aiProviderService(log).getOrCreateActivePiecesProviderAuthConfig(platformId)
+        const { apiKeyHash } = await this.getOrCreateActivePiecesProviderAuthConfig({ platformId })
         const { data: key } = await openRouterApi.getKey({ hash: apiKeyHash })
 
         await openRouterApi.updateKey({
@@ -175,10 +181,74 @@ export const platformAiCreditsService = (log: FastifyBaseLogger) => ({
         // (in the same request) sees the topped-up balance instead of a stale within-TTL zero.
         await distributedStore.delete(openRouterUsageCacheKey(apiKeyHash))
     },
+
+    // Ensures the platform's managed ACTIVEPIECES provider exists, mints an OpenRouter
+    // key when it has none, and schedules the AI credit renewal check. This used to live
+    // in the CE ai-provider-service, which dragged ee imports into CE code.
+    async getOrCreateActivePiecesProviderAuthConfig({ platformId }: { platformId: string }): Promise<ActivePiecesProviderAuthConfig> {
+        const aiProvider = await ensureActivepiecesProvider({ platformId })
+
+        const storedAuth = await encryptUtils.decryptObject<ActivePiecesProviderAuthConfig>(aiProvider.auth)
+        const auth = !isNil(storedAuth) && !isNil(storedAuth.apiKey) && storedAuth.apiKey !== ''
+            ? storedAuth
+            : await provisionActivepiecesKey({ aiProvider, log })
+
+        rejectedPromiseHandler(systemJobsSchedule(log).upsertJob({
+            job: {
+                name: SystemJobName.AI_CREDIT_UPDATE_CHECK,
+                data: { apiKeyHash: auth.apiKeyHash, platformId },
+                jobId: `ai-credit-update-check-${platformId}`,
+            },
+            schedule: {
+                type: 'one-time',
+                date: dayjs(),
+            },
+        }), log)
+        return auth
+    },
 })
 
 function openRouterUsageCacheKey(apiKeyHash: string): string {
     return `openrouter_usage_${apiKeyHash}`
+}
+
+async function ensureActivepiecesProvider({ platformId }: { platformId: string }): Promise<AIProviderSchema> {
+    const existingProvider = await aiProviderRepo().findOneBy({
+        platformId,
+        provider: AIProviderName.ACTIVEPIECES,
+    })
+    if (!isNil(existingProvider)) {
+        return existingProvider
+    }
+
+    const hasChatProvider = await aiProviderRepo().existsBy({ platformId, enabledForChat: true })
+    return aiProviderRepo().save({
+        id: apId(),
+        auth: await encryptUtils.encryptObject({}),
+        config: {},
+        provider: AIProviderName.ACTIVEPIECES,
+        displayName: 'Activepieces',
+        platformId,
+        enabledForChat: !hasChatProvider,
+    })
+}
+
+async function provisionActivepiecesKey({ aiProvider, log }: { aiProvider: AIProviderSchema, log: FastifyBaseLogger }): Promise<ActivePiecesProviderAuthConfig> {
+    const platformPlan = await platformPlanService(log).getOrCreateForPlatform(aiProvider.platformId)
+    const { key, data } = await openRouterApi.createKey({
+        name: `Platform ${aiProvider.platformId}`,
+        limit: platformPlan.includedAiCredits / CREDIT_PER_DOLLAR,
+    })
+    const auth: ActivePiecesProviderAuthConfig = { apiKey: key, apiKeyHash: data.hash }
+    await aiProviderRepo().save({
+        ...aiProvider,
+        auth: await encryptUtils.encryptObject(auth),
+    })
+    await platformPlanService(log).update({
+        platformId: aiProvider.platformId,
+        lastFreeAiCreditsRenewalDate: new Date().toISOString(),
+    })
+    return auth
 }
 
 async function getOpenRouterUsageCached(apiKeyHash: string, log: FastifyBaseLogger): Promise<Pick<OpenRouterApikey, 'usage' | 'limit' | 'limit_remaining' | 'usage_monthly'>> {

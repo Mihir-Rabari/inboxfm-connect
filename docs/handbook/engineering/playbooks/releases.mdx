@@ -11,7 +11,7 @@ Five separate workflows cover the full delivery lifecycle:
 
 1. **Merge to `main`** (Mon–Thu, 9 AM–5 PM UTC) — `continuous-delivery-stg.yml` automatically builds a Docker image and deploys to **staging** (`stg.activepieces.com`).
 2. **Staging freeze (5 PM UTC)** — merges to `main` after 5 PM UTC are accepted but **not deployed** to staging. The content team uses the frozen staging environment overnight.
-3. **Daily 9 AM UTC** — `continuous-delivery-canary.yml` builds a `version.sha.canary` image from the latest `main` and deploys it to the **canary** environment. Breaking migrations block the deployment. See the [Canary Deployment playbook](/handbook/engineering/playbooks/canary-deployment) for details.
+3. **Daily 9 AM UTC** — `continuous-delivery-canary.yml` builds a `version.sha.canary` image from the latest `main` and deploys it to the **canary** environment. Breaking migrations block the deployment.
 4. **Thursday 5 PM UTC** — `tag-release-candidate` job tags the current staging image and commit as `release-candidate`.
 5. **Sunday 9 AM UTC** — `continuous-delivery-cloud.yml` runs a fresh canary build from `main` (by calling `continuous-delivery-canary.yml` as a reusable workflow), then promotes `release-candidate` to production and creates a `deploy/cloud/YYYY-MM-DD` branch.
 6. **Monday 9 AM UTC** — `continuous-delivery-release.yml` re-tags the `release-candidate` image and publishes the self-hosted release.
@@ -76,8 +76,6 @@ To run any workflow manually, go to the repo's **Actions** tab, select the workf
 | **Scheduled (daily 9 AM UTC)** | Builds a `version.sha.canary` image from the latest `main`, checks migrations, deploys the canary app and workers. Breaking migrations always block the deployment. |
 | **`workflow_call`** | Same as scheduled, triggered by `continuous-delivery-cloud.yml` on the Sunday promotion so the canary always receives a fresh build just before production is updated. |
 | **Manual dispatch** | Same as scheduled, on demand. |
-
-See the [Canary Deployment playbook](/handbook/engineering/playbooks/canary-deployment) for full details.
 
 ### `continuous-delivery-rollback-canary.yml` — Canary Rollback
 

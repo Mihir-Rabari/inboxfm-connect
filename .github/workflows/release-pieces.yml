@@ -6,7 +6,7 @@ on:
     branches:
       - main
     paths:
-      - 'packages/pieces/**'
+      - 'packages/integrations/**'
       - 'packages/core/shared/**'
 
 concurrency:
@@ -15,7 +15,11 @@ concurrency:
 
 jobs:
   Release-Pieces:
-    if: github.repository == 'activepieces/activepieces'
+    # Publishes changed pieces to npm and syncs metadata with the Activepieces
+    # cloud API. Requires NPM_TOKEN / AP_CLOUD_API_KEY, which this fork has
+    # not configured; gated on secret presence so it stays disabled (instead
+    # of a repo check) until publishing is actually set up here.
+    if: secrets.NPM_TOKEN != ''
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
@@ -93,7 +97,7 @@ jobs:
 
       - name: update pieces metadata
         if: steps.changed.outputs.has_changes == 'true'
-        run: npx ts-node -r tsconfig-paths/register -P packages/server/engine/tsconfig.lib.json tools/scripts/pieces/update-pieces-metadata.ts packages/pieces/framework
+        run: npx ts-node -r tsconfig-paths/register -P packages/server/engine/tsconfig.lib.json tools/scripts/pieces/update-pieces-metadata.ts packages/integrations/framework
         env:
           AP_CLOUD_API_KEY: ${{ secrets.AP_CLOUD_API_KEY }}
           NODE_OPTIONS: "--max-old-space-size=8192"

@@ -12,7 +12,11 @@ concurrency:
 jobs:
   Setup-Preview-Environment:
     runs-on: ubuntu-latest
-    if: github.repository == 'activepieces/activepieces' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == 'activepieces/activepieces')
+    # Spins up preview environments on Activepieces' pre-prod server over SSH
+    # (preview.activepieces.dev). This fork has no PREVIEW_* secrets, so the
+    # job stays disabled (gated on secret presence rather than a repo check)
+    # until preview infra is configured.
+    if: secrets.PREVIEW_SSH_KEY != '' && (github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository)
     env:
       NX_NO_CLOUD: true 
     steps:

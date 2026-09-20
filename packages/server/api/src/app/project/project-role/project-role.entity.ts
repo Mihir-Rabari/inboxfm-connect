@@ -1,16 +1,10 @@
-import { PlatformId, ProjectRole } from '@inboxfm-connect/core-utils'
-import { ProjectMember } from '@inboxfm-connect/shared'
+import { ProjectRole } from '@inboxfm-connect/core-utils'
 import { EntitySchema } from 'typeorm'
-import { BaseColumnSchemaPart } from '../../../database/database-common'
+import { BaseColumnSchemaPart } from '../../database/database-common'
 
-export type ProjectRoleSchema = ProjectRole & {
-    name: string
-    permissions: string[]
-    platformId: PlatformId
-    projectMembers: ProjectMember[]
-}
-
-export const ProjectRoleEntity = new EntitySchema<ProjectRoleSchema>({
+// Relations to project roles are owned by the referencing side (project_member,
+// user_invitation), so only columns need to be declared here.
+export const ProjectRoleEntity = new EntitySchema<ProjectRole>({
     name: 'project_role',
     columns: {
         ...BaseColumnSchemaPart,

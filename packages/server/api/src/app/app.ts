@@ -1,4 +1,3 @@
-import replyFrom from '@fastify/reply-from'
 import swagger from '@fastify/swagger'
 import { isNil, spreadIfDefined } from '@inboxfm-connect/core-utils'
 import { PieceMetadata } from '@inboxfm-connect/pieces-framework'
@@ -19,7 +18,6 @@ import { authenticationModule } from './authentication/authentication.module'
 import { connectApiKeyModule } from './connect-api-keys/connect-api-key.module'
 import { connectOAuthAppModule } from './connect-oauth-apps/connect-oauth-app.module'
 import { connectSessionModule } from './connect-sessions/connect-session.module'
-import { canaryRoutingMiddleware } from './core/canary/canary-routing.middleware'
 import { oidcModule } from './core/security/oidc/oidc.module'
 import { rateLimitModule } from './core/security/rate-limit'
 import { authenticationMiddleware } from './core/security/v2/authn/authentication-middleware'
@@ -179,12 +177,6 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     app.addHook('preHandler', authorizationMiddleware)
     app.addHook('preHandler', rbacMiddleware)
 
-    const canaryAppUrl = system.get(AppSystemProp.CANARY_APP_URL)
-    if (!isNil(canaryAppUrl)) {
-        await app.register(replyFrom, { base: canaryAppUrl })
-        app.addHook('preHandler', canaryRoutingMiddleware)
-    }
-
     await systemJobsSchedule(app.log).init()
     await app.register(fileModule)
     await app.register(flagModule)
@@ -341,13 +333,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             break
     }
 
-    const isCanaryApp = system.getBoolean(AppSystemProp.IS_CANARY_APP) ?? false
-    if (isCanaryApp) {
-        app.log.info('[setupApp] Skipping system jobs worker on canary app instance')
-    }
-    else {
-        await systemJobsSchedule(app.log).startWorker()
-    }
+    await systemJobsSchedule(app.log).startWorker()
 
     app.addHook('onClose', async () => {
         app.log.info('Shutting down')

@@ -1,9 +1,10 @@
-import { isNil } from '@inboxfm-connect/core-utils'
+import { isNil, PlatformId } from '@inboxfm-connect/core-utils'
 import { apVersionUtil } from '@inboxfm-connect/server-utils'
 import { ApEdition, ApFlagId, ExecutionMode, Flag } from '@inboxfm-connect/shared'
 import dayjs from 'dayjs'
 import { FastifyBaseLogger } from 'fastify'
 import { In } from 'typeorm'
+import { AIProviderEntity, AIProviderSchema } from '../ai/ai-provider-entity'
 import { repoFactory } from '../core/db/repo-factory'
 import { federatedAuthnService } from '../ee/authentication/federated-authn/federated-authn-service'
 import { smtpEmailSender } from '../ee/helper/email/email-sender/smtp-email-sender'
@@ -15,6 +16,7 @@ import { defaultTheme } from './theme'
 import { webhookSecretsUtils } from './webhook-secrets-util'
 
 const flagRepo = repoFactory(FlagEntity)
+const aiProviderRepo = repoFactory<AIProviderSchema>(AIProviderEntity)
 
 export const flagService = (log: FastifyBaseLogger) => ({
     save: async (flag: FlagType): Promise<Flag> => {
@@ -26,7 +28,7 @@ export const flagService = (log: FastifyBaseLogger) => ({
     async getOne(flagId: ApFlagId): Promise<Flag | null> {
         return flagRepo().findOneBy({ id: flagId })
     },
-    async getAll(): Promise<Flag[]> {
+    async getAll({ platformId }: { platformId: PlatformId | null }): Promise<Flag[]> {
         const flags = await flagRepo().findBy({
             id: In([
                 ApFlagId.SHOW_POWERED_BY_IN_FORM,
@@ -78,8 +80,7 @@ export const flagService = (log: FastifyBaseLogger) => ({
             },
             {
                 id: ApFlagId.AGENTS_CONFIGURED,
-                // TODO (@abuaboud): add new check
-                value: true,
+                value: await isAgentsConfigured({ platformId }),
                 created,
                 updated,
             },
@@ -344,6 +345,16 @@ function getSupportedAppWebhooks(): string[] {
     }
     const parsed = webhookSecretsUtils.parseWebhookSecrets(webhookSecrets)
     return Object.keys(parsed)
+}
+
+async function isAgentsConfigured({ platformId }: { platformId: PlatformId | null }): Promise<boolean> {
+    // Unscoped principals (worker, onboarding, anonymous) carry no platform, so agents can never be configured for them.
+    if (isNil(platformId)) {
+        return false
+    }
+    const hasConfiguredProvider = await aiProviderRepo().existsBy({ platformId })
+    // Managed AI works without any provider row: the Activepieces provider is provisioned on demand.
+    return hasConfiguredProvider || !isNil(system.get(AppSystemProp.OPENROUTER_PROVISION_KEY))
 }
 
 export type FlagType =

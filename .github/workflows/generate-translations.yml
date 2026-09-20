@@ -6,6 +6,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  # `secrets` cannot be referenced directly in `if:` (GitHub Actions rejects it
+  # as an unrecognized named-value there), so resolve them into job outputs
+  # here and have finalize/notify-failure gate on those instead.
+  check-secrets:
+    runs-on: ubuntu-latest
+    outputs:
+      crowdin_configured: ${{ steps.check.outputs.crowdin_configured }}
+      discord_configured: ${{ steps.check.outputs.discord_configured }}
+    steps:
+      - id: check
+        run: |
+          echo "crowdin_configured=${{ secrets.CROWDIN_PRS != '' }}" >> "$GITHUB_OUTPUT"
+          echo "discord_configured=${{ secrets.DISCORD_ON_CALL_WEBHOOK != '' }}" >> "$GITHUB_OUTPUT"
+
   shard-0:
     if: github.repository == 'Mihir-Rabari/inboxfm-connect'
     uses: ./.github/workflows/reusable-generate-translations-shard.yml
@@ -70,8 +84,8 @@ jobs:
     # using the CROWDIN_PRS token, which this fork has not configured; skip it
     # until that secret exists (its `npm run i18n:extract` step also needs a
     # script this fork's root package.json does not define yet).
-    if: github.repository == 'Mihir-Rabari/inboxfm-connect' && secrets.CROWDIN_PRS != ''
-    needs: shard-5
+    if: github.repository == 'Mihir-Rabari/inboxfm-connect' && needs.check-secrets.outputs.crowdin_configured == 'true'
+    needs: [check-secrets, shard-5]
     uses: ./.github/workflows/reusable-finalize-translations-pr.yml
     with:
       branch_name: auto/translation-files-${{ github.run_id }}
@@ -80,8 +94,8 @@ jobs:
   notify-failure:
     # Only run when any of the shards failed; still evaluate even if they failed.
     # Also requires the Discord webhook secret, which this fork has not configured.
-    if: ${{ github.repository == 'Mihir-Rabari/inboxfm-connect' && always() && contains(needs.*.result, 'failure') && secrets.DISCORD_ON_CALL_WEBHOOK != '' }}
-    needs: [shard-0, shard-1, shard-2, shard-3, shard-4, shard-5]
+    if: ${{ github.repository == 'Mihir-Rabari/inboxfm-connect' && always() && contains(needs.*.result, 'failure') && needs.check-secrets.outputs.discord_configured == 'true' }}
+    needs: [check-secrets, shard-0, shard-1, shard-2, shard-3, shard-4, shard-5]
     runs-on: ubuntu-latest
     steps:
       - name: Notify Discord on shard failure

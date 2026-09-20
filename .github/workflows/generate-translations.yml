@@ -7,7 +7,7 @@ on:
 
 jobs:
   shard-0:
-    if: github.repository == 'activepieces/activepieces'
+    if: github.repository == 'Mihir-Rabari/inboxfm-connect'
     uses: ./.github/workflows/reusable-generate-translations-shard.yml
     with:
       shard_index: 0
@@ -16,7 +16,7 @@ jobs:
     secrets: inherit
 
   shard-1:
-    if: github.repository == 'activepieces/activepieces'
+    if: github.repository == 'Mihir-Rabari/inboxfm-connect'
     needs: shard-0
     uses: ./.github/workflows/reusable-generate-translations-shard.yml
     with:
@@ -26,7 +26,7 @@ jobs:
     secrets: inherit
 
   shard-2:
-    if: github.repository == 'activepieces/activepieces'
+    if: github.repository == 'Mihir-Rabari/inboxfm-connect'
     needs: shard-1
     uses: ./.github/workflows/reusable-generate-translations-shard.yml
     with:
@@ -36,7 +36,7 @@ jobs:
     secrets: inherit
 
   shard-3:
-    if: github.repository == 'activepieces/activepieces'
+    if: github.repository == 'Mihir-Rabari/inboxfm-connect'
     needs: shard-2
     uses: ./.github/workflows/reusable-generate-translations-shard.yml
     with:
@@ -46,7 +46,7 @@ jobs:
     secrets: inherit
 
   shard-4:
-    if: github.repository == 'activepieces/activepieces'
+    if: github.repository == 'Mihir-Rabari/inboxfm-connect'
     needs: shard-3
     uses: ./.github/workflows/reusable-generate-translations-shard.yml
     with:
@@ -56,7 +56,7 @@ jobs:
     secrets: inherit
 
   shard-5:
-    if: github.repository == 'activepieces/activepieces'
+    if: github.repository == 'Mihir-Rabari/inboxfm-connect'
     needs: shard-4
     uses: ./.github/workflows/reusable-generate-translations-shard.yml
     with:
@@ -66,7 +66,11 @@ jobs:
     secrets: inherit
 
   finalize:
-    if: github.repository == 'activepieces/activepieces'
+    # The finalize step opens and immediately merges the auto-translations PR
+    # using the CROWDIN_PRS token, which this fork has not configured; skip it
+    # until that secret exists (its `npm run i18n:extract` step also needs a
+    # script this fork's root package.json does not define yet).
+    if: github.repository == 'Mihir-Rabari/inboxfm-connect' && secrets.CROWDIN_PRS != ''
     needs: shard-5
     uses: ./.github/workflows/reusable-finalize-translations-pr.yml
     with:
@@ -74,8 +78,9 @@ jobs:
     secrets: inherit
 
   notify-failure:
-    # Only run when any of the shards failed; still evaluate even if they failed
-    if: ${{ github.repository == 'activepieces/activepieces' && always() && contains(needs.*.result, 'failure') }}
+    # Only run when any of the shards failed; still evaluate even if they failed.
+    # Also requires the Discord webhook secret, which this fork has not configured.
+    if: ${{ github.repository == 'Mihir-Rabari/inboxfm-connect' && always() && contains(needs.*.result, 'failure') && secrets.DISCORD_ON_CALL_WEBHOOK != '' }}
     needs: [shard-0, shard-1, shard-2, shard-3, shard-4, shard-5]
     runs-on: ubuntu-latest
     steps:

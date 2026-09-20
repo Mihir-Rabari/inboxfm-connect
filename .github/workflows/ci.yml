@@ -10,7 +10,7 @@ permissions:
 jobs:
   main:
     runs-on: ubuntu-latest
-    if: github.repository == 'activepieces/activepieces'
+    if: github.repository == 'Mihir-Rabari/inboxfm-connect'
     steps:
       - uses: actions/checkout@v5
         with:
@@ -26,7 +26,10 @@ jobs:
 
       - run: bun install
 
+      # Best-effort turbo cache: this fork has no TURBO_CACHE_S3_* secrets, so
+      # skip the cache instead of failing CI on missing credentials.
       - name: Turbo Cache
+        if: secrets.TURBO_CACHE_S3_BUCKET != ''
         uses: rharkor/caching-for-turbo@v2.4.2
         with:
           provider: s3
@@ -46,7 +49,7 @@ jobs:
         id: check-framework-common
         run: |
           CHANGED_FILES="${{ steps.changed-files.outputs.files }}"
-          if echo "$CHANGED_FILES" | grep -q "pieces/framework\|pieces/common"; then
+          if echo "$CHANGED_FILES" | grep -q "packages/integrations/framework\|packages/integrations/common"; then
             echo "framework_or_common_changed=true" >> $GITHUB_OUTPUT
           else
             echo "framework_or_common_changed=false" >> $GITHUB_OUTPUT
@@ -55,7 +58,7 @@ jobs:
       - name: Extract pieces package names from changed files
         id: extract-pieces
         run: |
-          PIECES=$(echo "${{ steps.changed-files.outputs.files }}" | grep -oE "packages/pieces/(community|core)/[^/]+" | awk -F'/' '{print $NF}' | sort -u | tr '\n' ',' | sed 's/,$//')
+          PIECES=$(echo "${{ steps.changed-files.outputs.files }}" | grep -oE "packages/integrations/(community|core)/[^/]+" | awk -F'/' '{print $NF}' | sort -u | tr '\n' ',' | sed 's/,$//')
           if [ -n "$PIECES" ]; then
             FILTERS=$(echo "$PIECES" | tr ',' '\n' | sed 's/.*/{&}/' | tr '\n' ',' | sed 's/,$//')
             echo "pieces_filters=$FILTERS" >> $GITHUB_OUTPUT
@@ -72,7 +75,7 @@ jobs:
         run: npm run lint-pieces
 
       - name: Build core projects
-        run: npx turbo run build --filter=web --filter=api --filter=@activepieces/engine --filter=@activepieces/piece-http --filter=@activepieces/piece-data-mapper --filter=@activepieces/piece-approval --filter=@activepieces/piece-webhook --filter=@activepieces/piece-delay
+        run: npx turbo run build --filter=web --filter=api --filter=@inboxfm-connect/engine --filter=@inboxfm-connect/piece-http --filter=@inboxfm-connect/piece-data-mapper --filter=@inboxfm-connect/piece-approval --filter=@inboxfm-connect/piece-webhook --filter=@inboxfm-connect/piece-delay
 
       - name: Build changed pieces projects
         if: steps.extract-pieces.outputs.pieces_filters != '' && steps.check-framework-common.outputs.framework_or_common_changed == 'false'
@@ -81,8 +84,8 @@ jobs:
           FILTER_ARGS=""
           for piece in "${PIECES[@]}"; do
             piece_name=$(echo "$piece" | tr -d '{}')
-            if [ -f "packages/pieces/community/${piece_name}/package.json" ] || [ -f "packages/pieces/core/${piece_name}/package.json" ]; then
-              FILTER_ARGS="$FILTER_ARGS --filter=@activepieces/piece-${piece_name}"
+            if [ -f "packages/integrations/community/${piece_name}/package.json" ] || [ -f "packages/integrations/core/${piece_name}/package.json" ]; then
+              FILTER_ARGS="$FILTER_ARGS --filter=@inboxfm-connect/piece-${piece_name}"
             fi
           done
           if [ -n "$FILTER_ARGS" ]; then
@@ -91,14 +94,14 @@ jobs:
 
       - name: Build all pieces projects
         if: steps.check-framework-common.outputs.framework_or_common_changed == 'true'
-        run: npx turbo run build --filter='@activepieces/piece-*'
+        run: npx turbo run build --filter='@inboxfm-connect/piece-*'
 
       - name: Run all tests and migration checks in parallel
         run: |
           set -euo pipefail
           pids=()
 
-          npx turbo run test --filter=@activepieces/engine --filter=@activepieces/shared &
+          npx turbo run test --filter=@inboxfm-connect/engine --filter=@inboxfm-connect/shared &
           pids+=($!)
 
           npx turbo run test-ce test-ee test-cloud check-migrations --filter=api &
@@ -124,7 +127,7 @@ jobs:
   tool-search-postgres:
     name: tool-search (postgres)
     runs-on: ubuntu-latest
-    if: github.repository == 'activepieces/activepieces'
+    if: github.repository == 'Mihir-Rabari/inboxfm-connect'
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -164,7 +167,10 @@ jobs:
 
       - run: bun install
 
+      # Best-effort turbo cache: this fork has no TURBO_CACHE_S3_* secrets, so
+      # skip the cache instead of failing CI on missing credentials.
       - name: Turbo Cache
+        if: secrets.TURBO_CACHE_S3_BUCKET != ''
         uses: rharkor/caching-for-turbo@v2.4.2
         with:
           provider: s3

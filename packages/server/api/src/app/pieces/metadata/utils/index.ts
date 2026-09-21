@@ -1,8 +1,8 @@
 import { PlatformId } from '@inboxfm-connect/core-utils'
 import { PieceCategory, PieceOrderBy, PieceSortBy, SuggestionType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { enterpriseFilteringUtils } from '../../../ee/pieces/filters/piece-filtering-utils'
 import { PieceMetadataSchema } from '../piece-metadata-entity'
+import { pieceFilteringHooks } from './piece-filtering-hooks'
 import { pieceSearching } from './piece-searching'
 import { pieceSorting } from './piece-sorting'
 
@@ -21,7 +21,7 @@ export const pieceListUtils = (log: FastifyBaseLogger) => ({
             suggestionType: params.suggestionType,
         })
 
-        return enterpriseFilteringUtils(log).filter({
+        return pieceFilteringHooks.get(log).filter({
             pieces: userBasedPieces,
             includeHidden: params.includeHidden,
             platformId: params.platformId,

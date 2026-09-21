@@ -22,6 +22,7 @@ import { oidcModule } from './core/security/oidc/oidc.module'
 import { rateLimitModule } from './core/security/rate-limit'
 import { authenticationMiddleware } from './core/security/v2/authn/authentication-middleware'
 import { authorizationMiddleware } from './core/security/v2/authz/authorization-middleware'
+import { projectRateLimitMiddleware } from './core/security/v2/authz/project-rate-limit-middleware'
 import { distributedLock, redisConnections } from './database/redis-connections'
 import { apiKeyModule } from './ee/api-keys/api-key-module'
 import { platformOAuth2Service } from './ee/app-connections/platform-oauth2-service'
@@ -175,6 +176,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     })
 
     app.addHook('preHandler', authorizationMiddleware)
+    app.addHook('preHandler', projectRateLimitMiddleware)
     app.addHook('preHandler', rbacMiddleware)
 
     await systemJobsSchedule(app.log).init()

@@ -1,7 +1,7 @@
 ---
 title: "Tools Reference"
 icon: "wrench"
-description: "Complete catalog of all MCP tools available in Activepieces"
+description: "Complete catalog of all MCP tools available in Inboxfm Connect"
 ---
 
 ## Discovery
@@ -64,7 +64,7 @@ Get the detailed input property schema for a specific piece action or trigger. R
 
 | Input | Type | Required | Description |
 |-------|------|----------|-------------|
-| `pieceName` | string | Yes | Piece name (e.g., `@activepieces/piece-slack`) |
+| `pieceName` | string | Yes | Piece name (e.g., `@inboxfm-connect/piece-slack`) |
 | `actionOrTriggerName` | string | Yes | Action or trigger name (e.g., `send_channel_message`) |
 | `type` | string | Yes | `action` or `trigger` |
 | `auth` | string | No | Connection externalId. When provided, dynamic dropdowns and DYNAMIC sub-fields are resolved. |
@@ -77,7 +77,7 @@ Resolve dropdown options for a single piece property. Returns available choices 
 
 | Input | Type | Required | Description |
 |-------|------|----------|-------------|
-| `pieceName` | string | Yes | Piece name (e.g., `@activepieces/piece-slack`) |
+| `pieceName` | string | Yes | Piece name (e.g., `@inboxfm-connect/piece-slack`) |
 | `actionOrTriggerName` | string | Yes | Action or trigger name (e.g., `send_channel_message`) |
 | `type` | string | Yes | `action` or `trigger` |
 | `propertyName` | string | Yes | The exact property name to resolve (e.g., `channel`) |
@@ -95,7 +95,7 @@ Resolve a chain of dependent dropdown properties in one call. For actions with c
 
 | Input | Type | Required | Description |
 |-------|------|----------|-------------|
-| `pieceName` | string | Yes | Piece name (e.g., `@activepieces/piece-google-sheets`) |
+| `pieceName` | string | Yes | Piece name (e.g., `@inboxfm-connect/piece-google-sheets`) |
 | `actionOrTriggerName` | string | Yes | Action or trigger name (e.g., `insert_row`) |
 | `type` | string | Yes | `action` or `trigger` |
 | `propertyChain` | array | Yes | Ordered list of properties to resolve (max 10). Each item has `propertyName` (string) and optional `selectedValue` (any). |
@@ -288,7 +288,7 @@ Set or update the trigger for a flow.
 | Input | Type | Required | Description |
 |-------|------|----------|-------------|
 | `flowId` | string | Yes | The flow ID |
-| `pieceName` | string | Yes | Piece name (e.g., `@activepieces/piece-gmail`) |
+| `pieceName` | string | Yes | Piece name (e.g., `@inboxfm-connect/piece-gmail`) |
 | `triggerName` | string | Yes | Trigger name from the piece |
 | `input` | object | No | Trigger configuration |
 | `auth` | string | No | Connection externalId |
@@ -533,7 +533,7 @@ Execute a single piece action once without building or saving a flow. Designed f
 
 | Input | Type | Required | Description |
 |-------|------|----------|-------------|
-| `pieceName` | string | Yes | Piece name (e.g. `slack` or `@activepieces/piece-slack`). Use `ap_research_pieces` to discover. |
+| `pieceName` | string | Yes | Piece name (e.g. `slack` or `@inboxfm-connect/piece-slack`). Use `ap_research_pieces` to discover. |
 | `actionName` | string | Yes | Action to run (e.g. `send_channel_message`). Use `ap_get_piece_props` for the input shape. |
 | `input` | object | No | Fully-resolved input for the action. Keys must match the piece action's props. Pass raw values — do **not** wrap them in `{{…}}`. Omit entirely if the action has no props. |
 | `connectionExternalId` | string | No | `externalId` from `ap_list_connections`. Required if the piece needs auth. Auto-wrapped server-side as `{{connections['externalId']}}`. Must be a plain ID — special characters are rejected. |

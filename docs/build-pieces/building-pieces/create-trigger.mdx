@@ -43,12 +43,12 @@ import {
   Polling,
   httpClient,
   pollingHelper,
-} from '@activepieces/pieces-common';
+} from '@inboxfm-connect/pieces-common';
 import {
   TriggerStrategy,
   createTrigger,
   AppConnectionValueForAuthProperty
-} from '@activepieces/pieces-framework';
+} from '@inboxfm-connect/pieces-framework';
 import dayjs from 'dayjs';
 
 const polling: Polling<
@@ -105,10 +105,10 @@ The way polling triggers usually work is as follows:
 
 ## Expose The Definition
 
-To make the trigger readable by Activepieces, add it to the array of triggers in the piece definition.
+To make the trigger readable by Inboxfm Connect, add it to the array of triggers in the piece definition.
 
 ```typescript
-import { createPiece } from '@activepieces/pieces-framework';
+import { createPiece } from '@inboxfm-connect/pieces-framework';
 import { getIcecreamFlavor } from './lib/actions/get-icecream-flavor';
 // Don't forget to add the following import.
 import { newFlavorCreated } from './lib/triggers/new-flavor-created';
@@ -132,7 +132,7 @@ For more details, check out the [Piece Development](/build-pieces/building-piece
 
 Once you edit the environment variable, restart the backend. The piece will be rebuilt. After this process, you'll need to **refresh** the frontend to see the changes.
 
-To test the trigger, use the load sample data from flow builder in Activepieces. It should function as shown in the screenshot.
+To test the trigger, open its detail page in Inboxfm Connect and use the **Test Trigger** panel to run it against a sample payload. It should function as shown in the screenshot.
 
 <Warning>
 To make your webhook accessible from the internet, you need to expose your local development instance to the internet, do the following:

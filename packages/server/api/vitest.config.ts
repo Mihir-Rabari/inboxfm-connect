@@ -20,12 +20,18 @@ export default defineConfig({
     // fork pool (which otherwise defaults to the detected CPU count) stacks a second layer of
     // parallelism on top and oversubscribes the runner — each api test file boots a full app +
     // 700+-piece sync. Capping to 2 concurrent forks still left two files (app-connection.test.ts,
-    // tool-search.test.ts) blowing through the 120s hook/test timeout, so go all the way to a
-    // single fork: every file gets the runner's full CPU share, trading suite wall-clock time for
-    // not timing out.
+    // tool-search.test.ts) blowing through the 120s hook/test timeout, so go down to one file
+    // running at a time. maxForks: 1 (NOT singleFork — that collapses every file into one shared
+    // OS process, and test-setup.ts's setupTestEnvironment() caches the booted app on `globalThis`
+    // across files assuming each file gets a fresh process/fresh globalThis; under singleFork a
+    // later file's fresh `job-handlers` module import never re-registers system job handlers
+    // because the reused app's registration lives in the first file's module instances instead —
+    // this broke tool-search-backfill.test.ts/tool-search-reindex-job.test.ts with "No handler for
+    // job tool-search-reindex" when tried locally) still gives each file its own process, just one
+    // at a time, so per-file isolation is preserved and every file still gets the full CPU share.
     poolOptions: {
       forks: {
-        singleFork: true,
+        maxForks: 1,
       },
     },
     setupFiles: [path.resolve(__dirname, 'vitest.setup.ts').replaceAll('\\', '/')],

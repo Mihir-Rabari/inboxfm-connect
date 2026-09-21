@@ -9,12 +9,16 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    // CI runners are resource-constrained enough that a handful of these forks bootstrapping
-    // a full app (DB init + 700+-piece sync) concurrently can blow past 60s even though no
-    // single test hangs — tool-search.test.ts already found this and bumped its own beforeAll
-    // to 300_000; raise the shared default instead of scattering more per-file overrides.
-    testTimeout: 120000,
-    hookTimeout: 120000,
+    // ci.yml runs three heavy processes concurrently for this job's whole duration (engine+shared
+    // unit tests, api's entire test-ce/test-ee/test-cloud/check-migrations run, and a separate
+    // migration-rollback script — see the "Run all tests and migration checks in parallel" step),
+    // on top of vitest's own fork pool below. Locally, every api test file completes in seconds
+    // flat with no hang; in CI even a single Redis DELETE in a beforeEach has intermittently
+    // exceeded 120s under that three-way contention. tool-search.test.ts already found this and
+    // bumped its own beforeAll to 300_000 for the same reason — raise the shared default to match
+    // instead of scattering more per-file overrides.
+    testTimeout: 300000,
+    hookTimeout: 300000,
     pool: 'forks',
     // Turbo already runs several packages' test suites concurrently in CI, so vitest's own
     // fork pool (which otherwise defaults to the detected CPU count) stacks a second layer of

@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { databaseConnection, resetDatabaseConnection } from '../../../../src/app/database/database-connection'
 import { encryptUtils } from '../../../../src/app/helper/encryption'
 import { system } from '../../../../src/app/helper/system/system'
+import { pieceCache } from '../../../../src/app/pieces/metadata/piece-cache'
 import { buildRetrievalDoc } from '../../../../src/app/tool-search/retrieval-doc'
 import { l2normalize, ToolSearchEmbedder } from '../../../../src/app/tool-search/embedder'
 import { toolSearchReindexService } from '../../../../src/app/tool-search/tool-search-reindex.service'
@@ -119,6 +120,10 @@ afterAll(async () => {
 beforeEach(async () => {
     await databaseConnection().getRepository('tool_search_index').createQueryBuilder().delete().execute()
     await databaseConnection().getRepository('integration_metadata').createQueryBuilder().delete().execute()
+    // Truncating the tables clears only the DB side — pieceMetadataService.list() (the keyword-floor
+    // path) reads piece_metadata through a 10-minute Redis cache, which would otherwise keep serving a
+    // previous test's seeded rows even though this test's own seedCatalog() already replaced them.
+    await pieceCache(log).invalidate()
 })
 
 describe('Tool Search Engine (Phase 1)', () => {

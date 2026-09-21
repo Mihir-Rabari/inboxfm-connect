@@ -1,4 +1,5 @@
 import { apId } from '@inboxfm-connect/core-utils'
+import { PieceMetadataModelSummary } from '@inboxfm-connect/pieces-framework'
 import { DefaultProjectRole, PackageType, PieceType, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
@@ -27,6 +28,9 @@ afterAll(async () => {
 
 beforeEach(async () => {
     await databaseConnection().getRepository('integration_metadata').createQueryBuilder().delete().execute()
+    // Truncating the table clears only one of the two layers the list endpoint reads:
+    // pieceListCache lives in Redis and would otherwise serve the previous test's rows.
+    await pieceCache(mockLog).invalidate()
 })
 
 describe('Piece Metadata CE API', () => {
@@ -78,8 +82,9 @@ describe('Piece Metadata CE API', () => {
             expect(response?.statusCode).toBe(StatusCodes.OK)
             const body = response?.json()
             expect(Array.isArray(body)).toBe(true)
-            expect(body).toHaveLength(1)
-            expect(body[0].name).toBe('ce-list-test-piece')
+            // The endpoint merges the shipped local catalog with the DB (fetchLatestPieces),
+            // so the seeded piece is listed alongside the catalog rather than alone.
+            expect(body.map((piece: PieceMetadataModelSummary) => piece.name)).toContain('ce-list-test-piece')
         })
 
         it('should filter pieces by searchQuery', async () => {

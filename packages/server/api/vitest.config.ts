@@ -9,8 +9,12 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    testTimeout: 60000,
-    hookTimeout: 60000,
+    // CI runners are resource-constrained enough that a handful of these forks bootstrapping
+    // a full app (DB init + 700+-piece sync) concurrently can blow past 60s even though no
+    // single test hangs — tool-search.test.ts already found this and bumped its own beforeAll
+    // to 300_000; raise the shared default instead of scattering more per-file overrides.
+    testTimeout: 120000,
+    hookTimeout: 120000,
     pool: 'forks',
     setupFiles: [path.resolve(__dirname, 'vitest.setup.ts').replaceAll('\\', '/')],
     include: [path.resolve(__dirname, 'test/**/*.test.ts').replaceAll('\\', '/')],

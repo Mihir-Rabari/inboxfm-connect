@@ -118,8 +118,12 @@ describe('Piece Metadata CE API', () => {
 
             expect(response?.statusCode).toBe(StatusCodes.OK)
             const body = response?.json()
-            expect(body).toHaveLength(1)
-            expect(body[0].name).toBe('searchable-unique-piece')
+            // The endpoint merges the shipped local catalog with the DB (fetchLatestPieces), so a
+            // loose token match against the ~700 real pieces can't be ruled out — assert the search
+            // surfaced the target and excluded the unrelated mock, not an exact result count.
+            const names = body.map((piece: PieceMetadataModelSummary) => piece.name)
+            expect(names).toContain('searchable-unique-piece')
+            expect(names).not.toContain('other-piece-xyz')
         })
     })
 

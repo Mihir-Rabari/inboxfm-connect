@@ -665,8 +665,11 @@ describe('Tool Search Engine (Phase 5 — keyword floor / degradation)', () => {
     it('degrades to the keyword floor (the pre-existing Fuse catalog search) when no embedder/key is available', async () => {
         await seedCatalog()
         // No reindex, no embedder, no platformId → embedder resolves to null → keyword floor.
-
-        const { results, mode } = await toolSearchService(log).searchActions('send message', { limit: 5 })
+        // The keyword floor's underlying pieceMetadataService.list() merges in the full shipped
+        // catalog (~700 real pieces) alongside the seeded mocks, so a tight limit risks real
+        // catalog noise crowding the mock's action out of the window — use a generous one so the
+        // assertion is about the fuzzy match itself, not a global top-N ranking contest.
+        const { results, mode } = await toolSearchService(log).searchActions('send message', { limit: 200 })
 
         expect(mode).toBe('keyword')
         const slack = results.find((r) => r.pieceName === '@inboxfm-connect/piece-slack')
@@ -688,7 +691,7 @@ describe('Tool Search Engine (Phase 5 — keyword floor / degradation)', () => {
             embed: () => Promise.reject(new Error('openai unreachable')),
         }
 
-        const { results, mode } = await toolSearchService(log).searchActions('send message', { embedder: throwingEmbedder, limit: 5 })
+        const { results, mode } = await toolSearchService(log).searchActions('send message', { embedder: throwingEmbedder, limit: 200 })
 
         expect(mode).toBe('keyword')
         expect(results.some((r) => r.pieceName === '@inboxfm-connect/piece-slack')).toBe(true)

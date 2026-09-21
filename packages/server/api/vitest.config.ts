@@ -18,13 +18,14 @@ export default defineConfig({
     pool: 'forks',
     // Turbo already runs several packages' test suites concurrently in CI, so vitest's own
     // fork pool (which otherwise defaults to the detected CPU count) stacks a second layer of
-    // parallelism on top and oversubscribes the 4-vCPU runner — each api test file boots a
-    // full app + 700+-piece sync, and several of those competing at once is what was blowing
-    // through the hook/test timeout above even after doubling it. Cap it so each fork gets a
-    // real CPU share instead of thrashing.
+    // parallelism on top and oversubscribes the runner — each api test file boots a full app +
+    // 700+-piece sync. Capping to 2 concurrent forks still left two files (app-connection.test.ts,
+    // tool-search.test.ts) blowing through the 120s hook/test timeout, so go all the way to a
+    // single fork: every file gets the runner's full CPU share, trading suite wall-clock time for
+    // not timing out.
     poolOptions: {
       forks: {
-        maxForks: 2,
+        singleFork: true,
       },
     },
     setupFiles: [path.resolve(__dirname, 'vitest.setup.ts').replaceAll('\\', '/')],

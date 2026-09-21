@@ -40,7 +40,7 @@ function loadCatalogFromDisk(): PieceMetadataSchema[] {
             maximumSupportedRelease: item.maximumSupportedRelease ?? '999.999.999',
             categories: validatedOrUndefined({ schema: CategoriesSchema, value: item.categories }),
             authors: item.authors ?? [],
-            auth: validatedOrUndefined({ schema: AuthSchema, value: item.auth }),
+            auth: item.auth,
             actions: validatedOrUndefined({ schema: ActionsSchema, value: item.actions }) ?? {},
             triggers: validatedOrUndefined({ schema: TriggersSchema, value: item.triggers }) ?? {},
             pieceType: PieceType.OFFICIAL,
@@ -109,9 +109,14 @@ function isLocalPiece(name: string): boolean {
     return findLocalPiece({ name }) !== undefined
 }
 
-// JSON.parse yields no type information, so every structural field of the catalog is
-// gated on the framework's own schema at load time. A malformed entry degrades to
-// "absent" rather than poisoning the process-lifetime cache with a half-valid piece.
+// JSON.parse yields no type information, so the catalog's structural fields are gated
+// on the framework's own schema at load time. A malformed entry degrades to "absent"
+// rather than poisoning the process-lifetime cache with a half-valid piece.
+//
+// `auth` is deliberately NOT gated: the catalog stores a type-only marker
+// (`{ "type": "CUSTOM_AUTH" }`) rather than a full IntegrationAuthProperty, so checking
+// it against that schema would reject and drop the marker on all 703 pieces that carry
+// one, which is how the UI knows a piece needs a connection at all.
 function validatedOrUndefined<T>({ schema, value }: ValidatedOrUndefinedParams<T>): T | undefined {
     if (value === undefined) {
         return undefined
@@ -120,7 +125,6 @@ function validatedOrUndefined<T>({ schema, value }: ValidatedOrUndefinedParams<T
 }
 
 const CategoriesSchema = z.array(z.enum(PieceCategory))
-const AuthSchema = z.union([IntegrationAuthProperty, z.array(IntegrationAuthProperty)])
 const ActionsSchema = z.record(z.string(), ToolBase)
 const TriggersSchema = z.record(z.string(), TriggerBase)
 

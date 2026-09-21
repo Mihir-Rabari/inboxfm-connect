@@ -6,12 +6,12 @@ import {
 import { AIProviderEntity } from '../ai/ai-provider-entity'
 import { AiToolConfigEntity } from '../ai/ai-tool-config-entity'
 import { PlatformAnalyticsReportEntity } from '../analytics/platform-analytics-report.entity'
+import { ApiKeyEntity } from '../api-keys/api-key.entity'
 import { ConnectionEntity } from '../app-connection/app-connection.entity'
 import { UserIdentityEntity } from '../authentication/user-identity/user-identity-entity'
 import { ConnectApiKeyEntity } from '../connect-api-keys/connect-api-key.entity'
 import { ConnectOAuthAppEntity } from '../connect-oauth-apps/connect-oauth-app.entity'
 import { ConnectSessionEntity } from '../connect-sessions/connect-session.entity'
-import { ApiKeyEntity } from '../ee/api-keys/api-key-entity'
 import { AppCredentialEntity } from '../ee/app-credentials/app-credentials.entity'
 import { AppSumoEntity } from '../ee/appsumo/appsumo.entity'
 import { AuditEventEntity } from '../ee/audit-logs/audit-event-entity'
@@ -92,6 +92,7 @@ function getEntities(): EntitySchema<unknown>[] {
         ConnectSessionEntity,
         ConnectApiKeyEntity,
         ConnectOAuthAppEntity,
+        ApiKeyEntity,
         // Enterprise
         ConcurrencyPoolEntity,
         ProjectMemberEntity,
@@ -99,7 +100,6 @@ function getEntities(): EntitySchema<unknown>[] {
         SigningKeyEntity,
         OAuthAppEntity,
         OtpEntity,
-        ApiKeyEntity,
         AuditEventEntity,
         PlatformAnalyticsReportEntity,
         EmbedSubdomainEntity,

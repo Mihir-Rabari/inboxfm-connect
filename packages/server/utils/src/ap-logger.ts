@@ -180,7 +180,10 @@ export const apLogger = {
 // Defined here so this package does not need fastify or pino as a dependency.
 export interface ApLogger {
     level: string
-    silent(): void
+    // Variadic like the others: pino types `silent` as a full LogFn, and a zero-arg
+    // signature here makes FastifyBaseLogger non-assignable to this interface — the
+    // one thing it exists to accept.
+    silent(...args: unknown[]): void
     info(...args: unknown[]): void
     warn(...args: unknown[]): void
     error(...args: unknown[]): void

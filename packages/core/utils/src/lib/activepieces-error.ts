@@ -91,6 +91,8 @@ export type ApErrorParams =
     | GenericErrorParams
     | SandboxCapacityExceededParams
     | ProjectRateLimitExceededParams
+    | SignInAttemptsExceededParams
+    | CaptchaVerificationFailedParams
 
 export type TriggerExecutionFailedParams = BaseErrorParams<ErrorCode.TRIGGER_EXECUTION_FAILED, {
     flowId: FlowId
@@ -494,6 +496,16 @@ export type ProjectRateLimitExceededParams = BaseErrorParams<ErrorCode.PROJECT_R
     windowSeconds: number
 }>
 
+export type SignInAttemptsExceededParams = BaseErrorParams<ErrorCode.SIGN_IN_ATTEMPTS_EXCEEDED, {
+    email: string
+    limit: number
+    windowSeconds: number
+}>
+
+export type CaptchaVerificationFailedParams = BaseErrorParams<ErrorCode.CAPTCHA_VERIFICATION_FAILED, {
+    provider: string
+}>
+
 export enum ErrorCode {
     INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR',
     MACHINE_NOT_CONNECTED = 'MACHINE_NOT_CONNECTED',
@@ -569,4 +581,6 @@ export enum ErrorCode {
     EXECUTION_STATE_MISSING = 'EXECUTION_STATE_MISSING',
     GENERIC_ERROR = 'GENERIC_ERROR',
     PROJECT_RATE_LIMIT_EXCEEDED = 'PROJECT_RATE_LIMIT_EXCEEDED',
+    SIGN_IN_ATTEMPTS_EXCEEDED = 'SIGN_IN_ATTEMPTS_EXCEEDED',
+    CAPTCHA_VERIFICATION_FAILED = 'CAPTCHA_VERIFICATION_FAILED',
 }

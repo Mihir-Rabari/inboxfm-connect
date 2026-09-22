@@ -8,7 +8,7 @@ import { s3Helper } from '../file/s3-helper'
 import { encryptUtils } from './encryption'
 import { jwtUtils } from './jwt-utils'
 import { system } from './system/system'
-import { AppSystemProp, ContainerType, SystemProp } from './system/system-props'
+import { AppSystemProp, CaptchaProvider, ContainerType, SystemProp } from './system/system-props'
 
 
 function enumValidator<T extends string>(enumValues: T[]) {
@@ -89,6 +89,13 @@ const systemPropValidators: {
     [AppSystemProp.API_RATE_LIMIT_AUTHN_ENABLED]: booleanValidator,
     [AppSystemProp.API_RATE_LIMIT_AUTHN_MAX]: numberValidator,
     [AppSystemProp.API_RATE_LIMIT_AUTHN_WINDOW]: stringValidator,
+    [AppSystemProp.API_RATE_LIMIT_AUTHN_ABUSE_MAX]: numberValidator,
+    [AppSystemProp.API_RATE_LIMIT_AUTHN_ABUSE_WINDOW]: stringValidator,
+    [AppSystemProp.API_SIGN_IN_EMAIL_THROTTLE_ENABLED]: booleanValidator,
+    [AppSystemProp.API_SIGN_IN_EMAIL_THROTTLE_MAX_ATTEMPTS]: numberValidator,
+    [AppSystemProp.API_SIGN_IN_EMAIL_THROTTLE_WINDOW_SECONDS]: numberValidator,
+    [AppSystemProp.CAPTCHA_PROVIDER]: enumValidator(Object.values(CaptchaProvider)),
+    [AppSystemProp.CAPTCHA_SECRET_KEY]: stringValidator,
     [AppSystemProp.CLIENT_REAL_IP_HEADER]: stringValidator,
     [AppSystemProp.CLOUD_AUTH_ENABLED]: booleanValidator,
     [AppSystemProp.CONFIG_PATH]: stringValidator,
@@ -287,6 +294,17 @@ export const validateEnvPropsOnStartup = async (log: FastifyBaseLogger): Promise
     if (isNil(jwtSecret)) {
         throw new Error(JSON.stringify({
             message: 'AP_JWT_SECRET is undefined, please define it in the environment variables',
+            docUrl: 'https://www.activepieces.com/docs/install/configuration/environment-variables',
+        }))
+    }
+
+    // CAPTCHA is off by default (zero setup). Once an admin opts in by setting
+    // AP_CAPTCHA_PROVIDER, fail fast rather than leave sign-up silently unable to
+    // verify tokens because the matching secret was never set.
+    const captchaProvider = system.get<CaptchaProvider>(AppSystemProp.CAPTCHA_PROVIDER)
+    if (!isNil(captchaProvider) && isNil(system.get(AppSystemProp.CAPTCHA_SECRET_KEY))) {
+        throw new Error(JSON.stringify({
+            message: 'AP_CAPTCHA_PROVIDER is set but AP_CAPTCHA_SECRET_KEY is missing. Set both to enable CAPTCHA on sign-up, or unset AP_CAPTCHA_PROVIDER to leave it disabled.',
             docUrl: 'https://www.activepieces.com/docs/install/configuration/environment-variables',
         }))
     }

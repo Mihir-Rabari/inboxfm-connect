@@ -1,12 +1,14 @@
 import { ActivepiecesError, ErrorCode, isNil, Permission } from '@inboxfm-connect/core-utils'
-import { PlatformRole, Principal, PrincipalType, UserIdentityProvider } from '@inboxfm-connect/shared'
+import { ApEdition, PlatformRole, Principal, PrincipalType, UserIdentityProvider } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { userIdentityService } from '../../../../authentication/user-identity/user-identity-service'
 import { rbacService } from '../../../../ee/authentication/project-role/rbac-service'
 import { projectMemberService } from '../../../../ee/projects/project-members/project-member.service'
+import { system } from '../../../../helper/system/system'
 import { userService } from '../../../../user/user-service'
 import { AuthorizationRouteSecurity, ProjectAuthorizationConfig } from '../../authorization/authorization'
 import { AuthorizationType, RouteKind } from '../../authorization/common'
+import { communityProjectAccess } from './project-access'
 
 export const authorizeOrThrow = async (principal: Principal, security: AuthorizationRouteSecurity, log: FastifyBaseLogger): Promise<void> => {
     if (security.kind === RouteKind.PUBLIC) {
@@ -60,11 +62,13 @@ async function assertNonEmbedOrAdmin(principal: Principal, log: FastifyBaseLogge
             },
         })
     }
-    const hasInvitePermission = await projectMemberService(log).hasPermissionOnAnyProject({
-        userId: user.id,
-        platformId: user.platformId,
-        permission: Permission.WRITE_INVITATION,
-    })
+    const hasInvitePermission = system.getEdition() === ApEdition.COMMUNITY
+        ? await communityProjectAccess.hasPermissionOnAnyProject()
+        : await projectMemberService(log).hasPermissionOnAnyProject({
+            userId: user.id,
+            platformId: user.platformId,
+            permission: Permission.WRITE_INVITATION,
+        })
     if (!hasInvitePermission) {
         throw new ActivepiecesError({
             code: ErrorCode.AUTHORIZATION,
@@ -101,6 +105,10 @@ async function assertAccessToProject(principal: Principal, projectSecurity: Proj
         })
     }
     assertServicePrincipalScope(principal, projectSecurity.projectId)
+    if (system.getEdition() === ApEdition.COMMUNITY) {
+        await communityProjectAccess.assertPrincipalAccessToProject({ principal, permission: projectSecurity.permission, projectId: projectSecurity.projectId, log })
+        return
+    }
     await rbacService(log).assertPrinicpalAccessToProject({ principal, permission: projectSecurity.permission, projectId: projectSecurity.projectId })
 }
 

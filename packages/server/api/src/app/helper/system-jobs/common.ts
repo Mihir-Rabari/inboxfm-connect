@@ -29,12 +29,18 @@ type AiCreditUpdateCheckSystemJobData = {
 type HardDeleteProjectSystemJobData = {
     projectId: ProjectId
     platformId: PlatformId
+    // Retry counter for the flow-bundle cleanup step; absent/undefined means "first attempt".
+    // See flowBundleCleanupService#nextFlowBundleCleanupAttempt.
+    attempt?: number
 }
 
 type HardDeletePlatformSystemJobData = {
     platformId: PlatformId
     userId: UserId
     identityId: string
+    // Retry counter for the flow-bundle cleanup step; absent/undefined means "first attempt".
+    // See flowBundleCleanupService#nextFlowBundleCleanupAttempt.
+    attempt?: number
 }
 
 // Scope shape kept inline (structurally equal to tool-search's ReindexScope) so this generic

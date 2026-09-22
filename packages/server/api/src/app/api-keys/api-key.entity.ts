@@ -3,7 +3,7 @@ import { EntitySchema } from 'typeorm'
 import {
     ApIdSchema,
     BaseColumnSchemaPart,
-} from '../../database/database-common'
+} from '../database/database-common'
 
 type ApiKeySchema = ApiKey & {
     platform: Platform

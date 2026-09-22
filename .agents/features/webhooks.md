@@ -1,5 +1,7 @@
 # Webhooks Module
 
+> **⚠️ STALE — needs human review.** Verified against the current source tree: `packages/server/api/src/app/webhooks/` no longer exists. Inbound trigger delivery now appears to route through `packages/server/api/src/app/execution/trigger-binding/` (see `.agents/features/triggers.md`, also flagged stale). Left as-is rather than rewritten speculatively — needs review by someone with full context on the current inbound-request model.
+
 ## Summary
 Ingests inbound HTTP requests from external services and routes them to flows for execution. The module normalizes request payloads (handling multipart, binary, JSON, and text), supports both synchronous (blocking, waits for flow response) and asynchronous (fire-and-forget) execution modes, manages handshake verification for external services that challenge webhook ownership, and enforces payload size limits. It is the primary entry point for event-driven flow execution from outside Activepieces.
 

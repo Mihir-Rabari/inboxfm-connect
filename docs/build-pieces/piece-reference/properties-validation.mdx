@@ -4,7 +4,7 @@ description: "Learn about different types of properties validation "
 icon: 'magnifying-glass'
 ---
 
-Activepieces uses Zod for runtime validation of piece properties. Zod provides a powerful schema validation system that helps ensure your piece receives valid inputs.
+Inboxfm Connect uses Zod for runtime validation of piece properties. Zod provides a powerful schema validation system that helps ensure your piece receives valid inputs.
 
 To use Zod validation in your piece, first import the validation helper and Zod:
 
@@ -13,8 +13,8 @@ Please make sure the `minimumSupportedRelease` is set to at least `0.36.1` for t
 </Warning>
 
 ```typescript
-import { createAction, Property } from '@activepieces/pieces-framework';
-import { propsValidation } from '@activepieces/pieces-common';
+import { createAction, Property } from '@inboxfm-connect/pieces-framework';
+import { propsValidation } from '@inboxfm-connect/pieces-common';
 import { z } from 'zod';
 
 export const getIcecreamFlavor = createAction({

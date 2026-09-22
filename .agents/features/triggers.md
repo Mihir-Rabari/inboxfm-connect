@@ -1,5 +1,7 @@
 # Trigger Module
 
+> **⚠️ STALE — needs human review.** Verified against the current source tree: `packages/server/api/src/app/trigger/` (TriggerSource, TriggerEvent, AppEventRouting, the flow-canvas trigger widget, etc. described below) no longer exists. Trigger registration now lives in `packages/server/api/src/app/execution/trigger-binding/` (`TriggerBindingEntity`, `trigger-binding.service.ts`, `trigger-binding.controller.ts`). This file describes the removed flow-builder-centric trigger model in detail and was left as-is rather than rewritten speculatively — it needs a full rewrite by someone with complete knowledge of the current trigger-binding model.
+
 ## Summary
 Manages the full lifecycle of flow triggers — registration, event capture, testing, and deduplication. A trigger defines how and when a flow starts: via polling, inbound webhooks, app-native webhooks routed through a shared event bus, or manual invocation. The module tracks each enabled trigger as a `TriggerSource` record, maintains deduplication state in Redis, and drives enable/disable side effects such as BullMQ job scheduling and external webhook registration.
 

@@ -11,14 +11,14 @@ picker), giving users readable labels, formatted values, and nested/tabular view
 changing the expression paths used in automations.
 
 The schema is fully type-checked against the `OutputSchema` type exported from
-`@activepieces/pieces-framework`.
+`@inboxfm-connect/pieces-framework`.
 
 ## Declare a Schema
 
 Pass `outputSchema` with a flat list of `fields`. Each field maps to a path in the output:
 
 ```typescript
-import { createAction } from '@activepieces/pieces-framework';
+import { createAction } from '@inboxfm-connect/pieces-framework';
 
 export const getEmail = createAction({
   name: 'get_email',

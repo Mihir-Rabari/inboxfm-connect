@@ -1,12 +1,12 @@
 ---
 title: "Network Security"
-description: "How Activepieces isolates outbound traffic from your internal network"
+description: "How Inboxfm Connect isolates outbound traffic from your internal network"
 icon: "shield-halved"
 ---
 
 ## Overview
 
-Activepieces makes outbound HTTP from two surfaces, and each is hardened separately:
+Inboxfm Connect makes outbound HTTP from two surfaces, and each is hardened separately:
 
 1. **User code in flows**: Code steps, piece actions, anything a flow author can write. Hardened by `AP_NETWORK_MODE`; see [User-code egress](#user-code-egress).
 2. **Server-side HTTP from the API**: OAuth token claim and refresh, Vault, Conjur, event-destination webhooks, on-call pager, MCP tool validation. Always filtered, tuned via `AP_SSRF_ALLOW_LIST`; see [Server-side egress](#server-side-egress).
@@ -67,7 +67,7 @@ With `AP_NETWORK_MODE=STRICT` you should see an `SSRFBlockedError`. With `UNREST
 
 Separate from flow code, the API server itself makes outbound HTTP on behalf of admins and users: OAuth token claim and refresh, Hashicorp Vault, CyberArk Conjur, event-destination webhooks, on-call pager, MCP tool validation. The URLs come from admin config (Vault server URL) or user input (webhook destination, MCP server URL), so the same SSRF risks apply.
 
-Unlike user-code egress, **this layer is always on**. It does not require `AP_NETWORK_MODE=STRICT`. It is implemented as a `request-filtering-agent` wrapper attached to the shared axios instances in `@activepieces/server-utils`, and every outbound request flows through it. The blocked ranges are identical to the engine guard (RFC1918, loopback, link-local, cloud metadata, non-unicast).
+Unlike user-code egress, **this layer is always on**. It does not require `AP_NETWORK_MODE=STRICT`. It is implemented as a `request-filtering-agent` wrapper attached to the shared axios instances in `@inboxfm-connect/server-utils`, and every outbound request flows through it. The blocked ranges are identical to the engine guard (RFC1918, loopback, link-local, cloud metadata, non-unicast).
 
 <Tip>
 `AP_SSRF_ALLOW_LIST` is shared between both surfaces. Add an IP or CIDR once and it applies to user-code egress **and** server-side HTTP. Restart the server after changing the value.

@@ -1,7 +1,9 @@
 # AI Agents
 
+> **⚠️ STALE — needs human review.** This doc describes agents as a step inside the old visual flow builder (`packages/web/src/app/builder/`), which no longer exists in this codebase (see `README.md`: "stripped of its visual flow builder"). There is now a real backend entity for this — `packages/server/api/src/app/ai/ai-tool-config-entity.ts` / `ai-tool-config-service.ts` / `ai-tool-config-controller.ts` — contradicting this doc's "does not have its own backend entity" claim below. No `@inboxfm-connect/piece-agent` package or `packages/server/api/src/app/trigger/` / `packages/server/api/src/app/flows/` module exists in the current source tree. The rest of this file was left as-is pending a rewrite by someone with full context on the current agent-configuration model (see `.agents/features/ai-providers.md` and the `agents` app module for verified current starting points).
+
 ## Summary
-Agents is a flow step type (backed by `@activepieces/piece-agent`) that executes an LLM-driven autonomous loop. The agent is given a prompt, a set of tools, an AI provider/model, and optional structured-output fields. It runs a ReAct-style loop (up to `maxSteps`) where the model can call any configured tool before producing a final answer. Tools can be piece actions, other flows, MCP servers, or knowledge-base files. The feature is entirely configured inside the Flow Builder as a special step and does not have its own backend entity — the agent configuration lives inside the flow version's step settings.
+Agents is a flow step type (backed by `@inboxfm-connect/piece-agent`) that executes an LLM-driven autonomous loop. The agent is given a prompt, a set of tools, an AI provider/model, and optional structured-output fields. It runs a ReAct-style loop (up to `maxSteps`) where the model can call any configured tool before producing a final answer. Tools can be piece actions, other flows, MCP servers, or knowledge-base files. The feature is entirely configured inside the Flow Builder as a special step and does not have its own backend entity — the agent configuration lives inside the flow version's step settings.
 
 ## Key Files
 
@@ -45,7 +47,7 @@ Gated by `platform.plan.agentsEnabled`. When disabled, the agent step type is hi
 - **AgentTaskStatus** — `COMPLETED`, `FAILED`, `IN_PROGRESS`
 
 ## Agent Step Configuration (stored in flow version)
-The agent step is a `PIECE` action on `@activepieces/piece-agent`. Its `settings.input` contains:
+The agent step is a `PIECE` action on `@inboxfm-connect/piece-agent`. Its `settings.input` contains:
 - `agentTools` — `AgentTool[]`
 - `structuredOutput` — `AgentOutputField[]`
 - `prompt` — string (may include `{{variables}}`)

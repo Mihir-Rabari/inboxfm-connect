@@ -8,19 +8,19 @@ icon: "plug"
 
 ## What it does
 
-Every Activepieces project can act as an [MCP](/mcp/overview) server — a place an AI can connect to in order to run that project's flows.
+Every Inboxfm Connect project can act as an [MCP](/mcp/overview) server — a place an AI can connect to in order to run that project's flows.
 
-When you embed Activepieces, your users log in through **your** app, not Activepieces. So they can't use the normal "connect your AI" screen (it would ask them to log in to Activepieces, which they can't).
+When you embed Inboxfm Connect, your users log in through **your** app, not Inboxfm Connect. So they can't use the normal "connect your AI" screen (it would ask them to log in to Inboxfm Connect, which they can't).
 
 Embeddable MCP fixes that. Your user clicks one **Authorize** button inside your app, and your backend gets a token it can use to run that user's automations through AI.
 
 **Who does what:**
 - **Your backend** runs the connect steps and keeps the token.
 - **Your user** just clicks Authorize in a small popup inside your app.
-- **Activepieces** checks everything and gives back a token for that one user's project.
+- **Inboxfm Connect** checks everything and gives back a token for that one user's project.
 
 <Info>
-It's normal OAuth. The only Activepieces-specific part is one SDK call (`authorizeMcp`) that shows the Authorize popup inside your app.
+It's normal OAuth. The only Inboxfm Connect-specific part is one SDK call (`authorizeMcp`) that shows the Authorize popup inside your app.
 </Info>
 
 ## Quick token (no OAuth)
@@ -48,13 +48,13 @@ Embedding should already work for you:
 2. Your backend **signs a user token (JWT)**.
 3. Your frontend called `activepieces.configure({ jwtToken, instanceUrl, … })`.
 
-Below, `INSTANCE_URL` is your Activepieces address (like `https://app.your-company.com`).
+Below, `INSTANCE_URL` is your Inboxfm Connect address (like `https://app.your-company.com`).
 
 ## The whole idea in 6 steps
 
 1. **Register your app once** → you get a `client_id`.
 2. **Make two random codes** (a "verifier" and a "challenge").
-3. **Ask Activepieces to start a connection** → you get an `authRequestId`.
+3. **Ask Inboxfm Connect to start a connection** → you get an `authRequestId`.
 4. **Show the Authorize popup** in your app → the user clicks Authorize → you get a `code`.
 5. **Trade the `code` for a token.**
 6. **Use the token** to run the user's flows.
@@ -63,7 +63,7 @@ Below, `INSTANCE_URL` is your Activepieces address (like `https://app.your-compa
 
 <Steps>
   <Step title="1. Register your app (only once)">
-    This tells Activepieces who your app is. Save the `client_id` — it's the same for all users.
+    This tells Inboxfm Connect who your app is. Save the `client_id` — it's the same for all users.
 
     ```bash
     curl -X POST "$INSTANCE_URL/register" \

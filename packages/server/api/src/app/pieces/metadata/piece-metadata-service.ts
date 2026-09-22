@@ -7,7 +7,6 @@ import { FastifyBaseLogger } from 'fastify'
 import semVer from 'semver'
 import { EntityManager, In, IsNull } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
-import { enterpriseFilteringUtils } from '../../ee/pieces/filters/piece-filtering-utils'
 import { pieceTagService } from '../tags/pieces/piece-tag.service'
 import { localPieceCatalog } from './local-piece-catalog'
 import { pieceCache, PieceRegistryEntry } from './piece-cache'
@@ -15,6 +14,7 @@ import { pieceListCache } from './piece-list-cache'
 import { PieceMetadataEntity, PieceMetadataSchema } from './piece-metadata-entity'
 import { filterPieceBasedOnType, isNewerVersion, isSupportedRelease, lastVersionOfEachPiece, loadDevPiecesIfEnabled, pieceListUtils } from './utils'
 import { filePiecesUtils } from './utils/file-pieces-utils'
+import { pieceFilteringHooks } from './utils/piece-filtering-hooks'
 
 export const pieceRepos = repoFactory(PieceMetadataEntity)
 
@@ -65,7 +65,7 @@ export const pieceMetadataService = (log: FastifyBaseLogger) => {
                 return undefined
             }
 
-            const isFiltered = await enterpriseFilteringUtils(log).isFiltered({
+            const isFiltered = await pieceFilteringHooks.get(log).isFiltered({
                 piece,
                 projectId,
                 platformId,

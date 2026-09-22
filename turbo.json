@@ -114,6 +114,14 @@
       "dependsOn": ["build"],
       "cache": false
     },
+    "generate": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
+    "generate:check": {
+      "dependsOn": ["^build"],
+      "cache": false
+    },
     "db-migration": {
       "dependsOn": ["build"],
       "cache": false

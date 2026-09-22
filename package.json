@@ -22,7 +22,7 @@
     "db-migration": "npx turbo run db-migration --filter=api --",
     "check-migrations": "npx turbo run check-migrations --filter=api",
     "rollback": "npm run rollback --workspace=packages/server/api --",
-    "lint-core": "turbo run lint --filter=@inboxfm-connect/shared --filter=@inboxfm-connect/engine --filter=api --filter=@inboxfm-connect/server-utils --filter=ee-embed-sdk",
+    "lint-core": "turbo run lint --filter=@inboxfm-connect/shared --filter=@inboxfm-connect/engine --filter=api --filter=@inboxfm-connect/server-utils --filter=ee-embed-sdk --filter=@inboxfm-connect/sdk",
     "lint-pieces": "turbo run lint --filter='@inboxfm-connect/piece-*'",
     "lint-affected": "turbo run lint --affected",
     "lint-dev": "turbo run lint --filter='!@inboxfm-connect/piece-*' --force -- --fix",

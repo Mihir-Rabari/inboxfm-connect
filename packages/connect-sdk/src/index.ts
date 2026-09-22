@@ -1,3 +1,4 @@
+import type { ConnectionsPage, CreateConnectSessionResponseContract, ExecuteRequestContract } from './api-types'
 import { ConnectError } from './errors'
 import { transport } from './transport'
 
@@ -91,6 +92,7 @@ export class InboxFM {
 
 export { ConnectError }
 export type { ConnectErrorCategory, ConnectErrorOptions } from './errors'
+export type { Connection } from './api-types'
 
 export type ConnectRequestOptions = {
     signal?: AbortSignal
@@ -115,30 +117,16 @@ export type CreateConnectSessionParams = {
     expiresInSeconds?: number
 } & ConnectRequestOptions
 
-export type CreateConnectSessionResult = {
-    token: string
-    connectUrl: string
-    expiresAt: string
-}
+export type CreateConnectSessionResult = CreateConnectSessionResponseContract
 
 export type ListConnectionsParams = {
     externalUserId: string
     pieceName?: string
 } & ConnectRequestOptions
 
-export type ListConnectionsResult = {
-    data: Array<Record<string, unknown>>
-    next: string | null
-    previous: string | null
-}
+export type ListConnectionsResult = ConnectionsPage
 
-export type ExecuteParams = {
-    integration: string
-    tool: string
-    connectionId?: string
-    externalUserId?: string
-    input: Record<string, unknown>
-} & ConnectRequestOptions
+export type ExecuteParams = Omit<ExecuteRequestContract, 'projectId'> & ConnectRequestOptions
 
 export type DeleteConnectionParams = {
     connectionId: string

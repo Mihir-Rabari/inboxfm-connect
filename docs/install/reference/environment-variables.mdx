@@ -4,12 +4,12 @@ description: 'The complete reference of every environment variable and its defau
 icon: 'gear'
 ---
 
-This is the exhaustive lookup — every variable Activepieces reads, grouped by
+This is the exhaustive lookup — every variable Inboxfm Connect reads, grouped by
 concern, with its default. For *how* to apply them to a production deployment,
 see [Configure & Operate](/install/configure-operate/production-setup).
 
 <Tip>
-When you run [tools/deploy.sh](https://github.com/activepieces/activepieces/blob/main/tools/deploy.sh)
+When you run [tools/deploy.sh](https://github.com/Mihir-Rabari/inboxfm-connect/blob/main/tools/deploy.sh)
 from the Docker installation tutorial, it generates a root `.env` file
 pre-filled with these values.
 </Tip>
@@ -78,7 +78,7 @@ can expose the frontend port (4200) with a tunneling service such as
 
 ### Database
 
-Activepieces stores its data in PostgreSQL (recommended for production) or an
+Inboxfm Connect stores its data in PostgreSQL (recommended for production) or an
 embedded PGLite database. Set the connection with discrete fields or a single
 `AP_POSTGRES_URL`.
 
@@ -222,7 +222,7 @@ Sign-in providers and SCIM provisioning.
 |---|---|---|
 | `AP_GOOGLE_CLIENT_ID` | Google OAuth2 client ID for "Sign in with Google". Both this and `AP_GOOGLE_CLIENT_SECRET` must be set for the button to appear; it can no longer be configured from the admin SSO page. | `None` |
 | `AP_GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret. Required together with `AP_GOOGLE_CLIENT_ID`. | `None` |
-| `AP_CLOUD_AUTH_ENABLED` | Use Activepieces-hosted OAuth2 apps for piece connections. Set to `false` to disable them. | `true` |
+| `AP_CLOUD_AUTH_ENABLED` | Use Inboxfm Connect-hosted OAuth2 apps for piece connections. Set to `false` to disable them. | `true` |
 | `AP_SCIM_DEFAULT_PROJECT_ROLE` | Default project role for members added via SCIM group sync. One of `Admin`, `Editor`, `Viewer`. | `Editor` |
 
 ---

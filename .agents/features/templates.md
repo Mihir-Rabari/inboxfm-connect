@@ -1,5 +1,7 @@
 # Flow Templates
 
+> **⚠️ STALE — needs human review.** Verified against the current source tree: `packages/server/api/src/app/template/` no longer exists (10 of 12 `Key Files` paths below are missing). This doc describes a template system built on the removed flow module. Left as-is rather than rewritten speculatively — needs review by someone with full context on whether/how templates exist in the current headless execution model.
+
 ## Summary
 The Templates feature provides a library of reusable flow (and table) blueprints that users can browse, import, and build on. Templates are typed into three categories: OFFICIAL (curated by Activepieces, stored on Cloud or proxied from cloud.activepieces.com for self-hosted), CUSTOM (created by a platform owner to share within their platform), and SHARED (one-off sharing URLs, not listable). On Cloud, official templates are stored in the database with a null platformId. On Community/Enterprise self-hosted, official templates are fetched at request time from the Activepieces Cloud API (`https://cloud.activepieces.com/api/v1/templates`). Custom templates require the `manageTemplatesEnabled` plan flag. Before saving, flows inside a template are validated and piece names extracted into a searchable `pieces` array.
 

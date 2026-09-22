@@ -3,7 +3,7 @@ title: 'Bundling Pieces'
 icon: 'cube'
 ---
 
-Activepieces builds every piece into a **self-contained bundle**. Instead of shipping a piece that depends on `@activepieces/shared`, `@activepieces/pieces-framework`, `@activepieces/pieces-common`, and the `@activepieces/core-*` packages at install time, the build inlines all of that code into a single artifact.
+Inboxfm Connect builds every piece into a **self-contained bundle**. Instead of shipping a piece that depends on `@inboxfm-connect/shared`, `@inboxfm-connect/pieces-framework`, `@inboxfm-connect/pieces-common`, and the `@inboxfm-connect/core-*` packages at install time, the build inlines all of that code into a single artifact.
 
 This is what lets the engine provision a piece by downloading **one artifact** — no `bun install` / `npm install` of a dependency tree at runtime.
 
@@ -11,7 +11,7 @@ This is what lets the engine provision a piece by downloading **one artifact** �
 
 When a piece is built for publishing, the bundler:
 
-- **Inlines all `@activepieces/*` workspace libraries** (`shared`, `pieces-framework`, `pieces-common`, `core-utils`, `core-piece-types`, …) directly into the bundle. These libraries are **never published to npm** — they only exist as part of each piece's bundle.
+- **Inlines all `@inboxfm-connect/*` workspace libraries** (`shared`, `pieces-framework`, `pieces-common`, `core-utils`, `core-piece-types`, …) directly into the bundle. These libraries are **never published to npm** — they only exist as part of each piece's bundle.
 - **Inlines third-party dependencies** (e.g. an SDK the piece imports) into the same bundle.
 - **Keeps a small allow-list of deps external** only when they genuinely cannot be inlined — native addons or packages that use dynamic `require`. These remain in the published `dependencies` so the runtime installer resolves them.
 
@@ -23,7 +23,7 @@ After bundling, the piece's `dist/package.json` is rewritten:
 
 ```jsonc
 {
-  "name": "@activepieces/piece-json",
+  "name": "@inboxfm-connect/piece-json",
   "version": "0.1.7",
   "main": "./src/index.js",      // the self-contained bundle
   "dependencies": {
@@ -33,7 +33,7 @@ After bundling, the piece's `dist/package.json` is rewritten:
 }
 ```
 
-No `@activepieces/*` dependency appears — installing the piece never requires those packages to exist on the registry.
+No `@inboxfm-connect/*` dependency appears — installing the piece never requires those packages to exist on the registry.
 
 ### Forcing a dependency to stay external
 
@@ -41,7 +41,7 @@ If a dependency must not be inlined (for example a native module), add it to a `
 
 ```jsonc
 {
-  "name": "@activepieces/piece-example",
+  "name": "@inboxfm-connect/piece-example",
   "bundleDeps": ["some-native-addon"]
 }
 ```

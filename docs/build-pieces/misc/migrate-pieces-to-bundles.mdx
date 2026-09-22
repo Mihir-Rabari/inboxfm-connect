@@ -7,18 +7,18 @@ icon: 'package'
 This applies to forks with custom pieces created before pieces moved to self-contained bundles. Pieces created with `npm run cli pieces create` already use the bundle model — nothing to do.
 </Note>
 
-Activepieces builds each piece into a single self-contained bundle — see [Bundling Pieces](./bundling-pieces) for how that works. If you maintain custom pieces from before this change, update them so they conform to the new model.
+Inboxfm Connect builds each piece into a single self-contained bundle — see [Bundling Pieces](./bundling-pieces) for how that works. If you maintain custom pieces from before this change, update them so they conform to the new model.
 
 ## What changed
 
 | | **Before** | **Now** |
 |---|---|---|
-| Piece dependencies | `@activepieces/shared` + framework + common | framework + common only |
-| Imports in piece code | `@activepieces/shared` and `@activepieces/pieces-framework` | `@activepieces/pieces-framework` only |
+| Piece dependencies | `@inboxfm-connect/shared` + framework + common | framework + common only |
+| Imports in piece code | `@inboxfm-connect/shared` and `@inboxfm-connect/pieces-framework` | `@inboxfm-connect/pieces-framework` only |
 | Build output | compiled files + dependency tree | one self-contained bundle |
-| `@activepieces/shared` location | `packages/shared` | `packages/core/shared` (same package name) |
+| `@inboxfm-connect/shared` location | `packages/shared` | `packages/core/shared` (same package name) |
 
-Pieces now import only from `@activepieces/pieces-framework` and `@activepieces/pieces-common`. The framework re-exports the foundation symbols (`isNil`, `SeekPage`, `PieceCategory`, `AppConnectionType`, and so on) that used to come from `@activepieces/shared`.
+Pieces now import only from `@inboxfm-connect/pieces-framework` and `@inboxfm-connect/pieces-common`. The framework re-exports the foundation symbols (`isNil`, `SeekPage`, `PieceCategory`, `AppConnectionType`, and so on) that used to come from `@inboxfm-connect/shared`.
 
 ## Migrate with the CLI
 
@@ -47,29 +47,29 @@ To migrate by hand — or to see exactly what the command changes — follow the
 
 <Steps>
 <Step title="Repoint imports to the framework">
-Replace any `@activepieces/shared` (or `@activepieces/core-*`) import with `@activepieces/pieces-framework`:
+Replace any `@inboxfm-connect/shared` (or `@inboxfm-connect/core-*`) import with `@inboxfm-connect/pieces-framework`:
 
 ```ts
 // Before
-import { PieceCategory, ExecutionType } from '@activepieces/shared';
+import { PieceCategory, ExecutionType } from '@inboxfm-connect/shared';
 
 // After
-import { PieceCategory, ExecutionType } from '@activepieces/pieces-framework';
+import { PieceCategory, ExecutionType } from '@inboxfm-connect/pieces-framework';
 ```
 
 If a symbol isn't re-exported by the framework, it was server-only and shouldn't be imported into a piece.
 </Step>
 
 <Step title="Update package.json dependencies and scripts">
-Remove `@activepieces/shared` and move `tslib` to `devDependencies`. Add `@activepieces/core-piece-types` and `@activepieces/core-utils` — these are build-time only (they let `tsc` emit portable type declarations; your source never imports them directly). Add the `bundle` script.
+Remove `@inboxfm-connect/shared` and move `tslib` to `devDependencies`. Add `@inboxfm-connect/core-piece-types` and `@inboxfm-connect/core-utils` — these are build-time only (they let `tsc` emit portable type declarations; your source never imports them directly). Add the `bundle` script.
 
 ```jsonc
 {
   "dependencies": {
-    "@activepieces/pieces-common": "workspace:*",
-    "@activepieces/pieces-framework": "workspace:*",
-    "@activepieces/core-piece-types": "workspace:*",
-    "@activepieces/core-utils": "workspace:*"
+    "@inboxfm-connect/pieces-common": "workspace:*",
+    "@inboxfm-connect/pieces-framework": "workspace:*",
+    "@inboxfm-connect/core-piece-types": "workspace:*",
+    "@inboxfm-connect/core-utils": "workspace:*"
   },
   "devDependencies": {
     "tslib": "2.6.2"
@@ -94,10 +94,10 @@ Add a `no-restricted-imports` rule to the `*.ts`/`*.tsx` override in the piece's
       "patterns": [
         "lodash",
         "lodash/*",
-        "@activepieces/core-*",
-        "@activepieces/server*",
-        "@activepieces/engine",
-        "@activepieces/shared"
+        "@inboxfm-connect/core-*",
+        "@inboxfm-connect/server*",
+        "@inboxfm-connect/engine",
+        "@inboxfm-connect/shared"
       ]
     }]
   }

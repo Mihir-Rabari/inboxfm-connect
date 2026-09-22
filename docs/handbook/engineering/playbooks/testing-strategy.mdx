@@ -1,12 +1,12 @@
 ---
 title: "Testing Strategy"
-description: "Canonical 4-layer testing taxonomy for Activepieces"
+description: "Canonical 4-layer testing taxonomy for Inboxfm Connect"
 icon: "shield-check"
 ---
 
 ## Overview
 
-Activepieces tests live in four distinct layers. Each layer owns a different failure mode — picking the wrong layer produces slow, redundant, or silently ineffective tests.
+Inboxfm Connect tests live in four distinct layers. Each layer owns a different failure mode — picking the wrong layer produces slow, redundant, or silently ineffective tests.
 
 ## The Four Layers
 
@@ -69,7 +69,7 @@ If you are tempted to mock a database, a queue, or a kernel primitive, and your 
 
 - **`packages/server/api/test/unit/app/core/canary/canary-proxy.integration.test.ts`** — already carries an `.integration.` suffix but lives under `test/unit/`. Spins up two real Fastify instances listening on real TCP ports. Target: move to `packages/server/api/test/integration/ce/core/canary/`.
 - **`packages/server/api/test/integration/ce/authentication/password-hasher.test.ts`** — pure bcrypt/scrypt logic, no `setupTestEnvironment`, no DB, no Fastify. Target: move to `packages/server/api/test/unit/app/authentication/`.
-- **`packages/server/engine/test/handler/*.test.ts`** (13 files) — load real `@activepieces/piece-http`, `@activepieces/piece-data-mapper`, etc. and make real outbound HTTP calls from the executor. Target: relabel as integration (either move to a new `test/integration/` subtree, or document in the engine test README that the flat folder mixes unit and integration).
+- **`packages/server/engine/test/handler/*.test.ts`** (13 files) — load real `@inboxfm-connect/piece-http`, `@inboxfm-connect/piece-data-mapper`, etc. and make real outbound HTTP calls from the executor. Target: relabel as integration (either move to a new `test/integration/` subtree, or document in the engine test README that the flat folder mixes unit and integration).
 - **`packages/server/engine/test/core/code/v8-isolate-code-sandbox.test.ts`** — runs a real V8 isolate. Target: same as above (integration).
 - **`packages/server/worker/test/piece-installer.test.ts`** — does real filesystem work against temp dirs; borderline integration. Target: decide on a threshold (temp-dir I/O alone = unit, vs. temp-dir I/O + subprocess = integration) and relabel accordingly.
 - **Duplication: `api/test/integration/ce/flows/flow/flow.test.ts` vs `api/test/integration/cloud/flow/flow.test.ts`** — both assert identical "Create flow" shapes; only role-permission checks differ. Target: extract the shared CRUD assertions into CE and keep only the cloud-specific role permutations under `cloud/`.

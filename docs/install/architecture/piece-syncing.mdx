@@ -11,7 +11,7 @@ Pieces are standard [npm packages](https://www.npmjs.com/search?q=%40activepiece
 
 ```mermaid
 flowchart LR
-    REG["npm registry<br/>(@activepieces/piece-*)"]
+    REG["npm registry<br/>(@inboxfm-connect/piece-*)"]
     CAT["Local piece catalog"]
     STEP["Flow step<br/>pieceVersion: 0.5.3"]
     UI["Builder version dialog"]
@@ -32,7 +32,7 @@ flowchart LR
 
 | Type | Source | Installed by |
 |---|---|---|
-| Official | Activepieces cloud registry | Auto-sync |
+| Official | Inboxfm Connect cloud registry | Auto-sync |
 | Custom (npm) | npm registry, scoped to one platform | Platform admin |
 | Private (archive) | `.tgz` upload | Platform admin |
 
@@ -48,7 +48,7 @@ Custom and private pieces are never touched by the sync job.
 
 ## Server compatibility
 
-Every piece declares a `minimumSupportedRelease` (and optional `maximumSupportedRelease`) in its definition: the range of Activepieces server releases it works on. The catalog filters pieces against the running server's release, so an out-of-range piece is never listed in the builder and never served from the registry.
+Every piece declares a `minimumSupportedRelease` (and optional `maximumSupportedRelease`) in its definition: the range of Inboxfm Connect server releases it works on. The catalog filters pieces against the running server's release, so an out-of-range piece is never listed in the builder and never served from the registry.
 
 <Warning>
 **Self-hosted: upgrade to `0.82.0` or newer.** Every new piece now declares `minimumSupportedRelease ≥ 0.82.0`, the floor that came in with the latest piece-context version. Servers below `0.82.0` will not pick up any newly published pieces or bug fixes. Cloud is always on the latest release.

@@ -1,6 +1,6 @@
 ---
 title: "Latency"
-description: "What Activepieces adds to a synchronous webhook, warm versus cold, so you can set expectations before building on it"
+description: "What Inboxfm Connect adds to a synchronous webhook, warm versus cold, so you can set expectations before building on it"
 icon: "stopwatch"
 ---
 
@@ -52,7 +52,7 @@ Queue, Setup, and Warm-up are the orchestration around your flow; **Run** is the
 
 ## Your own work usually dominates
 
-A warm call is almost entirely per-step bookkeeping, not your code: a progress callback per step, tens of ms each. A step that calls a third-party API waits on that API, often far longer. Next to a real outbound call, the Activepieces overhead is the smaller number.
+A warm call is almost entirely per-step bookkeeping, not your code: a progress callback per step, tens of ms each. A step that calls a third-party API waits on that API, often far longer. Next to a real outbound call, the Inboxfm Connect overhead is the smaller number.
 
 ## Measured (warm)
 

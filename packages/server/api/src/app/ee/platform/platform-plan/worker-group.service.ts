@@ -9,7 +9,7 @@ const CACHE_TTL_SECONDS = apDayjsDuration(5, 'minute').asSeconds()
 const getWorkerGroupCacheKey = (platformId: string): string => `platform:${platformId}:worker_group_id:v2`
 const getWorkerGroupsEnabledCacheKey = (platformId: string): string => `platform:${platformId}:worker_groups_enabled`
 
-export const workerGroupService = (log: FastifyBaseLogger) => ({
+export const workerGroupService = (_log: FastifyBaseLogger) => ({
     async isWorkerGroupsEnabled({ platformId }: { platformId: string }): Promise<boolean> {
         const cached = await distributedStore.get<string>(getWorkerGroupsEnabledCacheKey(platformId))
         if (!isNil(cached)) {
@@ -54,7 +54,7 @@ export const workerGroupService = (log: FastifyBaseLogger) => ({
         await distributedStore.delete(getWorkerGroupCacheKey(platformId))
     },
 
-    async moveJobsToTargetQueue({ platformId, workerGroupId }: { platformId: string, workerGroupId: string | null }): Promise<void> {
+    async moveJobsToTargetQueue(_params: { platformId: string, workerGroupId: string | null }): Promise<void> {
         // No-op: queues are eliminated in headless platform
     },
 })

@@ -78,7 +78,16 @@ describe('MCP piece visibility', () => {
         await db.save('integration_metadata', visiblePiece)
         await pieceCache(mockLog).setup()
 
-        const result = await apResearchPiecesTool(mcp, mockLog).execute({})
+        // Unscoped, this call ranks against the entire real ~700-piece shipped catalog
+        // (LIST_CAP caps the unfiltered result to the first 50), so the seeded piece isn't
+        // guaranteed a slot. Scope with a distinctive single-word searchQuery instead of
+        // the full displayName: piece-searching.ts's substring-match union matches a query
+        // token against the piece's own name too, and every real piece's name contains the
+        // substring "piece" (e.g. "@inboxfm-connect/piece-slack") — a two-token query like
+        // "Visible Piece" re-triggers the same catalog-wide match this fix is meant to avoid.
+        // "Visible" alone is distinctive and an exact substring of the piece's displayName,
+        // so it lands as a top Fuse match regardless of catalog size.
+        const result = await apResearchPiecesTool(mcp, mockLog).execute({ searchQuery: 'Visible' })
 
         expect(text(result)).toContain('✅')
         expect(text(result)).toContain(visiblePieceName)

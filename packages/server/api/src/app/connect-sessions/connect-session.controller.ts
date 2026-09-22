@@ -57,7 +57,7 @@ export const connectSessionPublicController: FastifyPluginAsyncZod = async (app)
 
     app.post('/:token/oauth2/authorization-url', GetAuthorizationUrlRequest, async (req) => {
         const session = await connectSessionService.getActiveOrThrow(req.params.token)
-        assertPieceAllowed(session.allowedPieceNames, req.body.pieceName)
+        assertPieceAllowed({ allowedPieceNames: session.allowedPieceNames, pieceName: req.body.pieceName })
         const project = await projectService(req.log).getOneOrThrow(session.projectId)
         const clientId = await resolvePlatformClientId({ platformId: project.platformId, pieceName: req.body.pieceName })
         return oauth2Util(req.log).buildAuthorizationUrl({
@@ -74,7 +74,7 @@ export const connectSessionPublicController: FastifyPluginAsyncZod = async (app)
 
     app.post('/:token/connections', CreateConnectionRequest, async (req, res) => {
         const session = await connectSessionService.getActiveOrThrow(req.params.token)
-        assertPieceAllowed(session.allowedPieceNames, req.body.pieceName)
+        assertPieceAllowed({ allowedPieceNames: session.allowedPieceNames, pieceName: req.body.pieceName })
         const project = await projectService(req.log).getOneOrThrow(session.projectId)
 
         if (req.body.type === PLACEHOLDER_CONNECTION_TYPE || !SUPPORTED_CONNECTION_TYPES.has(req.body.type)) {
@@ -129,7 +129,7 @@ async function resolvePlatformClientId({ platformId, pieceName }: { platformId: 
     return oauthApp.clientId
 }
 
-function assertPieceAllowed(allowedPieceNames: string[] | null, pieceName: string): void {
+function assertPieceAllowed({ allowedPieceNames, pieceName }: AssertPieceAllowedParams): void {
     if (isNil(allowedPieceNames) || allowedPieceNames.length === 0) {
         return
     }
@@ -214,4 +214,9 @@ const CreateConnectionRequest = {
             [StatusCodes.CREATED]: AppConnectionWithoutSensitiveData,
         },
     },
+}
+
+type AssertPieceAllowedParams = {
+    allowedPieceNames: string[] | null | undefined
+    pieceName: string
 }

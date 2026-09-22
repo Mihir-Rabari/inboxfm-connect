@@ -1,5 +1,6 @@
 import { ActivepiecesError, ErrorCode, isNil, tryCatch } from '@inboxfm-connect/core-utils'
 import { HeadlessRuntime } from '@inboxfm-connect/runtime'
+import { apLogger } from '@inboxfm-connect/server-utils'
 import { Permission, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
@@ -10,6 +11,10 @@ import { ProjectResourceType } from '../core/security/authorization/common'
 import { securityAccess } from '../core/security/authorization/fastify-security'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
+
+// The runtime's database callbacks fire outside any request, so they cannot borrow
+// request.log — they get the same structured root logger the request hook builds.
+const runtimeLog = apLogger.create({ bindings: {} })
 
 const runtime = new HeadlessRuntime({
     basePath: process.cwd(),
@@ -41,17 +46,17 @@ const runtime = new HeadlessRuntime({
         if (!projectId) {
             throw new Error(`Connection has no projectIds: ${connection.id}`)
         }
-        return appConnectionService(console as any).decryptAndRefreshConnection(
+        return appConnectionService(runtimeLog).decryptAndRefreshConnection(
             connection,
             projectId,
-            console as any,
+            runtimeLog,
         )
     },
 })
 
 export const executeController: FastifyPluginAsyncZod = async (fastify) => {
     fastify.post('/', ExecuteRequestOptions, async (request) => {
-        const publicUrl = await system.get(AppSystemProp.FRONTEND_URL) || 'http://localhost:3000'
+        const publicUrl = system.get(AppSystemProp.FRONTEND_URL) || 'http://localhost:3000'
         const connectionId = await resolveConnectionId({
             projectId: request.projectId,
             connectionId: request.body.connectionId,

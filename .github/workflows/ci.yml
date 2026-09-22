@@ -11,6 +11,13 @@ jobs:
   main:
     runs-on: ubuntu-latest
     if: github.repository == 'Mihir-Rabari/inboxfm-connect'
+    env:
+      # redis-memory-server's default `version: stable` postinstall pulls Redis
+      # 8.x source, which now bundles RediSearch/RedisTimeSeries as Rust-based
+      # in-tree modules that fail to compile on this runner. Nothing here uses
+      # Redis modules (plain ioredis client only, see memory-redis.ts), so pin
+      # to a pre-module-merge release to skip that broken build path entirely.
+      REDISMS_VERSION: '7.4.0'
     steps:
       - uses: actions/checkout@v5
         with:
@@ -81,7 +88,7 @@ jobs:
         run: npm run lint-pieces
 
       - name: Build core projects
-        run: npx turbo run build --filter=web --filter=api --filter=@inboxfm-connect/engine --filter=@inboxfm-connect/piece-http --filter=@inboxfm-connect/piece-data-mapper --filter=@inboxfm-connect/piece-approval --filter=@inboxfm-connect/piece-webhook --filter=@inboxfm-connect/piece-delay
+        run: npx turbo run build --filter=@inboxfm-connect/web --filter=api --filter=@inboxfm-connect/engine --filter=@inboxfm-connect/piece-http --filter=@inboxfm-connect/piece-data-mapper --filter=@inboxfm-connect/piece-approval --filter=@inboxfm-connect/piece-webhook --filter=@inboxfm-connect/piece-delay
 
       - name: Build changed pieces projects
         if: steps.extract-pieces.outputs.pieces_filters != '' && steps.check-framework-common.outputs.framework_or_common_changed == 'false'
@@ -158,6 +165,8 @@ jobs:
       AP_POSTGRES_USERNAME: postgres
       AP_POSTGRES_PASSWORD: postgres
       AP_POSTGRES_USE_SSL: "false"
+      # See the `main` job above for why this is pinned.
+      REDISMS_VERSION: '7.4.0'
     steps:
       - uses: actions/checkout@v5
         with:

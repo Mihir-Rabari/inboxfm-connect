@@ -2,15 +2,12 @@ import { apId, isNil, PlatformId } from '@inboxfm-connect/core-utils'
 import { AnalyticsFlowReportItem, AnalyticsRunsUsageItem, AnalyticsTimePeriod, PlatformAnalyticsReport, UserWithMetaInformation } from '@inboxfm-connect/shared'
 import dayjs from 'dayjs'
 import { FastifyBaseLogger } from 'fastify'
-import { IsNull } from 'typeorm'
 import { repoFactory } from '../core/db/repo-factory'
 import { distributedLock } from '../database/redis-connections'
-import { ProjectEntity } from '../project/project-entity'
 import { userRepo } from '../user/user-service'
 import { PlatformAnalyticsReportEntity } from './platform-analytics-report.entity'
 
 export const platformAnalyticsReportRepo = repoFactory(PlatformAnalyticsReportEntity)
-const projectRepo = repoFactory(ProjectEntity)
 
 export const platformAnalyticsReportService = (log: FastifyBaseLogger) => ({
     refreshReport: async (platformId: PlatformId) => {
@@ -52,7 +49,7 @@ export const platformAnalyticsReportService = (log: FastifyBaseLogger) => ({
 
 
 
-async function listRuns(projectIds: string[], afterDate: string | null, currentDate: string): Promise<AnalyticsRunsUsageItem[]> {
+async function listRuns(_projectIds: string[], _afterDate: string | null, _currentDate: string): Promise<AnalyticsRunsUsageItem[]> {
     return []
 }
 
@@ -69,7 +66,7 @@ function mergeRuns(existing: AnalyticsRunsUsageItem[], incoming: AnalyticsRunsUs
     }
     return Array.from(map.values())
 }
-async function listFlows(platformId: PlatformId, log: FastifyBaseLogger): Promise<AnalyticsFlowReportItem[]> {
+async function listFlows(_platformId: PlatformId, _log: FastifyBaseLogger): Promise<AnalyticsFlowReportItem[]> {
     return []
 }
 
@@ -95,20 +92,6 @@ async function listUsers(platformId: PlatformId): Promise<UserWithMetaInformatio
             updated: user.updated,
         }
     })
-}
-
-async function listProjects(platformId: PlatformId): Promise<{ id: string, displayName: string }[]> {
-    const projects = await projectRepo().find({
-        where: {
-            platformId,
-            deleted: IsNull(),
-        },
-        select: {
-            id: true,
-            displayName: true,
-        },
-    })
-    return projects
 }
 
 function filterReportByTimePeriod(

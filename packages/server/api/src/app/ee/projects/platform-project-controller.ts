@@ -36,7 +36,7 @@ export const platformProjectController: FastifyPluginAsyncZod = async (app) => {
         await reply.status(StatusCodes.CREATED).send(projectWithUsage)
     })
 
-    app.get('/worker-groups', ListWorkerGroupsRequest, async (request) => {
+    app.get('/worker-groups', ListWorkerGroupsRequest, async () => {
         return {
             groups: [],
             sharedSlots: 0,

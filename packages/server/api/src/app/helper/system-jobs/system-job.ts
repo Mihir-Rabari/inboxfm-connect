@@ -48,14 +48,10 @@ const systemJobsScheduleImpl = (log: FastifyBaseLogger): SystemJobSchedule => ({
         }
     },
 
-    async getJob(jobId: string) {
-        return {
-            async updateData() {},
-            async isFailed() {
-                return false 
-            },
-            async retry() {},
-        } as any
+    // The in-process scheduler owns no BullMQ job registry, so there is no job handle
+    // to return. Handlers already receive their job's data as an argument.
+    async getJob() {
+        return undefined
     },
 
     async close(): Promise<void> {
@@ -66,4 +62,3 @@ const systemJobsScheduleImpl = (log: FastifyBaseLogger): SystemJobSchedule => ({
 })
 
 export const systemJobsSchedule = systemJobsScheduleImpl
-export const systemJobsQueue = null as any

@@ -78,8 +78,8 @@ async function installLocalPieces({
             toSave.push({
                 ...piece,
                 id: apId(),
-                platformId: null,
-                archiveId: null,
+                platformId: undefined,
+                archiveId: undefined,
             })
         }
         else if (existing.displayName !== piece.displayName || existing.description !== piece.description) {

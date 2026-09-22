@@ -207,10 +207,14 @@ Outbound mail for invitations, notifications, and password resets.
 | `AP_SMTP_SENDER_EMAIL` | Email address that mail is sent from. | `None` |
 | `AP_SMTP_SENDER_NAME` | Sender name shown on outgoing mail. | `None` |
 
-SMTP can be configured from the platform admin screen or through these
-variables. The environment variables are used **only when the admin screen has
-no email configuration**, and only when `AP_SMTP_HOST`, `AP_SMTP_PORT`,
-`AP_SMTP_USERNAME`, and `AP_SMTP_PASSWORD` are all set. TLS is supported.
+SMTP is environment-variable-only — platform-admin SMTP configuration was
+removed in [0.73.0](/install/reference/breaking-changes#0-73-0). Mail sends
+once `AP_SMTP_HOST`, `AP_SMTP_PORT`, `AP_SMTP_USERNAME`, and
+`AP_SMTP_PASSWORD` are **all** set (partial configuration falls back to a
+log-only sender). TLS is supported. See the
+[Production Deployment Checklist](/install/configure-operate/production-checklist#email-smtp)
+for the current CE-safe send path, including the `AP_ENVIRONMENT=PRODUCTION`
+behavior difference.
 
 ---
 

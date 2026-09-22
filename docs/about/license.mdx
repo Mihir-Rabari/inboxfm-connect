@@ -1,22 +1,83 @@
 ---
-title: "License"
-description: ""
+title: "License & Editions"
+description: "What Community, Enterprise, and Cloud each unlock, and what the dual license means for this fork"
 icon: 'file-contract'
 ---
 
-Inboxfm Connect's **core** is released as open source under the [MIT license](https://github.com/Mihir-Rabari/inboxfm-connect/blob/main/LICENSE) and enterprise / cloud editions features are released under [Commercial License](https://github.com/Mihir-Rabari/inboxfm-connect/blob/main/packages/ee/LICENSE)
+Inboxfm Connect is a fork of Activepieces, and this codebase keeps Activepieces' original dual license split:
 
-The MIT license is a permissive license that grants users the freedom to use, modify, or distribute the software without any significant restrictions. The only requirement is that you include the license notice along with the software when distributing it.
-
-Using the enterprise features (under the packages/ee and packages/server/api/src/app/ee folder) with a self-hosted instance requires an Inboxfm Connect license. If you are looking for these features, contact us at [sales@inboxfm-connect.com](mailto:sales@inboxfm-connect.com).
-
-**Benefits of Dual Licensing Repo**
-
-- **Transparency** - Everyone can see what we are doing and contribute to the project.
-- **Clarity** - Everyone can see what the difference is between the open source and commercial versions of our software.
-- **Audit** - Everyone can audit our code and see what we are doing.
-- **Faster Development** - We can develop faster and more efficiently.
+- Everything **outside** `packages/ee/` and `packages/server/api/src/app/ee/` is [MIT-licensed](https://github.com/Mihir-Rabari/inboxfm-connect/blob/main/LICENSE) — free to use, modify, and ship, no restrictions beyond keeping the license notice.
+- Everything **inside** those two directories is governed by a separate [`packages/ee/LICENSE`](https://github.com/Mihir-Rabari/inboxfm-connect/blob/main/packages/ee/LICENSE), copyright Activepieces Inc. That license permits modifying the code for **development and testing**, but forbids running it **in production**, for any user, under any product name, without a paid Activepieces Enterprise license. If you're looking for enterprise features, contact [sales@inboxfm-connect.com](mailto:sales@inboxfm-connect.com).
 
 <Tip>
-If you are still confused or have feedback, please open an issue on GitHub or send a message in the #contribution channel on Discord.
+**Benefits of a dual-licensed repo:** transparency (everyone can see exactly what the enterprise features do), clarity (the open-source/commercial boundary is a directory, not a guess), auditability, and faster development on the open-source core.
+</Tip>
+
+<Warning>
+**Forking and rebranding this repo does not change the license.** It's attached to the code, not the product name — running `ee/`-licensed code in production for real users, without a license from Activepieces, applies exactly the same to "Inboxfm Connect" as it would to a repo still called "Activepieces." If you fork this repo again, you inherit both halves of this split, as-is.
+</Warning>
+
+## Two separate axes: edition and license
+
+These are commonly conflated, but they're independent mechanisms in the code:
+
+- **`AP_EDITION`** (`ce`, `ee`, or `cloud`) is a deployment-time setting. It affects things like which database/queue backends are required and which execution modes are permitted in production — see [Enterprise License](/install/configure-operate/enterprise-license) for the `ee` edition's own prerequisites.
+- **The platform's *plan*** — a set of `<feature>Enabled` boolean flags on the platform record (`ssoEnabled`, `scimEnabled`, `auditLogEnabled`, etc.) — is what individual `ee/`-gated endpoints actually check, via `platformMustHaveFeatureEnabled((platform) => platform.plan.<flag>)`. The plan is driven by an **activated license key** (**Platform Admin → Setup → License Keys**), not by `AP_EDITION` alone.
+
+Setting `AP_EDITION=ee` by itself does not unlock any Enterprise feature. Without an activated license, a self-hosted `ee`-edition instance has every plan flag `false` — the same as Community Edition. This is verified directly from the code: the "no license" default (`turnedOffFeatures` in `packages/server/api/src/app/ee/license-keys/license-keys-service.ts`) sets every gated flag to `false`, and that's exactly the state a license downgrade or expiry falls back to (`downgradeToFreePlan`).
+
+## Feature boundary, by plan flag
+
+Every row below is gated by `platform.plan.<flag>` in the codebase (schema: `packages/core/shared/src/lib/management/platform/platform.model.ts`), defaulting to `false`/off with no active license. "CE" means Community Edition with no license key activated — which is also what any edition reverts to if its license lapses.
+
+| Feature | Plan flag | CE (no license) | Self-hosted with an Enterprise license | Cloud |
+|---|---|---|---|---|
+| SSO / SAML | `ssoEnabled` | Off | On (`ee/authentication/saml-authn/`) | Paid plans |
+| SCIM provisioning | `scimEnabled` | Off | On (`ee/scim/`) | Paid plans |
+| Audit logs | `auditLogEnabled` | Off | On (`ee/audit-logs/`) | Paid plans |
+| Custom appearance / white-labeling | `customAppearanceEnabled` | Off (default theme only) | On | Always on (Cloud always applies platform branding) |
+| Project roles & members | `projectRolesEnabled` | Off | On (`ee/projects/project-members/`) | Paid plans |
+| Custom roles | `customRolesEnabled` | Off | On (`ee/projects/project-role/`) | Paid plans |
+| Manage multiple projects | `manageProjectsEnabled` | Off (single project) | On | Paid plans |
+| Global connections | `globalConnectionsEnabled` | Off | On (`ee/global-connections/`) | Paid plans |
+| External secret managers (Vault, Conjur, AWS, 1Password) | `secretManagersEnabled` | Off | On (`ee/secret-managers/`) | Paid plans |
+| Platform API keys (admin-scoped) | `apiKeysEnabled` | Off | On (`ee/api-keys/`) | Paid plans |
+| Embedding (white-label embed SDK) | `embeddingEnabled` | Off | On (`ee/embed-subdomain/`, `ee/signing-key/`) | Paid plans |
+| Analytics dashboard | `analyticsEnabled` | Off | On | Paid plans |
+| Event streaming | `eventStreamingEnabled` | Off | On | Paid plans |
+| Worker groups (dedicated capacity per project) | `workerGroupsEnabled` | Off | On (`ee/platform/platform-plan/`) | Paid plans |
+| Environments / Git sync | `environmentsEnabled` | Off | On | Paid plans |
+| Manage pieces (allow/block list) | `managePiecesEnabled` | Off | On | Paid plans |
+| Manage templates | `manageTemplatesEnabled` | Off | On | Paid plans |
+| Chat | `chatEnabled` | Off | On (where offered) | Paid plans |
+| AI agents | `agentsEnabled` | Off | On | Paid plans |
+
+<Info>
+"Paid plans" for Cloud means the specific plan tier determines which of these are active for a given Cloud workspace, via the same underlying plan flags (kept in sync with Stripe subscription state) — the exact tier-to-feature mapping is commercial, not something this page pins down. Community Edition always has every row above off; that's not a trial limitation, it's the permanent, intended shape of the free edition.
+</Info>
+
+### Not on this list: the Connect platform
+
+Project-scoped API keys, connect sessions, and the public `/connect/:token` flow (`packages/server/api/src/app/connect-api-keys/`, `connect-oauth-apps/`, `connect-sessions/`, `packages/connect-sdk/`) are **available on every edition with no license check** — Community, Enterprise, and Cloud alike. They're original code, entirely outside `ee/`, and don't touch any plan flag. Don't confuse these project-scoped "Connect API keys" (`cak-` prefixed) with the platform-scoped API keys row above (`apiKeysEnabled`, `sk-` prefixed) — they're separate systems with separate licensing.
+
+## Why `ee/` still exists, untouched, in this fork
+
+This repo was forked from Activepieces. An earlier pass (tracked as issue #7, sub-issues #8–#16, all closed) audited every import of `packages/server/api/src/app/ee/` from outside that directory, after the Connect platform above was originally built by extending four files inside it. Those four extensions have since been **reverted to their pristine, unmodified state**, and the audit confirmed `ee/` is not part of the Connect platform's dependency graph at all — it's exactly as Activepieces shipped it, gated behind their own commercial license, untouched.
+
+The rule going forward, unchanged since that audit: **don't import from, extend, or otherwise depend on `packages/ee/` or `packages/server/api/src/app/ee/` from non-`ee` code.** If new functionality needs something `ee/` already does (audit logging, SSO, roles), it gets its own original, independent implementation outside `ee/` — the way the Connect platform re-implemented what it needed rather than extending Activepieces' commercial code. See `.claude/rules/edition-safety.md` and the root `LICENSING.md` for the full detail this page summarizes.
+
+## Activating an Enterprise license
+
+Covered in full at [Enterprise License](/install/configure-operate/enterprise-license): set `AP_EDITION=ee`, use a sandboxed `AP_EXECUTION_MODE`, then activate your key under **Platform Admin → Setup → License Keys**. For licensing inquiries, contact `sales@inboxfm-connect.com`.
+
+## If you're forking further
+
+Whatever you rename this project to, the same two zones apply to your fork: MIT outside `ee/`, commercial-licensed inside it. Renaming the product doesn't relicense the code inside `packages/ee/` — you'd still need your own Activepieces Enterprise license to run any of it in production. If you don't have one, the safest default is to leave `ee/` untouched (as this fork does) and build anything you need as original code outside it, exactly as described above.
+
+## Going to production
+
+Whichever edition you're running, cross-reference the [Production Deployment Checklist](/install/configure-operate/production-checklist) before launch — it covers containers, TLS, secrets, storage, mail, observability, and backups, none of which depend on which edition or plan you're on.
+
+<Tip>
+Still confused, or found something on this page that doesn't match what you see in the code? Open an issue on GitHub.
 </Tip>

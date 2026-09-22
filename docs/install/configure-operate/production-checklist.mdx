@@ -1,0 +1,102 @@
+---
+title: "Production Deployment Checklist"
+description: "Going from a dev machine to a public production service: containers, TLS, secrets, storage, mail, and observability"
+icon: "clipboard-check"
+---
+
+This page is the one stop for "am I actually ready to put this in front of real users." It ties together the pieces documented elsewhere rather than repeating them — follow the links for the how, use this page for the what-and-why-it-matters.
+
+## Containers: what's already here
+
+Inboxfm Connect ships as containers already — there's nothing to build from scratch:
+
+- **`Dockerfile`** at the repo root builds a single unified image (`ghcr.io/activepieces/activepieces`). There's no separate worker package/image in the current layout — the same image runs as app, worker, or both, switched entirely by the `AP_CONTAINER_TYPE` env var (`APP`, `WORKER`, or `WORKER_AND_APP`, the default). A prior standalone `Dockerfile.worker` was removed when the worker was folded into this unified build — if you find an older guide referencing it, it no longer applies.
+- **`docker-compose.yml`** at the repo root is the reference compose file: `app` + `worker` (5 replicas) services on the same unified image, plus `postgres` (`pgvector/pgvector`) and `redis`. It's a real starting point, not a toy — copy it and adjust `replicas`/resource limits for your load.
+- **`deploy/activepieces-helm/`** is a Helm chart for Kubernetes, with `ingress.yaml` (TLS via `ingress.tls[].secretName`, i.e. cert-manager or a pre-provisioned Secret), `hpa.yaml` (horizontal pod autoscaling), and `secret.yaml` for injecting env vars as a Kubernetes Secret. See [Helm](/install/options/helm).
+- **`deploy/pulumi/`** has Pulumi infrastructure-as-code for an AWS deployment — see [AWS](/install/options/aws) for the walkthrough.
+
+For the recommended shape (one flow per worker, sizing ratios, benchmark numbers), see [Production Setup](./production-setup) — this page assumes you've read that for capacity, and covers what's still missing to go live.
+
+## Required vs. optional environment variables
+
+The exhaustive list with defaults lives in [Environment Variables](/install/reference/environment-variables) — variables marked ❗ there are required for a self-hosted production deployment. The short version, verified against `system-validator.ts`'s startup checks:
+
+**Always required, in every edition, checked at boot** (`validateEnvPropsOnStartup` throws and refuses to start otherwise):
+
+- `AP_ENCRYPTION_KEY` — 32-character hex (16 bytes). Generate with `openssl rand -hex 16`. See [Backup & Disaster Recovery](./backup-and-restore) for why this needs its own backup plan.
+- `AP_JWT_SECRET` — signs JWTs (auth sessions, worker tokens). Generate with `openssl rand -hex 32`.
+- `AP_FRONTEND_URL` — must be a publicly reachable URL if you rely on webhooks or app triggers; without it, third parties can't call back in.
+- Postgres connection (`AP_POSTGRES_URL`, or the discrete `AP_POSTGRES_HOST`/`PORT`/`DATABASE`/`USERNAME`/`PASSWORD` fields) — required whenever `AP_DB_TYPE=POSTGRES` (the default), which you should use in production rather than the embedded `PGLITE` option.
+
+**Required only in specific combinations, also enforced at boot:**
+
+- If `AP_EDITION` is `ee` (Enterprise) or `cloud` **and** `AP_ENVIRONMENT=PRODUCTION`: `AP_EXECUTION_MODE` must be one of `SANDBOX_PROCESS`, `SANDBOX_CODE_ONLY`, or `SANDBOX_CODE_AND_PROCESS` — `UNSANDBOXED` is rejected outright. Community Edition self-hosters can still run `UNSANDBOXED`, but see [Sandboxing](../architecture/sandboxing) before you do for anything multi-tenant.
+- If `AP_FILE_STORAGE_LOCATION=S3`: the full S3 configuration is validated with a live smoke test (put/head/delete) at boot — see [S3 Storage](./setup-s3).
+- If `AP_PAUSED_FLOW_TIMEOUT_DAYS` exceeds `AP_EXECUTION_DATA_RETENTION_DAYS`: boot fails. Keep the pause window inside the retention window.
+
+**Effectively required for anything reachable from the internet, but not boot-enforced** — these fail open (silently broken, not refused-to-start) if skipped, which is exactly the failure shape [`building-for-self-hosting.mdx`](/handbook/engineering/playbooks/building-for-self-hosting) warns against:
+
+- TLS termination (see below) — nothing in the app enforces HTTPS; an operator who forgets it just serves plaintext.
+- SMTP (see below) — invitations and password resets silently no-op via the log-only sender if unset, rather than erroring.
+- `AP_QUEUE_UI_USERNAME`/`AP_QUEUE_UI_PASSWORD` — required *if* `AP_QUEUE_UI_ENABLED=true` (the default); leaving the queue UI enabled without credentials exposes job internals on whatever port serves it.
+
+**Dev-only defaults that must never reach production:** `.env.dev` at the repo root is loaded automatically by the local dev server (`bootstrap.ts` reads it directly, and `tools/setup-dev.js` parses it) — it's checked into the repo for local-development convenience and its values are not production secrets. Separately, `tools/deploy.sh` copies `.env.example` to `.env` and **already randomizes** `AP_API_KEY`, `AP_POSTGRES_PASSWORD`, `AP_JWT_SECRET`, and `AP_ENCRYPTION_KEY` with `openssl rand` as part of that copy — that's the intended path for a fresh production `.env`, not something you need to do by hand on top of it. The actual risk is skipping that script and hand-copying `.env.dev` (or an unrandomized `.env.example`) into a production deployment instead. Either way, never commit a filled-in `.env` to version control.
+
+## TLS / domain setup
+
+Inboxfm Connect itself doesn't terminate TLS — pick one of:
+
+- **Reverse proxy you manage** (Nginx, Caddy, Traefik) with your own certificate (Let's Encrypt/Certbot or your CA). Walkthrough: [HTTPS](./setup-ssl).
+- **Platform-native termination** — a cloud load balancer, a managed platform (Railway, Elestio, Easypanel — see [Deploy options](/install/overview)), or a Kubernetes ingress controller. The shipped Helm chart's `ingress.yaml` supports this directly: set `ingress.tls` with a `secretName` (typically populated by cert-manager) and the ingress controller terminates TLS in front of the pods.
+
+Either way, `AP_FRONTEND_URL` must reflect the final `https://` public URL — it's what gets baked into webhook URLs, OAuth redirect URLs, and email links.
+
+## Secrets
+
+Two distinct kinds of "secret" exist here — don't conflate them:
+
+1. **Deployment secrets** — `AP_ENCRYPTION_KEY`, `AP_JWT_SECRET`, `AP_POSTGRES_PASSWORD`, `AP_REDIS_PASSWORD`, SMTP credentials, S3 credentials. These are env vars the app itself needs to boot. Inject them via your platform's native secret store — Kubernetes `Secret` (the Helm chart's `templates/secret.yaml` handles this), Docker Compose `env_file` pointed at a file with restricted permissions (never committed), or your cloud provider's secret manager referenced at deploy time. Never bake these into the image or commit a filled `.env`.
+2. **Per-connection third-party credentials** — the OAuth tokens and API keys end users store when they connect e.g. Slack or Salesforce to a flow. These are encrypted at rest by the app itself (`AP_ENCRYPTION_KEY`, see above) and, for Enterprise-licensed platforms wanting external key management, can be backed by an external secret manager (Hashicorp Vault, AWS Secrets Manager, CyberArk Conjur, 1Password) — see [Secret Managers](/admin-guide/guides/secret-managers/overview). This is a different concern from #1 and doesn't substitute for it.
+
+## S3-compatible object storage
+
+Files default to Postgres (`AP_FILE_STORAGE_LOCATION=DB`) — fine for small/medium deployments, since it needs zero extra setup. Switch to S3 once file volume or Postgres size becomes a concern: full wiring, including the Google Cloud Storage interop caveat, is in [S3 Storage](./setup-s3). Nothing here is optional-but-recommended for production specifically — DB storage is a legitimate production choice, not just a dev default; S3 is a scaling decision, not a security requirement.
+
+## Email (SMTP)
+
+<Info>
+As of version 0.73.0, SMTP configuration was **removed from the platform admin UI** — it's environment-variable-only now (see [0.73.0 in Breaking Changes](/install/reference/breaking-changes#0-73-0)). If you're looking at an older screenshot or guide showing an SMTP settings screen, it no longer exists; don't go looking for it.
+</Info>
+
+The current CE-safe path (`packages/server/api/src/app/ee/helper/email/email-sender/email-sender.ts` — despite living under the `ee/` directory tree, this file has no license/plan gate; every edition uses it identically):
+
+- Set all four of `AP_SMTP_HOST`, `AP_SMTP_PORT`, `AP_SMTP_USERNAME`, `AP_SMTP_PASSWORD` (plus `AP_SMTP_SENDER_EMAIL`/`AP_SMTP_SENDER_NAME` for the From header) to send real mail. `smtpEmailSender.isSmtpConfigured()` requires **all four** of the first set — partial configuration falls back silently.
+- In `AP_ENVIRONMENT=PRODUCTION`, the app **always** tries to send via SMTP for invitation, password-reset, and notification emails — if SMTP isn't configured, sends fail rather than falling back.
+- In any other environment (local dev, staging without `AP_ENVIRONMENT=PRODUCTION` set), the app falls back to a log-only sender if SMTP isn't configured — invitations/resets are logged, not delivered. This is intentional zero-setup dev behavior, not a bug — but it means **staging environments that don't set `AP_ENVIRONMENT=PRODUCTION` will silently not send mail**, which has bitten people testing an invite flow.
+
+Set `AP_ENVIRONMENT=PRODUCTION` and all four SMTP variables together for any deployment real users will use.
+
+## Observability
+
+Set up log export and sampling before launch, not after the first incident — full wiring (including concrete Grafana/Loki, Datadog, and Honeycomb examples, and an important nuance about how the structured logging field schema survives OTLP export) is in [Observability](./setup-opentelemetry).
+
+## Backups
+
+Set up Postgres backups, and back up `AP_ENCRYPTION_KEY` separately from the database, before launch — full procedure and RPO/RTO guidance is in [Backup & Disaster Recovery](./backup-and-restore).
+
+## Licensing
+
+If you're planning to use any Enterprise-gated feature (SSO, SCIM, audit logs, custom branding, project roles, etc.), confirm your license covers it and how that affects a fork — see [License & Editions](/about/license). Enterprise-gated features fail closed (visibly disabled, not silently broken) without a valid license — that's expected, not a bug to work around.
+
+## The checklist
+
+- [ ] `AP_ENCRYPTION_KEY`, `AP_JWT_SECRET`, `AP_POSTGRES_PASSWORD` were generated for this deployment via `tools/deploy.sh` (or an equivalent random-secret step) — not hand-copied from `.env.dev` or an un-randomized `.env.example`.
+- [ ] `AP_FRONTEND_URL` is the real public HTTPS URL, and TLS is actually terminated somewhere in the request path (reverse proxy or platform-native).
+- [ ] `AP_ENVIRONMENT=PRODUCTION` is set, and all four `AP_SMTP_*` credential variables are set alongside it — verify with a real invite, not just that the env vars are non-empty.
+- [ ] Deployment secrets are injected via your platform's secret store, not baked into the image or committed to version control.
+- [ ] `AP_EXECUTION_MODE` is a sandboxed mode (not `UNSANDBOXED`) if you're multi-tenant or on `ee`/`cloud` in production — boot-enforced for `ee`/`cloud`, your own responsibility on `ce`.
+- [ ] `AP_FILE_STORAGE_LOCATION` decision made deliberately (DB is fine to start; S3 config is smoke-tested at boot if you switch).
+- [ ] `AP_QUEUE_UI_ENABLED` is either `false` or has real `AP_QUEUE_UI_USERNAME`/`PASSWORD` set.
+- [ ] Observability drain configured and a `warn`/`error` event confirmed to reach it — see the [Observability checklist](./setup-opentelemetry#pre-launch-checklist).
+- [ ] Postgres backups enabled and a restore has actually been rehearsed — see the [Backup checklist](./backup-and-restore#pre-launch-checklist).
+- [ ] If using Enterprise features, the license is activated (**Platform Admin → Setup → License Keys**) and you've confirmed which features it actually unlocks — see [License & Editions](/about/license).

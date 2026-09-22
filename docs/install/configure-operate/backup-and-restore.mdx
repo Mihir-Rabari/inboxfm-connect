@@ -1,0 +1,97 @@
+---
+title: "Backup & Disaster Recovery"
+description: "What to back up, how often, and how to restore — for a self-hosted Postgres deployment"
+icon: "database"
+---
+
+<Info>
+This page is operational guidance, not something the codebase enforces. Inboxfm Connect has no built-in backup scheduler, snapshot API, or restore command — backups are your infrastructure's responsibility (your managed Postgres provider, or your own `pg_dump`/WAL-archiving setup). The recommendations below are reasonable defaults, not hard requirements.
+</Info>
+
+## What state actually needs backing up
+
+Inboxfm Connect keeps essentially all of its durable state in **one Postgres database** — flows, flow versions, runs, connections (encrypted), projects, users, platform settings. If `AP_FILE_STORAGE_LOCATION=DB` (the default), run logs and step files live there too. If you switched to `AP_FILE_STORAGE_LOCATION=S3`, execution files live in your S3-compatible bucket instead — see [S3 Storage](./setup-s3) — and your bucket's own versioning/replication is that data's backup boundary, separate from Postgres.
+
+Two things live **outside** Postgres and are easy to forget:
+
+| What | Where it lives | Why it matters |
+|---|---|---|
+| `AP_ENCRYPTION_KEY` | Environment variable (or an auto-generated fallback file — see below) | Decrypts every `AppConnection`, OAuth app secret, secret-manager credential, and OIDC signing key stored in Postgres. Lose it and that data is permanently unreadable, even with a perfect Postgres restore. |
+| S3 bucket contents | Your S3-compatible object store | Only relevant if `AP_FILE_STORAGE_LOCATION=S3`. Not covered by a Postgres backup. |
+
+### The encryption key is not part of the database — back it up separately
+
+Every `AppConnection` value, OAuth app client secret, secret-manager API key, and OIDC signing key is encrypted with AES-256-CBC before it's written to Postgres (`encryptUtils.encryptObject` / `encryptString` in `packages/server/api/src/app/helper/encryption.ts`). The key used for that encryption is **not derived from or stored in the database** — it comes from `AP_ENCRYPTION_KEY` (a 32-character hex string, i.e. 16 bytes), read straight from the environment (`encryptUtils.getEncryptionKey()`).
+
+This has a direct backup-boundary consequence: **a Postgres backup alone is not a complete backup.** If you restore the database onto an instance that doesn't have the original `AP_ENCRYPTION_KEY`, every encrypted connection and secret in it becomes permanently undecryptable — there is no recovery path in the codebase for a lost key. Treat `AP_ENCRYPTION_KEY` as part of your backup set (a secrets manager, a sealed vault entry, or at minimum a securely stored copy alongside your infra-as-code), not something you can regenerate later.
+
+<Warning>
+If you never set `AP_ENCRYPTION_KEY` explicitly and you're running with `AP_REDIS_TYPE=MEMORY` (no external Redis — the single-container/dev shape), the app **auto-generates** a key on first boot and writes it to `<AP_CONFIG_PATH>/settings.json` on local disk (`localFileStore`, `packages/server/api/src/app/helper/local-store.ts`). If that path isn't on a persistent volume, the key is lost on container recreation. In any deployment you intend to back up or restore, **set `AP_ENCRYPTION_KEY` explicitly** rather than relying on this fallback — with an external Redis (`STANDALONE`/`SENTINEL`), there is no fallback at all and the app refuses to start without it (`validateEnvPropsOnStartup` in `system-validator.ts` requires a valid 32-character hex value).
+</Warning>
+
+### There is no built-in key rotation
+
+The codebase has no rotation utility for `AP_ENCRYPTION_KEY` — swapping the value doesn't re-encrypt existing rows. Rotating it for real requires an operational script that reads every encrypted row with the old key and rewrites it with the new one (`AppConnection.value`, OAuth app secrets, secret-manager credentials, OIDC signing keys) before the old key is discarded. Until that script exists, plan for **key continuity** rather than routine rotation: keep the key backed up and unchanged, and only rotate if you're prepared to do that re-encryption pass yourself.
+
+## Backup approach: managed Postgres vs. self-managed
+
+**If you run a managed Postgres** (RDS, Cloud SQL, DigitalOcean Managed Databases, Supabase, Neon, etc.) — this is the easier and recommended path for anything you'd call "production":
+
+- Enable **automated backups with point-in-time recovery (PITR)**. Every major managed provider offers this as a checkbox/flag, typically backed by continuous WAL archiving under the hood.
+- Set the PITR retention window based on your recovery objective (see RPO/RTO below) — 7–14 days is a reasonable starting point for most self-hosted deployments; extend it if compliance requires longer.
+- Managed backups don't cover `AP_ENCRYPTION_KEY` or your S3 bucket — those are still your responsibility per the sections above.
+
+**If you self-manage Postgres** (a VM, a container, `pgvector/pgvector` as shipped in `docker-compose.yml`):
+
+- **Logical backups**: schedule `pg_dump` (or `pg_dumpall` if you need roles/tablespaces) on a cron, e.g. nightly full dump plus more frequent incrementals if your dataset is large enough to matter. Store dumps off the same host — a Postgres-data-volume snapshot on the same disk as a corrupted instance doesn't help you.
+- **WAL archiving**: for anything better than "yesterday's snapshot," configure continuous WAL archiving (`archive_mode = on`, `archive_command`) shipping to object storage, so you can replay to a specific point in time rather than only to the last full dump.
+- **Test the dump you're taking**: a `pg_dump` that silently fails (disk full, permission error, exceeded `statement_timeout`) is worse than no backup, because you don't find out until you need it. Alert on backup-job failure, not just on backup-job absence.
+
+## Restore procedure
+
+A restore is not just "we have backups" — walk it end to end before you need it for real:
+
+<Steps>
+<Step title="Stop write traffic">
+Scale workers and app containers to zero (or stop the containers) so nothing writes to Postgres while you restore. A restore against a live, writing database corrupts the result.
+</Step>
+<Step title="Restore Postgres to a point in time">
+Managed Postgres: use your provider's PITR restore-to-new-instance flow, targeting the timestamp just before the incident. Self-managed: restore the base backup, then replay WAL up to the target time. Restoring to a **new** instance (not in-place) lets you verify before cutting over.
+</Step>
+<Step title="Verify AP_ENCRYPTION_KEY matches">
+Confirm the `AP_ENCRYPTION_KEY` the restored app will run with is the **same key** that was in use when the backed-up data was encrypted. If you rotated it since, you need the key that was active at backup time, not the current one.
+</Step>
+<Step title="Point the app at the restored database">
+Update `AP_POSTGRES_HOST`/`AP_POSTGRES_URL` (or your connection secret) to the restored instance. Bring up one app container first — check `/api/v1/health` and that migrations report clean — before scaling workers back up.
+</Step>
+<Step title="Spot-check decryption">
+Open a project and confirm an existing connection still shows as valid (open its edit dialog) rather than failing to decrypt. This is the fastest signal that Step 3 was correct.
+</Step>
+<Step title="Resume workers">
+Scale workers back up once the app tier is confirmed healthy. Runs that were mid-flight at the time of the incident are not automatically replayed — check for flows that need manual re-triggering.
+</Step>
+</Steps>
+
+If `AP_FILE_STORAGE_LOCATION=S3`, there's a second, independent restore: your bucket's own versioning or cross-region replication. The Postgres restore above does not bring back S3 objects — plan for that recovery path separately, using your storage provider's tooling.
+
+## RPO / RTO — recommended starting points
+
+These are suggested defaults for a typical self-hosted deployment, not values the codebase measures or enforces. Adjust them to your own tolerance for data loss and downtime.
+
+| Deployment shape | Recommended RPO (data loss tolerance) | Recommended RTO (time to restore) |
+|---|---|---|
+| Managed Postgres with PITR | ≤ 15 minutes (PITR's typical WAL-replay granularity) | 1–2 hours (provider restore-to-new-instance + cutover) |
+| Self-managed with WAL archiving | ≤ 1 hour (archive-shipping interval) | 2–4 hours (restore + WAL replay + verification) |
+| Self-managed, nightly `pg_dump` only | ≤ 24 hours | 1–2 hours (dump restore is faster than WAL replay, but you lose everything since the last dump) |
+
+If your platform runs production automations for other people (webhooks, scheduled triggers), treat the nightly-dump-only row as a starting point to graduate away from, not a resting place — losing up to 24 hours of flow/run history after an incident is a worse outage, for most teams, than the restore downtime itself.
+
+## Pre-launch checklist
+
+Add these before going live — cross-referenced from the [Production Deployment Checklist](./production-checklist#backups):
+
+- [ ] Automated Postgres backups are enabled (managed PITR, or `pg_dump` + WAL archiving) and retention matches your RPO target above.
+- [ ] `AP_ENCRYPTION_KEY` is set explicitly (not relying on the `AP_REDIS_TYPE=MEMORY` auto-generate fallback), and a copy is stored in your secrets manager or vault — separately from the database backup.
+- [ ] You've run the restore procedure above at least once against a non-production copy, end to end, including the "spot-check decryption" step.
+- [ ] If `AP_FILE_STORAGE_LOCATION=S3`, your bucket has its own backup/versioning story independent of the Postgres plan.
+- [ ] Backup-job failures alert someone — not just backup-job absence.

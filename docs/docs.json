@@ -230,6 +230,7 @@
                   "group": "Configure & Operate",
                   "pages": [
                      "install/configure-operate/production-setup",
+                     "install/configure-operate/production-checklist",
                      {
                         "group": "Production Essentials",
                         "icon": "rocket",
@@ -238,7 +239,8 @@
                            "install/configure-operate/sandboxing",
                            "install/configure-operate/enterprise-license",
                            "install/configure-operate/setup-ssl",
-                           "install/configure-operate/setup-s3"
+                           "install/configure-operate/setup-s3",
+                           "install/configure-operate/backup-and-restore"
                         ]
                      },
                      {

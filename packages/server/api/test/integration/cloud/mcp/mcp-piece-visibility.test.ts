@@ -78,7 +78,12 @@ describe('MCP piece visibility', () => {
         await db.save('integration_metadata', visiblePiece)
         await pieceCache(mockLog).setup()
 
-        const result = await apResearchPiecesTool(mcp, mockLog).execute({})
+        // Unscoped, this call ranks against the entire real ~700-piece shipped catalog
+        // (LIST_CAP caps the unfiltered result to the first 50), so the seeded piece isn't
+        // guaranteed a slot. Scope with searchQuery — an exact displayName match is
+        // guaranteed to surface via piece-searching.ts's substring-match union — so the
+        // assertion tests visibility filtering, not catalog-wide ranking.
+        const result = await apResearchPiecesTool(mcp, mockLog).execute({ searchQuery: visiblePiece.displayName })
 
         expect(text(result)).toContain('✅')
         expect(text(result)).toContain(visiblePieceName)

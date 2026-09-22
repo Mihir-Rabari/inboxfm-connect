@@ -1,6 +1,6 @@
 ---
 title: "Observability"
-description: "Configure log export and sampling for observability"
+description: "Configure log export and sampling for observability, and wire up a production OTLP drain"
 icon: "chart-line"
 ---
 
@@ -11,8 +11,8 @@ Inboxfm Connect exports structured logs via evlog. Each API request and worker j
 | Variable | Description | Default Value | Example |
 |----------|-------------|---------------|---------|
 | `AP_OTEL_ENABLED` | Export logs via OTLP log drain (no traces or metrics) | `false` | `true` |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint for log export | None | `https://your-collector:4317` |
-| `OTEL_EXPORTER_OTLP_HEADERS` | Headers for OTLP exporter (comma-separated key=value pairs) | None | `Authorization=Bearer token` |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | OTLP endpoint for log export. **Not** an `AP_`-prefixed variable — it's the standard OTel SDK env var, read directly by the OTLP adapter. | None | `https://your-collector:4318` |
+| `OTEL_EXPORTER_OTLP_HEADERS` | Headers for OTLP exporter, comma-separated `key=value` pairs (e.g. bearer auth for a hosted backend). Also a raw OTel env var, not `AP_`-prefixed. | None | `Authorization=Bearer token` |
 
 ## Sampling Variables
 
@@ -25,3 +25,101 @@ Inboxfm Connect exports structured logs via evlog. Each API request and worker j
 Events with level `warn` or `error` are always kept regardless of sampling configuration.
 `AP_OTEL_ENABLED=true` enables the OTLP **log** drain only — OpenTelemetry tracing and metrics are no longer emitted.
 </Note>
+
+<Warning>
+**Drain priority: only one remote drain is active at a time.** `evlogDrains.resolve()` (`packages/server/utils/src/evlog-drains.ts`) checks configured backends in a fixed order — Axiom, then HyperDX, then Loki, then BetterStack, then OTLP last — and uses the **first** one it finds fully configured. If you set `AP_OTEL_ENABLED=true` *and* also have `AP_AXIOM_TOKEN`/`AP_HYPERDX_TOKEN`/`AP_LOKI_URL`/`AP_BETTERSTACK_TOKEN` set (even leftover from a previous setup), the OTLP drain is silently skipped in favor of that one. To actually export to an OTLP endpoint, make sure none of the other four are configured.
+</Warning>
+
+## What actually reaches the OTLP endpoint
+
+The OTLP adapter (`evlog/otlp`, sourced from the `evlog` package) POSTs to `<OTEL_EXPORTER_OTLP_ENDPOINT>/v1/logs` using the [OTLP/HTTP logs JSON format](https://opentelemetry.io/docs/specs/otlp/). Each wide event becomes one `LogRecord`:
+
+- `body.stringValue` is the **full event, JSON-stringified** — every field, unmodified, is in there.
+- `attributes` is built from the event's **top-level keys only, one level deep**. Reserved keys (`level`, `traceId`, `spanId`, `timestamp`, `service`, `environment`, `version`, `commitHash`, `region`) are pulled out for `severityText`/`traceId`/resource attributes instead of duplicated as attributes.
+- For a nested value (an object or array), the attribute's value is `{ stringValue: JSON.stringify(value) }` — the nesting is **not** flattened into dotted attribute keys.
+
+This matters for the [structured logging field schema](https://github.com/Mihir-Rabari/inboxfm-connect/blob/main/packages/server/CLAUDE.md#structured-logging-field-schema-evlog) (`flowRun: { id, status, environment }`, `job: { id, type }`, etc.). It survives the OTLP export, but not as `flowRun.id`/`job.id` as separate, independently-queryable attributes:
+
+```json
+{
+  "attributes": [
+    { "key": "flowRun", "value": { "stringValue": "{\"id\":\"abc123\",\"status\":\"SUCCEEDED\",\"environment\":\"PRODUCTION\"}" } },
+    { "key": "job", "value": { "stringValue": "{\"id\":\"job_9\",\"type\":\"ONE_TIME\"}" } }
+  ]
+}
+```
+
+`flowRun` and `job` arrive as single attributes whose *value* is a JSON string — not as `flowRun.id`/`flowRun.status`/`job.id` attributes. If your OTLP backend indexes/facets on top-level attribute keys (Grafana Loki's structured metadata, Honeycomb columns, most log-search UIs), you'll be able to filter and group by `flowRun` or `job` as a whole, but querying `flowRun.id = 'abc123'` directly requires your backend to parse the attribute's JSON string (e.g. a Loki `| json` pipeline stage, or a Honeycomb derived column) rather than a native field lookup. The full, unflattened wide event is always available in `body` regardless — that's the fallback if your backend can't parse nested attributes.
+
+## Wiring a self-hosted OTel Collector
+
+A local [OpenTelemetry Collector](https://opentelemetry.io/docs/collector/) with the `otlphttp` receiver is the simplest target — point Inboxfm Connect at it, then fan out to whatever backend you actually use:
+
+```bash
+AP_OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+```
+
+```yaml
+# otel-collector-config.yaml
+receivers:
+  otlp:
+    protocols:
+      http:
+        endpoint: 0.0.0.0:4318
+
+exporters:
+  # pick one (or more) depending on where you actually want logs
+  otlphttp/loki:
+    endpoint: http://loki:3100/otlp
+  debug:
+    verbosity: detailed
+
+service:
+  pipelines:
+    logs:
+      receivers: [otlp]
+      exporters: [otlphttp/loki]
+```
+
+## Wiring Grafana Loki + Tempo directly
+
+Inboxfm Connect's evlog integration has a **native Loki drain** that doesn't go through OTLP at all — it's usually the simpler path if Loki is your target, since it skips the JSON-stringified-attribute nesting above entirely and pushes the wide event as a plain Loki stream:
+
+```bash
+AP_LOKI_URL=https://loki.example.com
+AP_LOKI_USERNAME=your-loki-username
+AP_LOKI_PASSWORD=your-loki-password
+```
+
+Because of the drain-priority order above, set `AP_LOKI_URL` and leave `AP_OTEL_ENABLED` unset (or `false`) — Loki is checked before OTLP and takes precedence if both happen to be configured. Use the OTLP path only if you specifically want the OTLP wire format (e.g. shipping through a Collector to Tempo/Grafana for trace correlation, or a backend evlog has no native adapter for).
+
+## Wiring Datadog or Honeycomb
+
+Both accept OTLP/HTTP natively — point `OTEL_EXPORTER_OTLP_ENDPOINT` at their OTLP ingest endpoint and pass your API key as a header:
+
+```bash
+# Datadog Agent with OTLP ingestion enabled, or Datadog's OTLP intake directly
+AP_OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-intake.datadoghq.com
+OTEL_EXPORTER_OTLP_HEADERS=DD-API-KEY=your-datadog-api-key
+```
+
+```bash
+# Honeycomb
+AP_OTEL_ENABLED=true
+OTEL_EXPORTER_OTLP_ENDPOINT=https://api.honeycomb.io
+OTEL_EXPORTER_OTLP_HEADERS=x-honeycomb-team=your-honeycomb-api-key
+```
+
+Check each vendor's current OTLP/HTTP logs endpoint and header names before copying these verbatim — vendors occasionally change ingest paths.
+
+## Pre-launch checklist
+
+- [ ] Exactly one remote drain is configured — verify you haven't left an old `AP_AXIOM_TOKEN`/`AP_HYPERDX_TOKEN`/`AP_LOKI_URL`/`AP_BETTERSTACK_TOKEN` set if you meant to use OTLP (see drain-priority warning above).
+- [ ] `OTEL_EXPORTER_OTLP_ENDPOINT` (and `OTEL_EXPORTER_OTLP_HEADERS` if your backend needs auth) are set as **plain env vars**, not `AP_`-prefixed.
+- [ ] Your backend/dashboards either query the full `body` JSON, or parse the JSON-stringified `flowRun`/`job`/etc. attributes — don't build a dashboard assuming `flowRun.id` is a native queryable field over OTLP.
+- [ ] `AP_LOG_SAMPLE_RATE_INFO` and `AP_LOG_KEEP_SLOW_MS` are set to values that fit your log volume/budget before launch, not left at defaults and revisited after an unexpectedly large bill.
+- [ ] `warn`/`error` events are confirmed to arrive at the backend even with sampling below 100 (they bypass sampling by design — worth a smoke test).
+
+See the [Production Deployment Checklist](./production-checklist#observability) for how this fits into the rest of a production rollout.

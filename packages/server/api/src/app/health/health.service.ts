@@ -36,7 +36,7 @@ export const healthStatusService = (log: FastifyBaseLogger) => ({
         }
         return  workerHealthy && databaseHealthy
     },
-    getSystemHealthChecks: async (platformId: string): Promise<GetSystemHealthChecksResponse> => {
+    getSystemHealthChecks: async (): Promise<GetSystemHealthChecksResponse> => {
         const [databaseHealthy, latestVersion] = await Promise.all([
             healthStatusService(log).checkDatabaseHealth(),
             apVersionUtil.getLatestRelease(),
@@ -59,5 +59,3 @@ const gigaBytes = (value: number) => value * 1024 * 1024 * 1024
 const APP_MIN_CPU_CORES = 1
 const APP_MIN_RAM_GB = 2
 const APP_MIN_DISK_GB = 30
-const WORKER_MIN_CPU_CORES = 0.5
-const WORKER_MIN_RAM_GB = 1

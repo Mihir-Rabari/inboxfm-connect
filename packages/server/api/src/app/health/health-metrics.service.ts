@@ -4,8 +4,6 @@ import { FlowRunStatus, InternalErrorImpactItem, PlatformMetricsHealthDay, Platf
 import dayjs from 'dayjs'
 import { FastifyBaseLogger } from 'fastify'
 import { distributedStore } from '../database/redis-connections'
-import { system } from '../helper/system/system'
-import { AppSystemProp } from '../helper/system/system-props'
 import { projectService } from '../project/project-service'
 
 type ReportWindow = {
@@ -17,15 +15,15 @@ function buildReportCacheKey(platformId: PlatformId, window: ReportWindow): stri
     return `${REPORT_CACHE_PREFIX}:${platformId}:${window.createdAfter}:${window.createdBefore}`
 }
 
-async function countsByStatus(projectIds: string[], window: ReportWindow): Promise<Map<FlowRunStatus, number>> {
+async function countsByStatus(_projectIds: string[], _window: ReportWindow): Promise<Map<FlowRunStatus, number>> {
     return new Map()
 }
 
-async function buildStatusTimeseries(projectIds: string[], window: ReportWindow): Promise<PlatformMetricsStatusPoint[]> {
+async function buildStatusTimeseries(_projectIds: string[], _window: ReportWindow): Promise<PlatformMetricsStatusPoint[]> {
     return []
 }
 
-async function buildInternalErrorImpact(projectIds: string[], window: ReportWindow): Promise<InternalErrorImpactItem[]> {
+async function buildInternalErrorImpact(_projectIds: string[], _window: ReportWindow): Promise<InternalErrorImpactItem[]> {
     return []
 }
 
@@ -45,16 +43,11 @@ function summarize(counts: Map<FlowRunStatus, number>): { completed: number, suc
     return { completed, successRate }
 }
 
-async function queueStatusCounts(projectIds: string[], window: ReportWindow): Promise<Map<FlowRunStatus, number>> {
+async function queueStatusCounts(_projectIds: string[], _window: ReportWindow): Promise<Map<FlowRunStatus, number>> {
     return new Map()
 }
 
-function stuckBeforeIso(): string {
-    const flowTimeoutSeconds = system.getNumberOrThrow(AppSystemProp.FLOW_TIMEOUT_SECONDS)
-    return dayjs().subtract(flowTimeoutSeconds, 'second').toISOString()
-}
-
-async function buildStuckJobs(projectIds: string[], window: ReportWindow): Promise<StuckJob[]> {
+async function buildStuckJobs(_projectIds: string[], _window: ReportWindow): Promise<StuckJob[]> {
     return []
 }
 
@@ -67,7 +60,7 @@ function buildEmptyHealthHistory(): PlatformMetricsHealthDay[] {
     }))
 }
 
-async function buildHealthHistory(projectIds: string[]): Promise<PlatformMetricsHealthDay[]> {
+async function buildHealthHistory(_projectIds: string[]): Promise<PlatformMetricsHealthDay[]> {
     return buildEmptyHealthHistory()
 }
 
@@ -135,7 +128,3 @@ export const healthMetricsService = (log: FastifyBaseLogger) => ({
 const REPORT_CACHE_PREFIX = 'health-metrics:report'
 const REPORT_TTL_SECONDS = apDayjsDuration(6, 'hours').asSeconds() // only run metrics is cached
 const HEALTH_HISTORY_DAYS = 30
-
-// Limits for internal errors and stuck jobs . It's unlikely that these will exceed the limit, but even if it does we don't care much about all of them.
-const INTERNAL_ERROR_LIMIT = 50
-const STUCK_JOBS_LIMIT = 50

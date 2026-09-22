@@ -6,9 +6,8 @@ import { FastifyBaseLogger } from 'fastify'
 import { In } from 'typeorm'
 import { AIProviderEntity, AIProviderSchema } from '../ai/ai-provider-entity'
 import { repoFactory } from '../core/db/repo-factory'
-import { federatedAuthnService } from '../ee/authentication/federated-authn/federated-authn-service'
-import { smtpEmailSender } from '../ee/helper/email/email-sender/smtp-email-sender'
 import { domainHelper } from '../helper/domain-helper'
+import { smtpEmailSender } from '../helper/email/smtp-email-sender'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
 import { FlagEntity } from './flag.entity'
@@ -17,6 +16,10 @@ import { webhookSecretsUtils } from './webhook-secrets-util'
 
 const flagRepo = repoFactory(FlagEntity)
 const aiProviderRepo = repoFactory<AIProviderSchema>(AIProviderEntity)
+
+// Where an external identity provider hands the browser back after sign-in. The path
+// is a frontend route, not provider-specific, so resolving it needs no SSO wiring.
+const THIRD_PARTY_AUTH_REDIRECT_PATH = '/redirect'
 
 export const flagService = (log: FastifyBaseLogger) => ({
     save: async (flag: FlagType): Promise<Flag> => {
@@ -164,7 +167,7 @@ export const flagService = (log: FastifyBaseLogger) => ({
             },
             {
                 id: ApFlagId.THIRD_PARTY_AUTH_PROVIDER_REDIRECT_URL,
-                value: await federatedAuthnService(log).getThirdPartyRedirectUrl(),
+                value: await domainHelper.getInternalUrl({ path: THIRD_PARTY_AUTH_REDIRECT_PATH }),
                 created,
                 updated,
             },

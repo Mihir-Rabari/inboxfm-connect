@@ -5,6 +5,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import { databaseConnection, resetDatabaseConnection } from '../../../../src/app/database/database-connection'
 import { encryptUtils } from '../../../../src/app/helper/encryption'
 import { system } from '../../../../src/app/helper/system/system'
+import { pieceCache } from '../../../../src/app/pieces/metadata/piece-cache'
 import { buildRetrievalDoc } from '../../../../src/app/tool-search/retrieval-doc'
 import { l2normalize, ToolSearchEmbedder } from '../../../../src/app/tool-search/embedder'
 import { toolSearchReindexService } from '../../../../src/app/tool-search/tool-search-reindex.service'
@@ -119,6 +120,10 @@ afterAll(async () => {
 beforeEach(async () => {
     await databaseConnection().getRepository('tool_search_index').createQueryBuilder().delete().execute()
     await databaseConnection().getRepository('integration_metadata').createQueryBuilder().delete().execute()
+    // Truncating the tables clears only the DB side — pieceMetadataService.list() (the keyword-floor
+    // path) reads piece_metadata through a 10-minute Redis cache, which would otherwise keep serving a
+    // previous test's seeded rows even though this test's own seedCatalog() already replaced them.
+    await pieceCache(log).invalidate()
 })
 
 describe('Tool Search Engine (Phase 1)', () => {
@@ -660,8 +665,11 @@ describe('Tool Search Engine (Phase 5 — keyword floor / degradation)', () => {
     it('degrades to the keyword floor (the pre-existing Fuse catalog search) when no embedder/key is available', async () => {
         await seedCatalog()
         // No reindex, no embedder, no platformId → embedder resolves to null → keyword floor.
-
-        const { results, mode } = await toolSearchService(log).searchActions('send message', { limit: 5 })
+        // The keyword floor's underlying pieceMetadataService.list() merges in the full shipped
+        // catalog (~700 real pieces) alongside the seeded mocks, so a tight limit risks real
+        // catalog noise crowding the mock's action out of the window — use a generous one so the
+        // assertion is about the fuzzy match itself, not a global top-N ranking contest.
+        const { results, mode } = await toolSearchService(log).searchActions('send message', { limit: 200 })
 
         expect(mode).toBe('keyword')
         const slack = results.find((r) => r.pieceName === '@inboxfm-connect/piece-slack')
@@ -683,7 +691,7 @@ describe('Tool Search Engine (Phase 5 — keyword floor / degradation)', () => {
             embed: () => Promise.reject(new Error('openai unreachable')),
         }
 
-        const { results, mode } = await toolSearchService(log).searchActions('send message', { embedder: throwingEmbedder, limit: 5 })
+        const { results, mode } = await toolSearchService(log).searchActions('send message', { embedder: throwingEmbedder, limit: 200 })
 
         expect(mode).toBe('keyword')
         expect(results.some((r) => r.pieceName === '@inboxfm-connect/piece-slack')).toBe(true)

@@ -529,7 +529,7 @@ const engineValidateAuth = async (
         }),
         projectId,
         platformId,
-        connectionValue: auth,
+        auth,
         jobType: WorkerJobType.EXECUTE_VALIDATION,
     }, log)
 

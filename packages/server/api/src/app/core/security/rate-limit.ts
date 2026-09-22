@@ -1,4 +1,4 @@
-import RateLimitPlugin from '@fastify/rate-limit'
+import RateLimitPlugin, { RateLimitOptions } from '@fastify/rate-limit'
 import FastifyPlugin from 'fastify-plugin'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { redisConnections } from '../../database/redis-connections'
@@ -21,3 +21,18 @@ export const rateLimitModule: FastifyPluginAsyncZod = FastifyPlugin(
         }
     },
 )
+
+// Tighter, IP-scoped tier for the routes an attacker would actually script against
+// (sign-up, sign-in, password-reset request/confirm) — lower than the general AUTHN
+// tier above, which also covers the already-authenticated switch-platform route.
+// Shared across authentication.controller.ts, otp-controller.ts, and
+// enterprise-local-authn-controller.ts so the limit is defined once. Registering
+// this `config.rateLimit` on a route has no effect when the plugin above isn't
+// registered (AP_API_RATE_LIMIT_AUTHN_ENABLED=false), same as the general tier.
+export const authAbuseRateLimitOptions: RateLimitOptions = {
+    max: Number.parseInt(
+        system.getOrThrow(AppSystemProp.API_RATE_LIMIT_AUTHN_ABUSE_MAX),
+        10,
+    ),
+    timeWindow: system.getOrThrow(AppSystemProp.API_RATE_LIMIT_AUTHN_ABUSE_WINDOW),
+}

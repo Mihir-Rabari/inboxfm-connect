@@ -229,6 +229,35 @@ Sign-in providers and SCIM provisioning.
 | `AP_CLOUD_AUTH_ENABLED` | Use Inboxfm Connect-hosted OAuth2 apps for piece connections. Set to `false` to disable them. | `true` |
 | `AP_SCIM_DEFAULT_PROJECT_ROLE` | Default project role for members added via SCIM group sync. One of `Admin`, `Editor`, `Viewer`. | `Editor` |
 
+#### Sign-up & sign-in abuse protection
+
+Every value below has a sane default and needs **no setup** — a fresh self-hosted
+instance is already protected. `AP_API_RATE_LIMIT_AUTHN_ENABLED` gates the
+underlying `@fastify/rate-limit` plugin (Redis-backed, reusing the same
+connection as the job queue); when it's `false`, every rate-limit variable below
+is a no-op, same as before this feature existed.
+
+| Variable | Description | Default |
+|---|---|---|
+| `AP_API_RATE_LIMIT_AUTHN_ENABLED` | Enable IP-based rate limiting on authentication routes (both tiers below). | `true` |
+| `AP_API_RATE_LIMIT_AUTHN_MAX` | Requests per window, per IP, for the general authentication tier (`switch-platform`). | `50` |
+| `AP_API_RATE_LIMIT_AUTHN_WINDOW` | Window for `AP_API_RATE_LIMIT_AUTHN_MAX`, e.g. `1 minute`. | `1 minute` |
+| `AP_API_RATE_LIMIT_AUTHN_ABUSE_MAX` | Requests per window, per IP, for the stricter tier applied to `sign-up`, `sign-in`, and the OTP/password-reset routes (`POST /v1/otp`, `verify-email`, `reset-password`) — the routes a credential-stuffing or account-creation script would actually hit. | `10` |
+| `AP_API_RATE_LIMIT_AUTHN_ABUSE_WINDOW` | Window for `AP_API_RATE_LIMIT_AUTHN_ABUSE_MAX`. | `1 minute` |
+| `AP_API_SIGN_IN_EMAIL_THROTTLE_ENABLED` | Throttle failed sign-in attempts **per email address**, independent of IP — blunts credential stuffing against one account spread across many IPs/a botnet. | `true` |
+| `AP_API_SIGN_IN_EMAIL_THROTTLE_MAX_ATTEMPTS` | Failed sign-in attempts allowed for one email before it's blocked, regardless of source IP. A successful sign-in resets the counter immediately. | `5` |
+| `AP_API_SIGN_IN_EMAIL_THROTTLE_WINDOW_SECONDS` | Rolling window (seconds) for `AP_API_SIGN_IN_EMAIL_THROTTLE_MAX_ATTEMPTS`. | `900` (15 minutes) |
+| `AP_CAPTCHA_PROVIDER` | Optional CAPTCHA on sign-up: `hcaptcha` or `turnstile`. Unset by default — sign-up behaves exactly as before. Requires `AP_CAPTCHA_SECRET_KEY`; the server refuses to start if only one of the two is set. | `None` |
+| `AP_CAPTCHA_SECRET_KEY` | Secret key for the provider above, used server-side to verify the client-supplied token against the provider's `siteverify` endpoint. Only read when `AP_CAPTCHA_PROVIDER` is set. | `None` |
+
+<Info>
+Enabling `AP_CAPTCHA_PROVIDER` only turns on **server-side verification** — the
+client must still collect a token from the provider's widget (hCaptcha or
+Cloudflare Turnstile) and send it as `captchaToken` on `POST
+/v1/authentication/sign-up`. This repository's own console does not yet render
+that widget, so a custom or embedding frontend that enables this must add it.
+</Info>
+
 ---
 
 ### Pieces & flows

@@ -9,6 +9,9 @@ The authentication feature handles user identity creation, sign-in, and JWT sess
 - `packages/server/api/src/app/authentication/authentication-utils.ts` — shared guards (domain check, email auth check, invitation check) and `getProjectAndToken` helper
 - `packages/server/api/src/app/authentication/lib/access-token-manager.ts` — JWT generation (`generateToken`, `generateEngineToken`, `generateWorkerToken`) and `verifyPrincipal`
 - `packages/server/api/src/app/authentication/lib/password-hasher.ts` — bcrypt helpers
+- `packages/server/api/src/app/authentication/lib/sign-in-email-throttle.ts` — Redis-backed, per-email failed-sign-in counter (independent of the IP-based rate limit)
+- `packages/server/api/src/app/authentication/lib/captcha-verifier.ts` — optional hCaptcha/Turnstile verification on sign-up
+- `packages/server/api/src/app/core/security/rate-limit.ts` — the general and abuse-tier `RateLimitOptions`, and the `@fastify/rate-limit` plugin registration
 - `packages/server/api/src/app/authentication/user-identity/user-identity-entity.ts` — `user_identity` table entity
 - `packages/server/api/src/app/authentication/user-identity/user-identity-service.ts` — identity CRUD, password verification, `verify()`, `getIdentityByEmail()`
 - `packages/core/shared/src/lib/core/authentication/dto/authentication-response.ts` — `AuthenticationResponse` Zod schema
@@ -56,7 +59,17 @@ All editions (Community, Enterprise, Cloud). Email auth checks and domain-allow-
 | POST | `/v1/authentication/sign-in` | public | Verify password, return JWT |
 | POST | `/v1/authentication/switch-platform` | publicPlatform (USER) | Exchange current token for a token on a different platform |
 
-All endpoints are rate-limited via `API_RATE_LIMIT_AUTHN_MAX` / `API_RATE_LIMIT_AUTHN_WINDOW` system props.
+`switch-platform` is rate-limited via the general `API_RATE_LIMIT_AUTHN_MAX` /
+`API_RATE_LIMIT_AUTHN_WINDOW` system props (default 50/min per IP).
+`sign-up` and `sign-in` use a stricter, IP-scoped tier —
+`API_RATE_LIMIT_AUTHN_ABUSE_MAX` / `API_RATE_LIMIT_AUTHN_ABUSE_WINDOW`
+(default 10/min per IP; see `core/security/rate-limit.ts`), shared with the
+EE OTP-creation and email-verify/reset-password routes. `sign-in` also throttles
+failed attempts **per email** (`sign-in-email-throttle.ts`,
+`API_SIGN_IN_EMAIL_THROTTLE_*`, default 5 failures / 15 min, independent of IP —
+see `authentication.controller.ts`). `sign-up` optionally verifies an hCaptcha or
+Cloudflare Turnstile token (`captcha-verifier.ts`, `AP_CAPTCHA_PROVIDER` /
+`AP_CAPTCHA_SECRET_KEY`) — a no-op until both are set.
 
 ## Service Methods
 

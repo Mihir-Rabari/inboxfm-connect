@@ -112,6 +112,8 @@ const statusCodeMap: Partial<Record<ErrorCode, StatusCodes>> = {
     [ErrorCode.SANDBOX_CAPACITY_EXCEEDED]: StatusCodes.TOO_MANY_REQUESTS,
     [ErrorCode.CHAT_CONTEXT_LIMIT_EXCEEDED]: StatusCodes.BAD_REQUEST,
     [ErrorCode.PROJECT_RATE_LIMIT_EXCEEDED]: StatusCodes.TOO_MANY_REQUESTS,
+    [ErrorCode.SIGN_IN_ATTEMPTS_EXCEEDED]: StatusCodes.TOO_MANY_REQUESTS,
+    [ErrorCode.CAPTCHA_VERIFICATION_FAILED]: StatusCodes.BAD_REQUEST,
 }
 
 type WideErrorFields = {

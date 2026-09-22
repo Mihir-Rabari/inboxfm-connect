@@ -14,6 +14,24 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
     [AppSystemProp.API_RATE_LIMIT_AUTHN_ENABLED]: 'true',
     [AppSystemProp.API_RATE_LIMIT_AUTHN_MAX]: '50',
     [AppSystemProp.API_RATE_LIMIT_AUTHN_WINDOW]: '1 minute',
+    // Tighter, IP-scoped tier applied only to sign-up / sign-in / password-reset
+    // routes (see authentication.controller.ts, otp-controller.ts,
+    // enterprise-local-authn-controller.ts) — these are the routes an attacker
+    // would actually script against, so they get a lower ceiling than the general
+    // AUTHN tier above (which also covers the already-authenticated
+    // switch-platform route). Gated by the same AP_API_RATE_LIMIT_AUTHN_ENABLED
+    // flag that registers the underlying @fastify/rate-limit plugin.
+    [AppSystemProp.API_RATE_LIMIT_AUTHN_ABUSE_MAX]: '10',
+    [AppSystemProp.API_RATE_LIMIT_AUTHN_ABUSE_WINDOW]: '1 minute',
+    // Per-email (not per-IP) counter on failed sign-in attempts, so credential
+    // stuffing against a single account from many IPs/a botnet can't outrun the
+    // per-IP tier above. 5 failed attempts / 15-minute window per email is a
+    // standard OWASP-style lockout threshold; a legitimate user mistyping their
+    // password a couple of times is unaffected, and the counter is cleared on the
+    // next successful sign-in (see sign-in-email-throttle.ts).
+    [AppSystemProp.API_SIGN_IN_EMAIL_THROTTLE_ENABLED]: 'true',
+    [AppSystemProp.API_SIGN_IN_EMAIL_THROTTLE_MAX_ATTEMPTS]: '5',
+    [AppSystemProp.API_SIGN_IN_EMAIL_THROTTLE_WINDOW_SECONDS]: '900',
     [AppSystemProp.WORKERS]: '1',
     [AppSystemProp.CLIENT_REAL_IP_HEADER]: 'x-real-ip',
     [AppSystemProp.CLOUD_AUTH_ENABLED]: 'true',

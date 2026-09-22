@@ -40,6 +40,7 @@ import { globalConnectionModule } from './ee/global-connections/global-connectio
 import { licenseKeysModule } from './ee/license-keys/license-keys-module'
 import { managedAuthnModule } from './ee/managed-authn/managed-authn-module'
 import { oauthAppModule } from './ee/oauth-apps/oauth-app.module'
+import { enterpriseFilteringUtils } from './ee/pieces/filters/piece-filtering-utils'
 import { platformPieceModule } from './ee/pieces/platform-piece-module'
 import { adminPlatformModule } from './ee/platform/admin/admin-platform.controller'
 import { platformAiCreditsService } from './ee/platform/platform-plan/platform-ai-credits.service'
@@ -78,6 +79,7 @@ import { communityPiecesModule } from './pieces/community-piece-module'
 import { startDevPieceWatcher } from './pieces/dev-piece-watcher'
 import { pieceModule } from './pieces/metadata/piece-metadata-controller'
 import { pieceMetadataService } from './pieces/metadata/piece-metadata-service'
+import { pieceFilteringHooks } from './pieces/metadata/utils/piece-filtering-hooks'
 import { pieceSyncService } from './pieces/piece-sync-service'
 import { platformBackgroundJobs } from './platform/platform-jobs'
 import { platformModule } from './platform/platform.module'
@@ -298,6 +300,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             setPlatformOAuthService(platformOAuth2Service(app.log))
             projectHooks.set(projectEnterpriseHooks)
             flagHooks.set(enterpriseFlagsHooks)
+            pieceFilteringHooks.set(enterpriseFilteringUtils)
             exceptionHandler.initializeSentry(system.get(AppSystemProp.SENTRY_DSN))
             systemJobHandlers.registerJobHandler(SystemJobName.HARD_DELETE_PLATFORM, (data) => platformBackgroundJobs(app.log).hardDeletePlatformHandler(data))
             break
@@ -326,6 +329,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             setPlatformOAuthService(platformOAuth2Service(app.log))
             projectHooks.set(projectEnterpriseHooks)
             flagHooks.set(enterpriseFlagsHooks)
+            pieceFilteringHooks.set(enterpriseFilteringUtils)
             break
         case ApEdition.COMMUNITY:
             await app.register(platformProjectModule)

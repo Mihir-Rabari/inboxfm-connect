@@ -1,17 +1,13 @@
 import { isNil } from '@inboxfm-connect/core-utils'
-import { ApEdition, FilteredPieceBehavior, PiecesFilterType, PlatformWithoutFederatedAuth } from '@inboxfm-connect/shared'
+import { FilteredPieceBehavior, PiecesFilterType, PlatformWithoutFederatedAuth } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { system } from '../../../helper/system/system'
 import { PieceMetadataSchema } from '../../../pieces/metadata/piece-metadata-entity'
+import { PieceFilteringFilterParams, PieceFilteringHooks, PieceFilteringIsFilteredParams } from '../../../pieces/metadata/utils/piece-filtering-hooks'
 import { platformService } from '../../../platform/platform.service'
 import { projectLimitsService } from '../../projects/project-plan/project-plan.service'
 
-export const enterpriseFilteringUtils = (log: FastifyBaseLogger) => ({
-    async filter(params: FilterParams): Promise<PieceMetadataSchema[]> {
-        const edition = system.getEdition()
-        if (![ApEdition.ENTERPRISE, ApEdition.CLOUD].includes(edition)) {
-            return params.pieces
-        }
+export const enterpriseFilteringUtils = (log: FastifyBaseLogger): PieceFilteringHooks => ({
+    async filter(params: PieceFilteringFilterParams): Promise<PieceMetadataSchema[]> {
         const { platformId, includeHidden, pieces, projectId } = params
         if (isNil(platformId) || includeHidden) {
             return pieces
@@ -27,7 +23,7 @@ export const enterpriseFilteringUtils = (log: FastifyBaseLogger) => ({
         }
         return filterBasedOnProject(log, projectId, platformFilteredPieces)
     },
-    async isFiltered({ piece, projectId, platformId }: IsFilteredParams): Promise<boolean> {
+    async isFiltered({ piece, projectId, platformId }: PieceFilteringIsFilteredParams): Promise<boolean> {
         const filteredPieces = await this.filter({
             pieces: [piece],
             projectId,
@@ -36,19 +32,6 @@ export const enterpriseFilteringUtils = (log: FastifyBaseLogger) => ({
         return filteredPieces.length === 0
     },
 })
-
-type IsFilteredParams = {
-    piece: PieceMetadataSchema
-    projectId: string | undefined
-    platformId: string | undefined
-}
-
-type FilterParams = {
-    platformId?: string
-    includeHidden?: boolean
-    pieces: PieceMetadataSchema[]
-    projectId?: string
-}
 
 async function filterBasedOnProject(
     log: FastifyBaseLogger,

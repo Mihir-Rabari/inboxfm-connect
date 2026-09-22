@@ -1,12 +1,14 @@
-import { ActivepiecesError, apId, assertNotNullOrUndefined, ErrorCode, isNil, secureApId, SeekPage } from '@inboxfm-connect/core-utils'
+import { ActivepiecesError, apId, ErrorCode, isNil, secureApId, SeekPage } from '@inboxfm-connect/core-utils'
 import { cryptoUtils } from '@inboxfm-connect/server-utils'
 import { ApiKey, ApiKeyResponseWithValue } from '@inboxfm-connect/shared'
+import { ApiKeyEntity } from '../../api-keys/api-key.entity'
 import { repoFactory } from '../../core/db/repo-factory'
-import { ApiKeyEntity } from './api-key-entity'
 
 const API_KEY_TOKEN_LENGTH = 64
 const repo = repoFactory<ApiKey>(ApiKeyEntity)
 
+// Lookup-by-value (used by authentication) lives in the non-ee apiKeyService at
+// ../../api-keys/api-key.service — it must stay reachable from CE code.
 export const apiKeyService = {
     async add({
         platformId,
@@ -24,18 +26,6 @@ export const apiKeyService = {
             ...savedApiKey,
             value: generatedApiKey.secret,
         }
-    },
-    async getByValue(key: string): Promise<ApiKey | null> {
-        assertNotNullOrUndefined(key, 'key')
-        const apiKey = await repo().findOneBy({
-            hashedValue: cryptoUtils.hashSHA256(key),
-        })
-        if (apiKey) {
-            await repo().update(apiKey.id, {
-                lastUsedAt: new Date().toISOString(),
-            })
-        }
-        return apiKey
     },
     async list({ platformId }: ListParams): Promise<SeekPage<ApiKey>> {
         const data = await repo().findBy({

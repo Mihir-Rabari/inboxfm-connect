@@ -1,7 +1,9 @@
+import type { ServerErrorCodeContract } from './generated/error-code'
+
 export class ConnectError extends Error {
     readonly category: ConnectErrorCategory
     readonly status?: number
-    readonly code?: string
+    readonly code?: ServerErrorCode
     readonly params?: Record<string, unknown>
     readonly requestId?: string
     readonly retryable: boolean
@@ -162,9 +164,16 @@ export type ConnectErrorOptions = {
     retryable: boolean
     message: string
     status?: number
-    code?: string
+    code?: ServerErrorCode
     params?: Record<string, unknown>
     requestId?: string
     retryAfterMs?: number
     cause?: unknown
 }
+
+/**
+ * Widened with `string & {}` (rather than plain `string`) so editors still suggest
+ * the known server codes while remaining forward-compatible with codes the server
+ * adds after this SDK was generated.
+ */
+export type ServerErrorCode = ServerErrorCodeContract | (string & NonNullable<unknown>)

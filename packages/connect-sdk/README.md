@@ -75,3 +75,20 @@ new InboxFM({
 ## Idempotency key
 
 Pass `idempotencyKey` on a mutation to send an `Idempotency-Key` header. The SDK does not use it to change retry behavior today (see above), but it lets you correlate requests and is forward-compatible with server-side deduplication.
+
+## Generated types
+
+The request/response types (`Connection`, `ConnectionsPage`, `CreateConnectSessionResult`, `ExecuteParams`, `ServerErrorCode`, ...) are **not** hand-written. They're generated from the same Zod schemas the server validates against (`@inboxfm-connect/shared`, `@inboxfm-connect/core-utils`), so the SDK's types can't silently drift from what the API actually accepts and returns.
+
+- **`src/generated/*.ts`** — raw output, one file per resource (`connect-session.ts`, `connections.ts`, `execute.ts`, `error-code.ts`). Never edit these by hand; they're overwritten on every regeneration.
+- **`src/api-types.ts`** — the curated, hand-maintained layer that re-exports the generated contracts as the SDK's public types, explicitly `Omit`-ting server/DB-only fields that shouldn't be part of a public contract (e.g. `Connection` omits `platformId`, `ownerId`, `owner` from the raw `ConnectionContract`).
+
+Regenerate after changing a relevant server schema:
+
+```bash
+npm run generate --workspace=@inboxfm-connect/sdk
+```
+
+This requires `@inboxfm-connect/shared` and `@inboxfm-connect/core-utils` to be built first (`npx turbo run build --filter=@inboxfm-connect/shared`, or just run the generate command via turbo so it builds dependencies automatically: `npx turbo run generate --filter=@inboxfm-connect/sdk`). Commit the resulting diff in `src/generated/`.
+
+CI runs `npx turbo run generate:check --filter=@inboxfm-connect/sdk`, which regenerates into memory and fails the build if the committed output in `src/generated/` doesn't match — so a schema change that isn't followed by a regeneration is caught automatically, rather than silently drifting.

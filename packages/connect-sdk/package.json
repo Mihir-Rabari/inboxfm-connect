@@ -8,10 +8,17 @@
   "scripts": {
     "build": "tsc -p tsconfig.lib.json && cp package.json dist/",
     "lint": "eslint \"src/**/*.ts\"",
-    "test": "vitest run"
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.test.json",
+    "generate": "tsx scripts/generate-types.ts",
+    "generate:check": "tsx scripts/generate-types.ts --check"
   },
   "devDependencies": {
+    "@inboxfm-connect/core-utils": "workspace:*",
+    "@inboxfm-connect/shared": "workspace:*",
     "@types/node": "24.11.0",
+    "json-schema-to-typescript": "16.0.0",
+    "tsx": "4.21.0",
     "vitest": "3.2.6"
   }
 }

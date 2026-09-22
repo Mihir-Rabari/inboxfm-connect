@@ -1,7 +1,7 @@
 import { ActivepiecesError, ErrorCode, isNil, tryCatch } from '@inboxfm-connect/core-utils'
 import { HeadlessRuntime } from '@inboxfm-connect/runtime'
 import { apLogger } from '@inboxfm-connect/server-utils'
-import { Permission, PrincipalType } from '@inboxfm-connect/shared'
+import { ExecuteRequestBody, Permission, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { ArrayContains } from 'typeorm'
@@ -128,17 +128,10 @@ type ResolveConnectionIdParams = {
  * hook runs at `preHandler` — after zod has already stripped unknown keys — so
  * the field must be declared here or every USER principal is rejected with
  * "Project ID is required". Membership + WRITE permission on the named project
- * are still enforced by the authorization layer.
+ * are still enforced by the authorization layer. Defined in
+ * `@inboxfm-connect/shared` (`connect-execute/execute-request.ts`) so the
+ * Connect SDK's codegen can derive its request type from this same schema.
  */
-const ExecuteRequestBody = z.object({
-    projectId: z.string().optional(),
-    integration: z.string(),
-    tool: z.string(),
-    connectionId: z.string().optional(),
-    externalUserId: z.string().optional(),
-    input: z.record(z.string(), z.unknown()),
-})
-
 const ExecuteRequestOptions = {
     config: {
         security: securityAccess.project(

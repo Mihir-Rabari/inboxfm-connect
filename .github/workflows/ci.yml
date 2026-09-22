@@ -82,6 +82,10 @@ jobs:
       - name: Lint core projects
         run: npm run lint-core
 
+      - name: Typecheck and verify Connect SDK generated types
+        run: |
+          npx turbo run typecheck --filter=@inboxfm-connect/sdk
+          npx turbo run generate:check --filter=@inboxfm-connect/sdk
 
       - name: Lint all pieces projects
         if: steps.check-framework-common.outputs.framework_or_common_changed == 'true'
@@ -114,7 +118,7 @@ jobs:
           set -euo pipefail
           pids=()
 
-          npx turbo run test --filter=@inboxfm-connect/engine --filter=@inboxfm-connect/shared &
+          npx turbo run test --filter=@inboxfm-connect/engine --filter=@inboxfm-connect/shared --filter=@inboxfm-connect/sdk &
           pids+=($!)
 
           npx turbo run test-ce test-ee test-cloud check-migrations --filter=api &

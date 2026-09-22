@@ -52,6 +52,11 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
     [AppSystemProp.TRIGGER_DEFAULT_POLL_INTERVAL]: '5',
     [AppSystemProp.DEFAULT_CONCURRENT_JOBS_LIMIT]: '5',
     [AppSystemProp.PROJECT_RATE_LIMITER_ENABLED]: 'false',
+    // 300 req/min per project comfortably covers a busy builder session (flow
+    // editor autosave + polling) and normal webhook/API traffic for a single
+    // project, while still capping a runaway script or misbehaving integration.
+    [AppSystemProp.PROJECT_RATE_LIMITER_MAX_REQUESTS]: '300',
+    [AppSystemProp.PROJECT_RATE_LIMITER_WINDOW_SECONDS]: '60',
     [AppSystemProp.MAX_RECORDS_PER_TABLE]: '10000',
     [AppSystemProp.MAX_FIELDS_PER_TABLE]: '100',
     [AppSystemProp.ENABLE_FLOW_ON_PUBLISH]: 'true',

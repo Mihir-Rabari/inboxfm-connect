@@ -90,6 +90,7 @@ export type ApErrorParams =
     | ExecutionStateMissingParams
     | GenericErrorParams
     | SandboxCapacityExceededParams
+    | ProjectRateLimitExceededParams
 
 export type TriggerExecutionFailedParams = BaseErrorParams<ErrorCode.TRIGGER_EXECUTION_FAILED, {
     flowId: FlowId
@@ -487,6 +488,12 @@ export type GenericErrorParams = BaseErrorParams<ErrorCode.GENERIC_ERROR, {
 
 export type SandboxCapacityExceededParams = BaseErrorParams<ErrorCode.SANDBOX_CAPACITY_EXCEEDED, Record<string, never>>
 
+export type ProjectRateLimitExceededParams = BaseErrorParams<ErrorCode.PROJECT_RATE_LIMIT_EXCEEDED, {
+    projectId: ProjectId
+    limit: number
+    windowSeconds: number
+}>
+
 export enum ErrorCode {
     INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR',
     MACHINE_NOT_CONNECTED = 'MACHINE_NOT_CONNECTED',
@@ -561,4 +568,5 @@ export enum ErrorCode {
     RESUME_LOGS_FILE_MISSING = 'RESUME_LOGS_FILE_MISSING',
     EXECUTION_STATE_MISSING = 'EXECUTION_STATE_MISSING',
     GENERIC_ERROR = 'GENERIC_ERROR',
+    PROJECT_RATE_LIMIT_EXCEEDED = 'PROJECT_RATE_LIMIT_EXCEEDED',
 }

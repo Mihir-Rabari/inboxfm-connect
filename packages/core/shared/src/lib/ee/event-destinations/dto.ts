@@ -16,7 +16,7 @@ export type ListPlatformEventDestinationsRequestBody = z.infer<typeof ListPlatfo
 
 
 export const CreatePlatformEventDestinationRequestBody = z.object({
-    events: z.array(z.nativeEnum(ApplicationEventName)),
+    events: z.array(z.enum(ApplicationEventName)),
     url: z.string().url(),
 })
 

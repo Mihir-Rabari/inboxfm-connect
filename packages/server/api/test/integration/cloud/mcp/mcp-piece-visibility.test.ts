@@ -78,7 +78,15 @@ describe('MCP piece visibility', () => {
         await db.save('integration_metadata', visiblePiece)
         await pieceCache(mockLog).setup()
 
-        const result = await apResearchPiecesTool(mcp, mockLog).execute({})
+        // No searchQuery lists the full merged catalog (the seeded piece plus the ~700 shipped
+        // ones) capped to the top 50 by the tool's own LIST_CAP, so an unscoped query can't
+        // guarantee the freshly-seeded piece survives the cap. Scope to its distinctive
+        // displayName — exactly what the tool's own hint text ("use searchQuery to narrow
+        // results") tells a caller to do. Deliberately just "Visible", not "Visible Piece": every
+        // package name is "@inboxfm-connect/piece-*", so pieceSearching's substring-match fallback
+        // (an extra query word beyond the piece's own name must still surface it) treats the token
+        // "piece" as present in every single piece's name and matches the whole catalog.
+        const result = await apResearchPiecesTool(mcp, mockLog).execute({ searchQuery: 'Visible' })
 
         expect(text(result)).toContain('✅')
         expect(text(result)).toContain(visiblePieceName)

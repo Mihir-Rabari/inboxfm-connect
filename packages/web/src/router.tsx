@@ -20,6 +20,7 @@ const ScheduledTasksPage = lazy(() => import('./pages/automations/schedules'))
 const NewScheduledTaskPage = lazy(() => import('./pages/automations/schedules-new'))
 const ScheduledTaskDetailPage = lazy(() => import('./pages/automations/schedules-detail'))
 const EditScheduledTaskPage = lazy(() => import('./pages/automations/schedules-edit'))
+const ApiKeysPage = lazy(() => import('./pages/api-keys'))
 const McpPage = lazy(() => import('./pages/mcp'))
 const ActivityPage = lazy(() => import('./pages/activity'))
 const ExecutionDetailPage = lazy(() => import('./pages/activity/detail'))
@@ -131,6 +132,10 @@ export const router = createBrowserRouter([
       {
         path: 'developers',
         element: withSuspense(DevelopersPage),
+      },
+      {
+        path: 'api-keys',
+        element: withSuspense(ApiKeysPage),
       },
       {
         path: 'settings',

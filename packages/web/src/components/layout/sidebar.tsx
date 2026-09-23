@@ -5,6 +5,7 @@ import {
   CalendarClock,
   ChevronDown,
   Code2,
+  Key,
   KeyRound,
   LayoutGrid,
   LogOut,
@@ -71,6 +72,7 @@ const navGroups: NavGroup[] = [
     label: 'Platform',
     items: [
       { title: 'Developers', href: '/developers', icon: Code2 },
+      { title: 'API Keys', href: '/api-keys', icon: Key },
       { title: 'Settings', href: '/settings', icon: Settings },
     ],
   },

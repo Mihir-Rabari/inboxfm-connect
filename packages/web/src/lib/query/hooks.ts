@@ -5,6 +5,8 @@ import { apiClient } from '../api/client'
 import { connectionsApi } from '../api/connections'
 import { executeApi } from '../api/execute'
 import { executionsApi } from '../api/executions'
+import { platformApi } from '../api/platform'
+import { platformApiKeysApi } from '../api/platform-api-keys'
 import {
   ConnectionsListParams,
   CreateConnectionRequest,
@@ -97,14 +99,16 @@ export function useProjectApiKeysQuery() {
   return useQuery({
     queryKey: ['project-api-keys', projectId],
     queryFn: () => apiKeysApi.list(),
-    meta: { showErrorDialog: true },
+    // `showErrorToast` (not `showErrorDialog`) is the key `query-client.ts` actually
+    // checks — this query renders the API Keys page's primary table.
+    meta: { showErrorToast: true },
   })
 }
 
 export function useCreateProjectApiKey() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (request: { displayName: string }) => apiKeysApi.create(request),
+    mutationFn: (request: { displayName: string, projectId: string }) => apiKeysApi.create(request),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['project-api-keys'] })
     },
@@ -117,6 +121,48 @@ export function useDeleteProjectApiKey() {
     mutationFn: ({ id }: { id: string }) => apiKeysApi.remove({ id }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['project-api-keys'] })
+    },
+  })
+}
+
+/**
+ * Minor/auxiliary query: only used to gate the Platform API Keys section, so it
+ * intentionally has no `showErrorToast` — a failure here just leaves the platform
+ * key section hidden rather than surfacing a distracting toast.
+ */
+export function usePlatformQuery({ platformId }: { platformId?: string }) {
+  return useQuery({
+    queryKey: ['platform', platformId],
+    queryFn: () => platformApi.get({ platformId: platformId ?? '' }),
+    enabled: !!platformId,
+  })
+}
+
+export function usePlatformApiKeysQuery({ enabled }: { enabled: boolean }) {
+  return useQuery({
+    queryKey: ['platform-api-keys'],
+    queryFn: () => platformApiKeysApi.list(),
+    enabled,
+    meta: { showErrorToast: true },
+  })
+}
+
+export function useCreatePlatformApiKey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (request: { displayName: string }) => platformApiKeysApi.create(request),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['platform-api-keys'] })
+    },
+  })
+}
+
+export function useDeletePlatformApiKey() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => platformApiKeysApi.remove({ id }),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['platform-api-keys'] })
     },
   })
 }

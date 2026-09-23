@@ -1,12 +1,13 @@
 import { unlink, writeFile } from 'node:fs/promises'
 import os from 'node:os'
 import path from 'node:path'
-import { v8IsolateCodeSandbox } from '../../../src/lib/core/code/v8-isolate-code-sandbox'
+import { v8IsolateCodeSandbox } from '../../../../src/lib/core/code/v8-isolate-code-sandbox'
 
 let isIvmAvailable = true
 try {
     require('isolated-vm')
-} catch {
+}
+catch {
     isIvmAvailable = false
 }
 

@@ -7,7 +7,9 @@
   "scripts": {
     "build": "tsc -p tsconfig.lib.json",
     "lint": "eslint 'src/**/*.ts'",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test-unit": "vitest run test/unit",
+    "test-integration": "vitest run test/integration"
   },
   "dependencies": {
     "@inboxfm-connect/core-utils": "workspace:*",

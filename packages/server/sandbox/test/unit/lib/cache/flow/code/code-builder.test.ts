@@ -9,16 +9,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 const installMock = vi.fn()
 const buildMock = vi.fn()
 
-vi.mock('../../../../../src/lib/utils/bun-runner', () => ({
+vi.mock('../../../../../../src/lib/utils/bun-runner', () => ({
     bunRunner: () => ({ install: installMock, build: buildMock }),
 }))
 
 // eslint-disable-next-line import/first
-import { codeBuilder } from '../../../../../src/lib/cache/flow/code/code-builder'
+import { codeBuilder } from '../../../../../../src/lib/cache/flow/code/code-builder'
 // eslint-disable-next-line import/first
-import { codeCache } from '../../../../../src/lib/cache/flow/code/code-cache'
+import { codeCache } from '../../../../../../src/lib/cache/flow/code/code-cache'
 // eslint-disable-next-line import/first
-import { SandboxSettings } from '../../../../../src/lib/types'
+import { SandboxSettings } from '../../../../../../src/lib/types'
 
 const folders: string[] = []
 

@@ -67,8 +67,8 @@ Open-source AI-first workflow automation platform. Self-hosted or cloud. 400+ in
 ## Testing
 
 ```bash
-npm run test-unit     # Vitest: engine + shared
-npm run test-api      # API integration (CE, EE, Cloud)
+npm run test-unit     # Vitest: engine, shared, sdk, and api's test/unit (no DB/Redis/network)
+npm run test-api      # API integration (CE, EE, Cloud) — needs Postgres + Redis
 ```
 API tests: `setupTestEnvironment()` + `createTestContext(app)` → `ctx.post()`, `ctx.get()`. DB auto-cleaned between tests.
 

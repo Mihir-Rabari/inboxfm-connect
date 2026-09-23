@@ -4,8 +4,8 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client'
 import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
 import { EngineResponseStatus } from '@inboxfm-connect/shared'
-import { createSandbox } from '../../../src/lib/sandbox/sandbox'
-import { Sandbox, SandboxLogger, SandboxMount, SandboxProcessMaker } from '../../../src/lib/sandbox/types'
+import { createSandbox } from '../../../../src/lib/sandbox/sandbox'
+import { Sandbox, SandboxLogger, SandboxMount, SandboxProcessMaker } from '../../../../src/lib/sandbox/types'
 
 const { treeKillMock } = vi.hoisted(() => ({
     treeKillMock: vi.fn((_pid: number, _signal: string, cb: (err?: Error) => void) => cb()),
@@ -15,7 +15,7 @@ vi.mock('tree-kill', () => ({
     default: treeKillMock,
 }))
 
-vi.mock('../../../src/lib/cache/cache-paths', () => ({
+vi.mock('../../../../src/lib/cache/cache-paths', () => ({
     cacheUtils: vi.fn(() => ({
         getGlobalCachePathLatestVersion: vi.fn(() => '/tmp/test-cache'),
         getGlobalCodeCachePath: vi.fn(() => '/tmp/test-cache/codes'),

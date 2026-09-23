@@ -1,8 +1,8 @@
+import { faker } from '@faker-js/faker'
 import { AIProviderName, apId, assertNotNullOrUndefined, ProjectRole, RoleType } from '@inboxfm-connect/core-utils'
 import { LATEST_CONTEXT_VERSION, PieceMetadata } from '@inboxfm-connect/pieces-framework'
 import { apDayjs } from '@inboxfm-connect/server-utils'
-import { AiCreditsAutoTopUpState, AIProvider, ApiKey, AppConnection, AppConnectionScope, AppConnectionStatus, AppConnectionType, ApplicationEvent, ApplicationEventName, Cell, ColorName, EventDestinationScope, Field, FieldType, File, FileCompression, FileLocation, FileType, FilteredPieceBehavior, InvitationStatus, InvitationType, KeyAlgorithm, OAuthApp, OtpModel, OtpState, OtpType, PackageType, PiecesFilterType, PieceType, Platform, PlatformPlan, PlatformRole, Project, ProjectIcon, ProjectMember, ProjectPlan, ProjectType, Record, RunEnvironment, SigningKey, Table, TeamProjectsLimit, User, UserIdentity, UserIdentityProvider, UserInvitation, UserStatus } from '@inboxfm-connect/shared'
-import { faker } from '@faker-js/faker'
+import { AiCreditsAutoTopUpState, AIProvider, ApiKey, AppConnection, AppConnectionScope, AppConnectionStatus, AppConnectionType, ApplicationEvent, ApplicationEventName, Cell, ColorName, EventDestinationScope, Field, FieldType, File, FileCompression, FileLocation, FileType, FilteredPieceBehavior, InvitationStatus, InvitationType, KeyAlgorithm, OAuthApp, OtpModel, OtpState, OtpType, PackageType, PiecesFilterType, PieceType, Platform, PlatformPlan, PlatformRole, Project, ProjectIcon, ProjectMember, ProjectPlan, ProjectType, Record, SigningKey, Table, TeamProjectsLimit, User, UserIdentity, UserIdentityProvider, UserInvitation, UserStatus } from '@inboxfm-connect/shared'
 import bcrypt from 'bcrypt'
 import dayjs from 'dayjs'
 import { FastifyBaseLogger } from 'fastify'
@@ -415,7 +415,7 @@ export const createMockTable = ({ projectId }: { projectId: string }): Table => 
     }
 }
 
-export const createMockField = ({ tableId, projectId }: { tableId: string, projectId: string }): Field => {
+export const createMockField = ({ tableId, projectId, position }: { tableId: string, projectId: string, position?: number }): Field => {
     return {
         id: apId(),
         created: faker.date.recent().toISOString(),
@@ -428,6 +428,7 @@ export const createMockField = ({ tableId, projectId }: { tableId: string, proje
         externalId: apId(),
         projectId,
         type: FieldType.STATIC_DROPDOWN,
+        position: position ?? 0,
     }
 }
 export const createMockRecord = ({ tableId, projectId }: { tableId: string, projectId: string }): Record => {

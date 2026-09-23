@@ -36,11 +36,22 @@ export const FieldEntity = new EntitySchema<FieldSchema>({
             type: 'jsonb',
             nullable: true,
         },
+        position: {
+            type: Number,
+            nullable: false,
+        },
     },
     indices: [
         {
             name: 'idx_field_project_id_table_id_name',
             columns: ['projectId', 'tableId', 'name'],
+        },
+    ],
+    uniques: [
+        {
+            name: 'uq_field_table_id_position',
+            columns: ['tableId', 'position'],
+            deferrable: 'INITIALLY DEFERRED',
         },
     ],
     relations: {

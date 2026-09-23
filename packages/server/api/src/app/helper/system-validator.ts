@@ -3,6 +3,7 @@ import { isNil } from '@inboxfm-connect/core-utils'
 import { ApEdition, ApEnvironment, DefaultProjectRole, ExecutionMode, FileLocation, NetworkMode, PieceSyncMode } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { DatabaseType } from '../database/database-type'
+import { assertPostgresConnectionBudget } from '../database/postgres-connection-budget'
 import { RedisType } from '../database/redis/types'
 import { s3Helper } from '../file/s3-helper'
 import { encryptUtils } from './encryption'
@@ -116,6 +117,9 @@ const systemPropValidators: {
     [AppSystemProp.POSTGRES_USE_SSL]: booleanValidator,
     [AppSystemProp.POSTGRES_POOL_SIZE]: numberValidator,
     [AppSystemProp.POSTGRES_IDLE_TIMEOUT_MS]: numberValidator,
+    [AppSystemProp.POSTGRES_CONNECTION_TIMEOUT_MS]: numberValidator,
+    [AppSystemProp.POSTGRES_MAX_CONNECTIONS]: numberValidator,
+    [AppSystemProp.POSTGRES_EXPECTED_APP_REPLICAS]: numberValidator,
     [AppSystemProp.PROJECT_RATE_LIMITER_ENABLED]: booleanValidator,
     [AppSystemProp.PROJECT_RATE_LIMITER_MAX_REQUESTS]: numberValidator,
     [AppSystemProp.PROJECT_RATE_LIMITER_WINDOW_SECONDS]: numberValidator,
@@ -285,6 +289,8 @@ export const validateEnvPropsOnStartup = async (log: FastifyBaseLogger): Promise
     }
     const isApp = system.isApp()
     if (isApp) {
+        assertPostgresConnectionBudget({ log })
+
         const rentionPeriod = system.getNumberOrThrow(AppSystemProp.EXECUTION_DATA_RETENTION_DAYS)
         const maximumPausedFlowTimeout = system.getNumberOrThrow(AppSystemProp.PAUSED_FLOW_TIMEOUT_DAYS)
         if (maximumPausedFlowTimeout > rentionPeriod) {

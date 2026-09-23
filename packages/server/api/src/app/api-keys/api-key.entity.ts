@@ -33,6 +33,10 @@ export const ApiKeyEntity = new EntitySchema<ApiKeySchema>({
             type: String,
             nullable: true,
         },
+        expiresAt: {
+            type: String,
+            nullable: true,
+        },
     },
     indices: [],
     relations: {

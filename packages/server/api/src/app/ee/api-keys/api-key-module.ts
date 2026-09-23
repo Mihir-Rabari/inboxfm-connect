@@ -1,9 +1,11 @@
 import { ApId, assertNotNullOrUndefined, SeekPage } from '@inboxfm-connect/core-utils'
+import { wideEvent } from '@inboxfm-connect/server-utils'
 import { ApiKeyResponseWithoutValue, ApiKeyResponseWithValue, CreateApiKeyRequest, PrincipalType } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
+import { auditEvents } from '../../helper/audit-events'
 import { platformMustHaveFeatureEnabled } from '../authentication/ee-authorization'
 import { apiKeyService } from './api-key-service'
 
@@ -20,7 +22,14 @@ export const apiKeyController: FastifyPluginAsyncZod = async (app) => {
         const newApiKey = await apiKeyService.add({
             platformId,
             displayName: req.body.displayName,
+            expiresAt: req.body.expiresAt,
         })
+
+        req.log.info({ apiKey: { id: newApiKey.id, action: 'created' } }, 'Platform API key created')
+        wideEvent.audit(auditEvents.apiKeyCreated({
+            actor: auditEvents.actorFromPrincipal(req.principal),
+            target: { id: newApiKey.id, platformId },
+        }))
 
         return res.status(StatusCodes.CREATED).send(newApiKey)
     })
@@ -33,6 +42,23 @@ export const apiKeyController: FastifyPluginAsyncZod = async (app) => {
         })
     })
 
+    app.post('/:id/rotate', RotateRequest, async (req, res) => {
+        const platformId = req.principal.platform.id
+        assertNotNullOrUndefined(platformId, 'platformId')
+        const rotatedApiKey = await apiKeyService.rotate({
+            id: req.params.id,
+            platformId,
+        })
+
+        req.log.info({ apiKey: { id: req.params.id, action: 'rotated' } }, 'Platform API key rotated')
+        wideEvent.audit(auditEvents.apiKeyRotated({
+            actor: auditEvents.actorFromPrincipal(req.principal),
+            target: { id: req.params.id, platformId, replacementApiKeyId: rotatedApiKey.id },
+        }))
+
+        return res.status(StatusCodes.CREATED).send(rotatedApiKey)
+    })
+
     app.delete('/:id', DeleteRequest, async (req, res) => {
         const platformId = req.principal.platform.id
         assertNotNullOrUndefined(platformId, 'platformId')
@@ -40,6 +66,13 @@ export const apiKeyController: FastifyPluginAsyncZod = async (app) => {
             id: req.params.id,
             platformId,
         })
+
+        req.log.info({ apiKey: { id: req.params.id, action: 'revoked' } }, 'Platform API key revoked')
+        wideEvent.audit(auditEvents.apiKeyRevoked({
+            actor: auditEvents.actorFromPrincipal(req.principal),
+            target: { id: req.params.id, platformId },
+        }))
+
         return res.status(StatusCodes.OK).send()
     })
 }
@@ -75,5 +108,19 @@ const DeleteRequest = {
         params: z.object({
             id: ApId,
         }),
+    },
+}
+
+const RotateRequest = {
+    config: {
+        security: securityAccess.platformAdminOnly([PrincipalType.USER]),
+    },
+    schema: {
+        params: z.object({
+            id: ApId,
+        }),
+        response: {
+            [StatusCodes.CREATED]: ApiKeyResponseWithValue,
+        },
     },
 }

@@ -114,6 +114,7 @@ const statusCodeMap: Partial<Record<ErrorCode, StatusCodes>> = {
     [ErrorCode.PROJECT_RATE_LIMIT_EXCEEDED]: StatusCodes.TOO_MANY_REQUESTS,
     [ErrorCode.SIGN_IN_ATTEMPTS_EXCEEDED]: StatusCodes.TOO_MANY_REQUESTS,
     [ErrorCode.CAPTCHA_VERIFICATION_FAILED]: StatusCodes.BAD_REQUEST,
+    [ErrorCode.API_KEY_RATE_LIMIT_EXCEEDED]: StatusCodes.TOO_MANY_REQUESTS,
 }
 
 type WideErrorFields = {

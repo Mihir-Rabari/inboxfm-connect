@@ -1,4 +1,4 @@
-import { assertNotNullOrUndefined } from '@inboxfm-connect/core-utils'
+import { assertNotNullOrUndefined, isNil } from '@inboxfm-connect/core-utils'
 import { cryptoUtils } from '@inboxfm-connect/server-utils'
 import { ApiKey } from '@inboxfm-connect/shared'
 import { repoFactory } from '../core/db/repo-factory'
@@ -15,11 +15,25 @@ export const apiKeyService = {
         const apiKey = await repo().findOneBy({
             hashedValue: cryptoUtils.hashSHA256(value),
         })
-        if (apiKey) {
-            await repo().update(apiKey.id, {
-                lastUsedAt: new Date().toISOString(),
-            })
+        if (isNil(apiKey)) {
+            return null
         }
+        if (isExpired(apiKey)) {
+            return null
+        }
+        await repo().update(apiKey.id, {
+            lastUsedAt: new Date().toISOString(),
+        })
         return apiKey
     },
+}
+
+// Rotation (ee/api-keys/api-key-service.ts#rotate) sets expiresAt on the old key
+// instead of deleting it, so an expired-but-not-yet-cleaned-up row must stop
+// authenticating here rather than relying on the row being gone.
+function isExpired(apiKey: ApiKey): boolean {
+    if (isNil(apiKey.expiresAt)) {
+        return false
+    }
+    return new Date(apiKey.expiresAt).getTime() <= Date.now()
 }

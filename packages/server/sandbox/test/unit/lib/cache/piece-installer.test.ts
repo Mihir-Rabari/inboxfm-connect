@@ -12,13 +12,13 @@ let testWorkspace = ''
 
 const mockInstall = vi.fn()
 
-vi.mock('../../../src/lib/utils/bun-runner', () => ({
+vi.mock('../../../../src/lib/utils/bun-runner', () => ({
     bunRunner: () => ({
         install: mockInstall,
     }),
 }))
 
-vi.mock('../../../src/lib/cache/cache-paths', () => ({
+vi.mock('../../../../src/lib/cache/cache-paths', () => ({
     cacheUtils: () => ({
         getGlobalCacheCommonPath: () => testWorkspace,
         getGlobalCachePathLatestVersion: () => testWorkspace,
@@ -26,7 +26,7 @@ vi.mock('../../../src/lib/cache/cache-paths', () => ({
 }))
 
 // Import after mocks are registered
-const { pieceInstaller, isValidPackageName } = await import('../../../src/lib/cache/pieces/piece-installer')
+const { pieceInstaller, isValidPackageName } = await import('../../../../src/lib/cache/pieces/piece-installer')
 
 function makePiece(name: string, version = '1.0.0'): OfficialPiecePackage {
     return {

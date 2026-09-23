@@ -10,19 +10,19 @@ const { createSandboxMock, isolateProcessMock, simpleProcessMock, getGlobalCache
     getEnginePathMock: vi.fn(() => '/tmp/cache/common/main.js'),
 }))
 
-vi.mock('../../src/lib/sandbox/sandbox', () => ({
+vi.mock('../../../src/lib/sandbox/sandbox', () => ({
     createSandbox: createSandboxMock,
 }))
 
-vi.mock('../../src/lib/sandbox/isolate', () => ({
+vi.mock('../../../src/lib/sandbox/isolate', () => ({
     isolateProcess: isolateProcessMock,
 }))
 
-vi.mock('../../src/lib/sandbox/fork', () => ({
+vi.mock('../../../src/lib/sandbox/fork', () => ({
     simpleProcess: simpleProcessMock,
 }))
 
-vi.mock('../../src/lib/cache/cache-paths', () => ({
+vi.mock('../../../src/lib/cache/cache-paths', () => ({
     cacheUtils: () => ({
         getGlobalCacheCommonPath: getGlobalCacheCommonPathMock,
         getGlobalCodeCachePath: getGlobalCodeCachePathMock,
@@ -30,7 +30,7 @@ vi.mock('../../src/lib/cache/cache-paths', () => ({
     }),
 }))
 
-import { createSandboxForJob } from '../../src/lib/create-sandbox-for-job'
+import { createSandboxForJob } from '../../../src/lib/create-sandbox-for-job'
 
 type Settings = {
     PUBLIC_URL: string

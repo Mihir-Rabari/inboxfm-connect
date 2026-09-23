@@ -15,11 +15,11 @@ vi.mock('@inboxfm-connect/server-utils', async (importActual) => {
     }
 })
 
-vi.mock('../../src/lib/cache/local-execution-cache', () => ({
+vi.mock('../../../src/lib/cache/local-execution-cache', () => ({
     localExecutionCache: () => ({ provision: vi.fn().mockResolvedValue(undefined) }),
 }))
 
-vi.mock('../../src/lib/sandbox-manager', () => ({
+vi.mock('../../../src/lib/sandbox-manager', () => ({
     createSandboxManager: vi.fn(({ boxId }: { boxId: number }) => ({
         acquire: vi.fn(() => {
             acquiredBoxIds.push(boxId)
@@ -35,7 +35,7 @@ vi.mock('../../src/lib/sandbox-manager', () => ({
     })),
 }))
 
-import { createSandboxRuntime } from '../../src/lib/sandbox'
+import { createSandboxRuntime } from '../../../src/lib/sandbox'
 
 const log = { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as never
 
@@ -64,7 +64,7 @@ describe('createSandboxRuntime concurrency', () => {
     })
 
     it('builds N boxes (one manager per workerIndex)', async () => {
-        const { createSandboxManager } = await import('../../src/lib/sandbox-manager')
+        const { createSandboxManager } = await import('../../../src/lib/sandbox-manager')
         createSandboxRuntime({ concurrency: 3, basePath: '/tmp', getSettings: () => ({} as never), log })
         expect(createSandboxManager).toHaveBeenCalledTimes(3)
         expect(vi.mocked(createSandboxManager).mock.calls.map(([arg]) => arg.boxId)).toEqual([1, 2, 3])
@@ -91,7 +91,7 @@ describe('createSandboxRuntime concurrency', () => {
     })
 
     it('defaults to a single box when concurrency is omitted', async () => {
-        const { createSandboxManager } = await import('../../src/lib/sandbox-manager')
+        const { createSandboxManager } = await import('../../../src/lib/sandbox-manager')
         createSandboxRuntime({ basePath: '/tmp', getSettings: () => ({} as never), log })
         expect(createSandboxManager).toHaveBeenCalledTimes(1)
     })

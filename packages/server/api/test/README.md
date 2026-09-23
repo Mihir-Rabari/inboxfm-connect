@@ -6,12 +6,14 @@ This directory contains all tests for the `@activepieces/server-api` package, or
 
 | Path | Layer | What it covers |
 |---|---|---|
-| `test/unit/` (23 files) | **Unit** | Single-module logic — services, helpers, middleware guards, schema validators. Mocks allowed, no real DB/queue. |
-| `test/integration/ce/` (~30 files) | **Integration** | Fastify `.inject()` + real Postgres + real Redis + real BullMQ, Community Edition endpoints |
-| `test/integration/ee/` (~12 files) | **Integration** | Same infra as CE; Enterprise-only endpoints (SSO, SAML, SCIM) |
-| `test/integration/cloud/` (~35 files) | **Integration** | Same infra as CE; cloud-only endpoints + role-based permission matrices |
+| `test/unit/` (29 files) | **Unit** | Single-module logic — services, helpers, middleware guards, schema validators. Mocks allowed, no real DB/queue/Fastify app. |
+| `test/integration/ce/` (33 files) | **Integration** | Fastify `.inject()` + real Postgres + real Redis, Community Edition endpoints |
+| `test/integration/ee/` (10 files) | **Integration** | Same infra as CE; Enterprise-only endpoints (SSO, SAML, SCIM) |
+| `test/integration/cloud/` (32 files) | **Integration** | Same infra as CE; cloud-only endpoints + role-based permission matrices |
 
 The edition split (ce / ee / cloud) is a product-edition gate, not a separate taxonomy layer — all three subtrees are integration tests.
+
+BullMQ is no longer part of the integration tier's infra: the in-process job scheduler (`@inboxfm-connect/scheduler`) replaced it, and the last BullMQ-backed worker test suites were removed once `src/app/workers` was deleted (see `1e848c3073`). Only real Postgres + Redis are required to run `test/integration/{ce,ee,cloud}`.
 
 ## Test utilities
 
@@ -21,7 +23,7 @@ Key helpers live under `test/helpers/`:
 - `createTestContext(app, params)` — creates a user, platform, project, auth token; returns `{ user, platform, project, token, get/post/put/delete/inject }`.
 - `createMemberContext(parentCtx, { projectRole })` — creates a member user under the same platform/project with a specific role.
 - `createServiceContext(parentCtx)` — creates an API key for service-to-service auth.
-- `mocks/index.ts` — ~850 LOC of factory builders (e.g., `createMockFlow`, `createMockFlowVersion`, `mockAndSaveBasicSetup`, `generateMockToken`) using `@faker-js/faker`.
+- `mocks/index.ts` — ~850 LOC of factory builders (e.g., `mockAndSaveBasicSetup`, `generateMockToken`, `createMockApiKey`, `createMockPieceMetadata`) using `@faker-js/faker`. `createMockFlow`/`createMockFlowVersion` no longer exist — the Flow Runtime (`flow`/`flow_version`/`flow_run` entities) was removed from this fork's API in favour of the headless `execute`/`execution` model.
 
 ## Running the tests
 
@@ -33,15 +35,11 @@ npm run test-ee          # same, AP_EDITION=ee, runs test/integration/ee
 npm run test-cloud       # same, runs test/integration/cloud
 ```
 
-Integration tests require a running Postgres + Redis (see `.env.tests`).
+Integration tests require a running Postgres + Redis (see `.env.tests`). Redis connects per `AP_REDIS_TYPE` (`packages/server/api/src/app/database/redis/index.ts`): `DEFAULT`/`SENTINEL` use `AP_REDIS_HOST`/`AP_REDIS_PORT` (or the sentinel equivalents) against a real Redis; `MEMORY` (the default in `.env.tests`, so this is what `test-ce`/`test-ee`/`test-cloud` use unless overridden) boots an in-memory Redis via `redis-memory-server`, which downloads a Redis binary on first use. In a network-restricted environment (no access to that download host), either set `AP_REDIS_TYPE=DEFAULT` with `AP_REDIS_HOST`/`AP_REDIS_PORT` pointed at a pre-provisioned real Redis, or set `REDISMS_SYSTEM_BINARY=/path/to/redis-server` (an existing Redis binary already on the machine — `redis-memory-server` uses it instead of downloading one, and `AP_REDIS_TYPE` can stay `MEMORY`). `bun install`'s own `redis-memory-server` postinstall step is separately controlled by `REDISMS_VERSION` (see `.github/workflows/ci.yml`, pinned to work around a Redis 8.x module-build failure on the CI runner).
 
 ## Classification debt
 
-- **`test/unit/app/core/canary/canary-proxy.integration.test.ts`** — already carries an `.integration.` infix but lives under `test/unit/`. Spins up two real Fastify instances listening on real TCP ports and routes requests between them. Target: move to `test/integration/ce/core/canary/` and drop the redundant `.integration.` infix.
-- **`test/integration/ce/authentication/password-hasher.test.ts`** — pure bcrypt + legacy scrypt logic. No `setupTestEnvironment`, no DB, no Fastify app, no `createTestContext`. Target: move to `test/unit/app/authentication/`.
-- **Duplication: `test/integration/ce/flows/flow/flow.test.ts` and `test/integration/cloud/flow/flow.test.ts`** — both exercise identical "Create flow" shapes and assertions; only role-permission checks differ in the cloud copy. Target: extract the shared CRUD assertions into the CE file (the common base) and keep only cloud-specific role permutations under `cloud/`.
-
-This list is a backlog, not a to-do for this README. Items should be tackled opportunistically when touching the affected tests.
+Resolved (issue #58) — see `../../../../docs/handbook/engineering/playbooks/testing-strategy.mdx` for the full account of what moved vs. what turned out to already be gone (the canary proxy suite, the flow CRUD duplication target files, and engine's `test/handler/`).
 
 ## Related documentation
 

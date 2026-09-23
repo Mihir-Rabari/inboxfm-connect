@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ApEnvironment, ExecutionMode, NetworkMode } from '@inboxfm-connect/shared'
 
-vi.mock('../../src/lib/create-sandbox-for-job', () => ({
+vi.mock('../../../src/lib/create-sandbox-for-job', () => ({
     createSandboxForJob: vi.fn().mockReturnValue({
         isReady: () => true,
         shutdown: vi.fn().mockResolvedValue(undefined),
     }),
 }))
 
-import { createSandboxManager } from '../../src/lib/sandbox-manager'
+import { createSandboxManager } from '../../../src/lib/sandbox-manager'
 
 const log = {
     info: vi.fn(),
@@ -66,7 +66,7 @@ describe('sandbox-manager canReuseSandbox', () => {
         manager.acquire({ log })
         await manager.release(log)
 
-        const { createSandboxForJob } = await import('../../src/lib/create-sandbox-for-job')
+        const { createSandboxForJob } = await import('../../../src/lib/create-sandbox-for-job')
         expect(createSandboxForJob).toHaveBeenCalledTimes(1)
 
         manager.acquire({ log })
@@ -83,7 +83,7 @@ describe('sandbox-manager canReuseSandbox', () => {
         manager.acquire({ log })
         await manager.release(log)
 
-        const { createSandboxForJob } = await import('../../src/lib/create-sandbox-for-job')
+        const { createSandboxForJob } = await import('../../../src/lib/create-sandbox-for-job')
         manager.acquire({ log })
         expect(createSandboxForJob).toHaveBeenCalledTimes(2)
     })
@@ -98,7 +98,7 @@ describe('sandbox-manager canReuseSandbox', () => {
         manager.acquire({ log })
         await manager.release(log)
 
-        const { createSandboxForJob } = await import('../../src/lib/create-sandbox-for-job')
+        const { createSandboxForJob } = await import('../../../src/lib/create-sandbox-for-job')
         manager.acquire({ log })
         expect(createSandboxForJob).toHaveBeenCalledTimes(1)
     })
@@ -113,7 +113,7 @@ describe('sandbox-manager canReuseSandbox', () => {
         manager.acquire({ log })
         await manager.release(log)
 
-        const { createSandboxForJob } = await import('../../src/lib/create-sandbox-for-job')
+        const { createSandboxForJob } = await import('../../../src/lib/create-sandbox-for-job')
         manager.acquire({ log })
         expect(createSandboxForJob).toHaveBeenCalledTimes(1)
     })
@@ -128,7 +128,7 @@ describe('sandbox-manager canReuseSandbox', () => {
         manager.acquire({ log })
         await manager.release(log)
 
-        const { createSandboxForJob } = await import('../../src/lib/create-sandbox-for-job')
+        const { createSandboxForJob } = await import('../../../src/lib/create-sandbox-for-job')
         manager.acquire({ log })
         expect(createSandboxForJob).toHaveBeenCalledTimes(1)
     })

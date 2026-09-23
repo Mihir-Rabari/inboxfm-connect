@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { type ApLogger } from '@inboxfm-connect/server-utils'
 import { FlowActionType, FlowTriggerType, FlowVersion, FlowVersionState, LATEST_FLOW_SCHEMA_VERSION, PackageType, PieceType, WorkerToApiContract } from '@inboxfm-connect/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { flowProvisioning } from '../../../../src/lib/cache/flow/flow-provisioning'
+import { flowProvisioning } from '../../../../../src/lib/cache/flow/flow-provisioning'
 
 const folders: string[] = []
 

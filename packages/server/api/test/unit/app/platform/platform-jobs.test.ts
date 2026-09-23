@@ -78,13 +78,42 @@ describe('platformBackgroundJobs#hardDeletePlatformHandler', () => {
         mockUserFind.mockResolvedValue([])
     })
 
-    it('still throws (unchanged) to signal retry while projects remain, without touching flow bundles', async () => {
+    it('reschedules a recheck (does not throw) while projects still remain, without touching flow bundles', async () => {
         mockProjectCount.mockResolvedValue(2)
 
-        await expect(platformBackgroundJobs(mockLog).hardDeletePlatformHandler(baseData)).rejects.toThrow()
+        await platformBackgroundJobs(mockLog).hardDeletePlatformHandler(baseData)
 
         expect(mockCleanupForPlatform).not.toHaveBeenCalled()
         expect(mockPlatformDelete).not.toHaveBeenCalled()
+        expect(mockUpsertJob).toHaveBeenCalledTimes(1)
+        const [[scheduled]] = mockUpsertJob.mock.calls
+        expect(scheduled.job.data).toEqual({
+            platformId: 'plat-1', userId: 'user-1', identityId: 'identity-1', attempt: 0, remainingProjectsAttempt: 1,
+        })
+    })
+
+    it('does not conflate the "projects remain" retry counter with the flow-bundle-cleanup attempt counter', async () => {
+        mockProjectCount.mockResolvedValue(1)
+
+        await platformBackgroundJobs(mockLog).hardDeletePlatformHandler({ ...baseData, attempt: 5, remainingProjectsAttempt: 3 })
+
+        const [[scheduled]] = mockUpsertJob.mock.calls
+        expect(scheduled.job.data).toEqual({
+            platformId: 'plat-1', userId: 'user-1', identityId: 'identity-1', attempt: 5, remainingProjectsAttempt: 4,
+        })
+    })
+
+    it('dead-letters and stops retrying once the "projects remain" retry budget is exhausted, without deleting the platform', async () => {
+        mockProjectCount.mockResolvedValue(1)
+
+        await platformBackgroundJobs(mockLog).hardDeletePlatformHandler({ ...baseData, remainingProjectsAttempt: 150 })
+
+        expect(mockUpsertJob).not.toHaveBeenCalled()
+        expect(mockPlatformDelete).not.toHaveBeenCalled()
+        expect(mockLog.error).toHaveBeenCalledWith(
+            expect.objectContaining({ platform: { id: 'plat-1' }, remainingProjects: 1 }),
+            expect.any(String),
+        )
     })
 
     it('sweeps platform-scoped flow bundles and hard-deletes the platform once no projects remain', async () => {
@@ -95,6 +124,7 @@ describe('platformBackgroundJobs#hardDeletePlatformHandler', () => {
 
         expect(mockCleanupForPlatform).toHaveBeenCalledWith({ platformId: 'plat-1' })
         expect(mockPlatformDelete).toHaveBeenCalledWith({ id: 'plat-1' })
+        expect(mockUpsertJob).not.toHaveBeenCalled()
     })
 
     it('reschedules with an incremented attempt when the flow bundle sweep fails and retries remain', async () => {

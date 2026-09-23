@@ -41,6 +41,10 @@ type HardDeletePlatformSystemJobData = {
     // Retry counter for the flow-bundle cleanup step; absent/undefined means "first attempt".
     // See flowBundleCleanupService#nextFlowBundleCleanupAttempt.
     attempt?: number
+    // Separate retry counter for the "child projects not hard-deleted yet" wait loop — kept apart
+    // from `attempt` so waiting for sibling project hard-deletes never eats into the flow-bundle
+    // cleanup retry budget (or vice versa). See platformBackgroundJobs#hardDeletePlatformHandler.
+    remainingProjectsAttempt?: number
 }
 
 // Scope shape kept inline (structurally equal to tool-search's ReindexScope) so this generic

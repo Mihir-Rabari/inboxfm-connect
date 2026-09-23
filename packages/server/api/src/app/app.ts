@@ -21,6 +21,7 @@ import { connectSessionModule } from './connect-sessions/connect-session.module'
 import { oidcModule } from './core/security/oidc/oidc.module'
 import { rateLimitModule } from './core/security/rate-limit'
 import { authenticationMiddleware } from './core/security/v2/authn/authentication-middleware'
+import { apiKeyRateLimitMiddleware } from './core/security/v2/authz/api-key-rate-limit-middleware'
 import { authorizationMiddleware } from './core/security/v2/authz/authorization-middleware'
 import { projectRateLimitMiddleware } from './core/security/v2/authz/project-rate-limit-middleware'
 import { distributedLock, redisConnections } from './database/redis-connections'
@@ -179,6 +180,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
 
     app.addHook('preHandler', authorizationMiddleware)
     app.addHook('preHandler', projectRateLimitMiddleware)
+    app.addHook('preHandler', apiKeyRateLimitMiddleware)
     app.addHook('preHandler', rbacMiddleware)
 
     await systemJobsSchedule(app.log).init()

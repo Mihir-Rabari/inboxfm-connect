@@ -1,12 +1,13 @@
+import { faker } from '@faker-js/faker'
 import { AIProviderName, apId, assertNotNullOrUndefined, ProjectRole, RoleType } from '@inboxfm-connect/core-utils'
 import { LATEST_CONTEXT_VERSION, PieceMetadata } from '@inboxfm-connect/pieces-framework'
 import { apDayjs } from '@inboxfm-connect/server-utils'
-import { AiCreditsAutoTopUpState, AIProvider, ApiKey, AppConnection, AppConnectionScope, AppConnectionStatus, AppConnectionType, ApplicationEvent, ApplicationEventName, Cell, ColorName, EventDestinationScope, Field, FieldType, File, FileCompression, FileLocation, FileType, FilteredPieceBehavior, InvitationStatus, InvitationType, KeyAlgorithm, OAuthApp, OtpModel, OtpState, OtpType, PackageType, PiecesFilterType, PieceType, Platform, PlatformPlan, PlatformRole, Project, ProjectIcon, ProjectMember, ProjectPlan, ProjectType, Record, RunEnvironment, SigningKey, Table, TeamProjectsLimit, User, UserIdentity, UserIdentityProvider, UserInvitation, UserStatus } from '@inboxfm-connect/shared'
-import { faker } from '@faker-js/faker'
+import { AiCreditsAutoTopUpState, AIProvider, ApiKey, AppConnection, AppConnectionScope, AppConnectionStatus, AppConnectionType, ApplicationEvent, ApplicationEventName, Cell, ColorName, ConnectApiKey, EventDestinationScope, Field, FieldType, File, FileCompression, FileLocation, FileType, FilteredPieceBehavior, InvitationStatus, InvitationType, KeyAlgorithm, OAuthApp, OtpModel, OtpState, OtpType, PackageType, PiecesFilterType, PieceType, Platform, PlatformPlan, PlatformRole, Project, ProjectIcon, ProjectMember, ProjectPlan, ProjectType, Record, SigningKey, Table, TeamProjectsLimit, User, UserIdentity, UserIdentityProvider, UserInvitation, UserStatus } from '@inboxfm-connect/shared'
 import bcrypt from 'bcrypt'
 import dayjs from 'dayjs'
 import { FastifyBaseLogger } from 'fastify'
 import { AIProviderSchema } from '../../../src/app/ai/ai-provider-entity'
+import { generateConnectApiKey } from '../../../src/app/connect-api-keys/connect-api-key.service'
 import { databaseConnection } from '../../../src/app/database/database-connection'
 import { generateApiKey } from '../../../src/app/ee/api-keys/api-key-service'
 import { OAuthAppWithEncryptedSecret } from '../../../src/app/ee/oauth-apps/oauth-app.entity'
@@ -272,6 +273,27 @@ export const createMockApiKey = (
         hashedValue: secretHashed,
         value: secret,
         truncatedValue: secretTruncated,
+        lastUsedAt: apiKey?.lastUsedAt ?? null,
+        expiresAt: apiKey?.expiresAt ?? null,
+    }
+}
+
+export const createMockConnectApiKey = (
+    connectApiKey?: Partial<Omit<ConnectApiKey, 'hashedValue' | 'truncatedValue'>>,
+): ConnectApiKey & { value: string } => {
+    const { hashed, truncated, raw } = generateConnectApiKey()
+    return {
+        id: connectApiKey?.id ?? apId(),
+        created: connectApiKey?.created ?? faker.date.recent().toISOString(),
+        updated: connectApiKey?.updated ?? faker.date.recent().toISOString(),
+        displayName: connectApiKey?.displayName ?? faker.lorem.word(),
+        platformId: connectApiKey?.platformId ?? apId(),
+        projectId: connectApiKey?.projectId ?? apId(),
+        hashedValue: hashed,
+        value: raw,
+        truncatedValue: truncated,
+        lastUsedAt: connectApiKey?.lastUsedAt ?? null,
+        expiresAt: connectApiKey?.expiresAt ?? null,
     }
 }
 

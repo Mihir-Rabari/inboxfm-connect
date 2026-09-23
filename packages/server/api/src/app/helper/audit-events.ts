@@ -3,10 +3,22 @@ import { AuditActor, defineAuditAction } from 'evlog'
 
 const connectionListed = defineAuditAction('connection.listed', { target: 'project' })
 const globalConnectionListed = defineAuditAction('global-connection.listed', { target: 'platform' })
+const apiKeyCreated = defineAuditAction('apiKey.created', { target: 'apiKey' })
+const apiKeyRevoked = defineAuditAction('apiKey.revoked', { target: 'apiKey' })
+const apiKeyRotated = defineAuditAction('apiKey.rotated', { target: 'apiKey' })
+const connectApiKeyCreated = defineAuditAction('apiKey.created', { target: 'connectApiKey' })
+const connectApiKeyRevoked = defineAuditAction('apiKey.revoked', { target: 'connectApiKey' })
+const connectApiKeyRotated = defineAuditAction('apiKey.rotated', { target: 'connectApiKey' })
 
 export const auditEvents = {
     connectionListed,
     globalConnectionListed,
+    apiKeyCreated,
+    apiKeyRevoked,
+    apiKeyRotated,
+    connectApiKeyCreated,
+    connectApiKeyRevoked,
+    connectApiKeyRotated,
     actorFromPrincipal,
 }
 

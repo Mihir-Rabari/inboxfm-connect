@@ -75,6 +75,17 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
     // project, while still capping a runaway script or misbehaving integration.
     [AppSystemProp.PROJECT_RATE_LIMITER_MAX_REQUESTS]: '300',
     [AppSystemProp.PROJECT_RATE_LIMITER_WINDOW_SECONDS]: '60',
+    [AppSystemProp.API_KEY_RATE_LIMITER_ENABLED]: 'false',
+    // Per-key (not per-project, not per-IP) tier: a service credential that leaks or
+    // misbehaves is capped independently of how many other keys/projects share the
+    // same platform. 120 req/min per key is generous for typical machine-to-machine
+    // polling/webhook traffic while still bounding a runaway or compromised key.
+    [AppSystemProp.API_KEY_RATE_LIMITER_MAX_REQUESTS]: '120',
+    [AppSystemProp.API_KEY_RATE_LIMITER_WINDOW_SECONDS]: '60',
+    // How long a rotated-out key keeps authenticating after `rotate` mints its
+    // replacement, so callers have a window to swap the new value in before the old
+    // one is rejected. 24h covers a typical deploy cycle without forcing a hard cutover.
+    [AppSystemProp.API_KEY_ROTATION_GRACE_PERIOD_SECONDS]: '86400',
     [AppSystemProp.MAX_RECORDS_PER_TABLE]: '10000',
     [AppSystemProp.MAX_FIELDS_PER_TABLE]: '100',
     [AppSystemProp.ENABLE_FLOW_ON_PUBLISH]: 'true',

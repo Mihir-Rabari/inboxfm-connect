@@ -6,12 +6,12 @@ import { isNil } from '@inboxfm-connect/core-utils'
 import { type ApLogger } from '@inboxfm-connect/server-utils'
 import { FlowActionType, FlowTriggerType, FlowVersion, FlowVersionState, LATEST_FLOW_SCHEMA_VERSION, PackageType, PieceType, WorkerToApiContract } from '@inboxfm-connect/shared'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cacheUtils } from '../../../../src/lib/cache/cache-paths'
-import { codeCache } from '../../../../src/lib/cache/flow/code/code-cache'
-import { flowBundleStore } from '../../../../src/lib/cache/flow/flow-bundle-store'
-import { bundleHttp } from '../../../../src/lib/utils/bundle-http'
+import { cacheUtils } from '../../../../../src/lib/cache/cache-paths'
+import { codeCache } from '../../../../../src/lib/cache/flow/code/code-cache'
+import { flowBundleStore } from '../../../../../src/lib/cache/flow/flow-bundle-store'
+import { bundleHttp } from '../../../../../src/lib/utils/bundle-http'
 
-vi.mock('../../../../src/lib/utils/bundle-http', () => ({
+vi.mock('../../../../../src/lib/utils/bundle-http', () => ({
     bundleHttp: { getBuffer: vi.fn(), put: vi.fn() },
 }))
 

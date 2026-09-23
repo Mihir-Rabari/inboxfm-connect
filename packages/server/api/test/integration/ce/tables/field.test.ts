@@ -142,8 +142,8 @@ afterAll(async () => {
         it('should list all fields for a table', async () => {
             const ctx = await setup()
             const table = await createAndSaveTable(ctx)
-            const field1 = createMockField({ tableId: table.id, projectId: ctx.project.id })
-            const field2 = createMockField({ tableId: table.id, projectId: ctx.project.id })
+            const field1 = createMockField({ tableId: table.id, projectId: ctx.project.id, position: 0 })
+            const field2 = createMockField({ tableId: table.id, projectId: ctx.project.id, position: 1 })
             await db.save('field', [field1, field2])
 
             const response = await ctx.get('/v1/fields', {

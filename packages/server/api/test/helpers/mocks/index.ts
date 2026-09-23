@@ -437,7 +437,7 @@ export const createMockTable = ({ projectId }: { projectId: string }): Table => 
     }
 }
 
-export const createMockField = ({ tableId, projectId }: { tableId: string, projectId: string }): Field => {
+export const createMockField = ({ tableId, projectId, position }: { tableId: string, projectId: string, position?: number }): Field => {
     return {
         id: apId(),
         created: faker.date.recent().toISOString(),
@@ -450,6 +450,7 @@ export const createMockField = ({ tableId, projectId }: { tableId: string, proje
         externalId: apId(),
         projectId,
         type: FieldType.STATIC_DROPDOWN,
+        position: position ?? 0,
     }
 }
 export const createMockRecord = ({ tableId, projectId }: { tableId: string, projectId: string }): Record => {

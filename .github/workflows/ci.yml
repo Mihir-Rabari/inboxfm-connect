@@ -87,6 +87,9 @@ jobs:
           npx turbo run typecheck --filter=@inboxfm-connect/sdk
           npx turbo run generate:check --filter=@inboxfm-connect/sdk
 
+      - name: Verify Connect SDK tarball in a clean consumer
+        run: npm run pack:verify --workspace=@inboxfm-connect/sdk
+
       - name: Lint all pieces projects
         if: steps.check-framework-common.outputs.framework_or_common_changed == 'true'
         run: npm run lint-pieces
@@ -121,7 +124,7 @@ jobs:
           npx turbo run test --filter=@inboxfm-connect/engine --filter=@inboxfm-connect/shared --filter=@inboxfm-connect/sdk &
           pids+=($!)
 
-          npx turbo run test-ce test-ee test-cloud check-migrations --filter=api &
+          npx turbo run test-unit test-ce test-ee test-cloud check-migrations --filter=api &
           pids+=($!)
 
           npx tsx tools/scripts/check-migration-rollback.ts &

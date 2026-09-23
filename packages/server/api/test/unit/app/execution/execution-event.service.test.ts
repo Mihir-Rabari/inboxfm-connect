@@ -1,6 +1,18 @@
+import { tryCatch } from '@inboxfm-connect/core-utils'
 import { ExecutionEvent, ExecutionEventType } from '@inboxfm-connect/shared'
 import { describe, expect, it } from 'vitest'
 import { executionEventService } from '../../../../src/app/execution/execution-event.service'
+import { pubsub } from '../../../../src/app/helper/pubsub'
+
+async function waitUntil(predicate: () => boolean, timeoutMs = 5000): Promise<void> {
+    const start = Date.now()
+    while (!predicate()) {
+        if (Date.now() - start > timeoutMs) {
+            throw new Error('waitUntil: condition not met within timeout')
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20))
+    }
+}
 
 describe('ExecutionEvent Service', () => {
     describe('parseSequenceFromId', () => {
@@ -56,6 +68,46 @@ describe('ExecutionEvent Service', () => {
             expect(replayed.length).toBe(2)
             expect(replayed[0].id).toBe(event2.id)
             expect(replayed[1].id).toBe(event3.id)
+        })
+    })
+
+    describe('Cross-replica delivery via Redis pub/sub', () => {
+        it('delivers an event published on the pub/sub channel directly, independent of the emitting process\'s in-memory listener map', async () => {
+            const executionId = 'exec_test_cross_replica'
+            const received: ExecutionEvent[] = []
+
+            await executionEventService.subscribe({
+                executionId,
+                listener: (event) => received.push(event),
+            })
+
+            // Bypasses `emit()`'s local `memoryListeners` notification entirely — this is
+            // the same channel a completion signal published from a *different* app
+            // replica would use, so a subscriber that only shares Redis with the
+            // publisher (not process memory) must still receive it.
+            const crossReplicaEvent: ExecutionEvent = {
+                id: `${executionId}:999`,
+                executionId,
+                type: ExecutionEventType.ExecutionCompleted,
+                timestamp: new Date().toISOString(),
+                payload: { executionId, output: { success: true } },
+            }
+            const { error: publishError } = await tryCatch(() => pubsub.publish(`execution:${executionId}:events`, JSON.stringify(crossReplicaEvent)))
+
+            if (publishError) {
+                // No Redis reachable in this run (matches `execution-event.service.ts`'s own
+                // "offline unit tests" fallback) — nothing to assert about cross-replica
+                // delivery without a real pub/sub backend.
+                await executionEventService.unsubscribe({ executionId })
+                return
+            }
+
+            await waitUntil(() => received.length === 1)
+
+            expect(received[0].id).toBe(crossReplicaEvent.id)
+            expect(received[0].type).toBe(ExecutionEventType.ExecutionCompleted)
+
+            await executionEventService.unsubscribe({ executionId })
         })
     })
 

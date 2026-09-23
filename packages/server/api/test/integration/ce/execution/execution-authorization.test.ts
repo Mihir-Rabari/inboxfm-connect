@@ -218,14 +218,74 @@ describe('Execution authorization (USER principal, :id routes)', () => {
 
             await waitUntil(() => received.includes('data: '))
 
-            expect(received.startsWith('data: ')).toBe(true)
+            expect(received.startsWith('id: ')).toBe(true)
             expect(received.endsWith('\n\n')).toBe(true)
             expect(received).not.toContain('event: ')
-            const frame = JSON.parse(received.slice('data: '.length, -2))
+            const dataLine = received.split('\n').find((line) => line.startsWith('data: '))!
+            const frame = JSON.parse(dataLine.slice('data: '.length))
             expect(frame.type).toBe(ExecutionEventType.ExecutionStarted)
             expect(frame.executionId).toBe(execution.id)
 
             stream.destroy()
+        })
+
+        it('replays events emitted while disconnected once the client reconnects with Last-Event-ID', async () => {
+            const ctx = await createTestContext(app!)
+            const execution = await saveExecutionRow(ctx, 'Resumable execution')
+
+            const firstConnection = await ctx.inject({
+                method: 'GET',
+                url: `/api/v1/executions/${execution.id}/events`,
+                payloadAsStream: true,
+            })
+            expect(firstConnection.statusCode).toBe(StatusCodes.OK)
+
+            let receivedFirst = ''
+            const firstStream = firstConnection.stream()
+            firstStream.on('data', (chunk: Buffer) => {
+                receivedFirst += chunk.toString()
+            })
+
+            const startedEvent = await executionEventService.emit({
+                executionId: execution.id,
+                type: ExecutionEventType.ExecutionStarted,
+                payload: { executionId: execution.id, prompt: 'Resumable execution', timestamp: new Date().toISOString() },
+            })
+
+            await waitUntil(() => receivedFirst.includes(startedEvent.id))
+
+            // Simulate the app replica serving this connection going away mid-stream —
+            // a rescale, a rolling deploy, a killed pod — before the run finishes.
+            firstStream.destroy()
+
+            const completedEvent = await executionEventService.emit({
+                executionId: execution.id,
+                type: ExecutionEventType.ExecutionCompleted,
+                payload: { executionId: execution.id, output: { success: true } },
+            })
+
+            // The client (or a different app replica) reconnects with the last id it saw,
+            // simulating native EventSource auto-reconnect behavior.
+            const secondConnection = await ctx.inject({
+                method: 'GET',
+                url: `/api/v1/executions/${execution.id}/events`,
+                headers: { 'last-event-id': startedEvent.id },
+                payloadAsStream: true,
+            })
+            expect(secondConnection.statusCode).toBe(StatusCodes.OK)
+
+            let receivedSecond = ''
+            const secondStream = secondConnection.stream()
+            secondStream.on('data', (chunk: Buffer) => {
+                receivedSecond += chunk.toString()
+            })
+
+            await waitUntil(() => receivedSecond.includes(completedEvent.id))
+
+            expect(receivedSecond).toContain(`id: ${completedEvent.id}`)
+            expect(receivedSecond).not.toContain(`id: ${startedEvent.id}`)
+
+            secondStream.destroy()
         })
 
         it('denies streaming an execution owned by another project', async () => {

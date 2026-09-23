@@ -50,6 +50,7 @@
     "zustand": "4.5.4"
   },
   "devDependencies": {
+    "@sentry/vite-plugin": "5.4.0",
     "@tailwindcss/vite": "4.1.17",
     "tailwindcss": "4.1.17",
     "@types/react": "18.3.3",

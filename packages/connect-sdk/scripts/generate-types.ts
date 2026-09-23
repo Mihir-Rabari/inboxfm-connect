@@ -74,7 +74,7 @@ function checkNoDrift({ files }: { files: Array<{ fileName: string, typeScript: 
     for (const file of files) {
         const existingPath = join(GENERATED_DIR, `${file.fileName}.ts`)
         const existing = readSafely({ path: existingPath })
-        if (existing !== file.typeScript) {
+        if (existing?.replace(/\r\n/g, '\n') !== file.typeScript) {
             drifted.push(file.fileName)
         }
     }

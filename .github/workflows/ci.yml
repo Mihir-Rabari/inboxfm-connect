@@ -87,6 +87,9 @@ jobs:
           npx turbo run typecheck --filter=@inboxfm-connect/sdk
           npx turbo run generate:check --filter=@inboxfm-connect/sdk
 
+      - name: Verify Connect SDK tarball in a clean consumer
+        run: npm run pack:verify --workspace=@inboxfm-connect/sdk
+
       - name: Lint all pieces projects
         if: steps.check-framework-common.outputs.framework_or_common_changed == 'true'
         run: npm run lint-pieces

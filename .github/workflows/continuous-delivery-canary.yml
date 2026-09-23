@@ -46,6 +46,13 @@ jobs:
           push: true
           no-cache: true
           tags: ghcr.io/activepieces/activepieces-cloud:${{ steps.set-tag.outputs.image_tag }}
+          build-args: |
+            SENTRY_ORG=${{ vars.SENTRY_ORG }}
+            SENTRY_PROJECT=${{ vars.SENTRY_PROJECT }}
+            SENTRY_RELEASE=${{ steps.set-tag.outputs.image_tag }}
+            SENTRY_ENVIRONMENT=canary
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - uses: ./.github/actions/sbom
         with:

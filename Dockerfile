@@ -71,15 +71,35 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 # Copy remaining source code (turbo config, etc.)
 COPY . .
 
-# Build frontend, engine, and server API (there is no standalone worker package in
-# the current layout; the unified image runs app/worker modes via AP_CONTAINER_TYPE)
-RUN npx turbo run build --filter=web --filter=@inboxfm-connect/engine --filter=api
+# Release/environment identifiers for the Sentry source-map upload below. Not
+# secret (they end up in the image tag/deploy logs anyway), so plain ARGs are fine.
+ARG SENTRY_ORG
+ARG SENTRY_PROJECT
+ARG SENTRY_RELEASE
+ARG SENTRY_ENVIRONMENT
 
 # The web build emits hidden source maps (vite build.sourcemap='hidden') used to
-# symbolicate production stack traces in Sentry/BetterStack error tracking. Upload
-# them here (cloud CI, guarded by a token) BEFORE stripping, then always remove the
-# .map files so source is never served from the shipped image (self-hosted too).
-# TODO(cloud-ci): inject + upload maps with sentry-cli when SENTRY_AUTH_TOKEN is set.
+# symbolicate production stack traces in Sentry. The @sentry/vite-plugin wired into
+# packages/web/vite.config.ts uploads them to Sentry as part of `vite build` itself,
+# tagged with SENTRY_RELEASE/SENTRY_ENVIRONMENT, whenever SENTRY_AUTH_TOKEN is
+# present — self-hosted builds (and any CI run without the secret configured) don't
+# have it, so the plugin logs a line and no-ops: zero-setup, build still succeeds.
+#
+# SENTRY_AUTH_TOKEN is passed as a BuildKit secret (not ARG/ENV) so it is mounted
+# only for this RUN instruction and never persisted into an image layer, `docker
+# history`, or the build cache.
+# Build frontend, engine, and server API (there is no standalone worker package in
+# the current layout; the unified image runs app/worker modes via AP_CONTAINER_TYPE)
+RUN --mount=type=secret,id=sentry_auth_token \
+    SENTRY_ORG="$SENTRY_ORG" \
+    SENTRY_PROJECT="$SENTRY_PROJECT" \
+    SENTRY_RELEASE="$SENTRY_RELEASE" \
+    SENTRY_ENVIRONMENT="$SENTRY_ENVIRONMENT" \
+    SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token 2>/dev/null || true)" \
+    npx turbo run build --filter=web --filter=@inboxfm-connect/engine --filter=api
+
+# Always strip .map files from the shipped image, independent of whether the
+# upload above ran — source is never served from the runtime image (self-hosted too).
 RUN find dist/packages/web -name '*.map' -delete
 
 # Generate migration manifest (ordered list of migration names) for image-tag-based rollback

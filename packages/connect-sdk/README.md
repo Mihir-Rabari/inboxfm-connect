@@ -2,6 +2,8 @@
 
 Node/browser client for the Inboxfm Connect API.
 
+Install with `npm install @inboxfm-connect/sdk`. The package supports Node.js 20 or newer and browsers with `fetch` and `AbortController`. It has ESM and CommonJS entry points; the published tarball contains compiled JavaScript, type declarations, this README, the changelog, and the MIT license.
+
 ```ts
 import { ConnectError, InboxFM } from '@inboxfm-connect/sdk'
 
@@ -92,3 +94,19 @@ npm run generate --workspace=@inboxfm-connect/sdk
 This requires `@inboxfm-connect/shared` and `@inboxfm-connect/core-utils` to be built first (`npx turbo run build --filter=@inboxfm-connect/shared`, or just run the generate command via turbo so it builds dependencies automatically: `npx turbo run generate --filter=@inboxfm-connect/sdk`). Commit the resulting diff in `src/generated/`.
 
 CI runs `npx turbo run generate:check --filter=@inboxfm-connect/sdk`, which regenerates into memory and fails the build if the committed output in `src/generated/` doesn't match — so a schema change that isn't followed by a regeneration is caught automatically, rather than silently drifting.
+
+## Server compatibility
+
+| SDK | Release target | Policy |
+| --- | --- | --- |
+| 0.2.x | Inboxfm Connect 0.86.1 and later 0.86.x | Connect routes under `/api/v1` and the generated contracts are the supported surface. A release is verified against a configured server before npm publication. |
+
+Use the latest SDK patch release within a minor line. A server can add optional response fields without an SDK release; new required request fields, removed fields, or changed behavior require a new SDK minor release while the SDK is 0.x. We do not promise compatibility with earlier server versions or with a server that removes the `/api/v1` Connect routes. Before raising the minimum supported server version, add a compatibility entry here and exercise the new server in the release smoke gate. Deprecated SDK methods stay available for at least one SDK minor line, with the replacement documented in the changelog.
+
+## Releasing
+
+SDK changes get a Changeset scoped to `@inboxfm-connect/sdk` (`bunx changeset add`). On a release branch based on `dev`, run `bunx changeset version` and `bun install` to update the package version, lockfile, and generated changelog. Review and merge that version commit into `dev`, then tag that exact commit as `sdk-v<package version>` and push the tag. The [SDK release workflow](https://github.com/Mihir-Rabari/inboxfm-connect/blob/dev/.github/workflows/release-connect-sdk.yml) validates the tag, generated contracts, and tarball before publishing once to npm with provenance. A workflow rerun skips a version already present in the registry.
+
+The npm package owner must first publish an initial version manually because npm only allows trusted publisher setup for a package that already exists. After that, configure a trusted GitHub Actions publisher for repository `Mihir-Rabari/inboxfm-connect`, workflow `release-connect-sdk.yml`, environment `sdk-release`, with direct `npm publish` allowed. The GitHub environment should protect the release job. Later tagged releases use npm OIDC and no long-lived publish token.
+
+The `sdk-release` environment needs a supported server with a dedicated project-scoped Connect API key and a Text Helper connection. Set environment variables `CONNECT_SDK_SMOKE_BASE_URL` (including `/api`), `CONNECT_SDK_SMOKE_PROJECT_ID`, and `CONNECT_SDK_SMOKE_CONNECTION_ID`, plus secret `CONNECT_SDK_SMOKE_API_KEY`. The tagged release gate installs the packed tarball in a clean consumer and runs a real authenticated session → connection list → Text Helper `concat` request before publishing. The PR gate runs the same tarball through a local HTTP contract fixture, CJS/ESM imports, TypeScript resolution, and a browser bundle without needing external credentials. Run `npm run pack:verify --workspace=@inboxfm-connect/sdk` locally to inspect the exact tarball before tagging.

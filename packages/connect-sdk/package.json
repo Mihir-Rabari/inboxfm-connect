@@ -1,17 +1,44 @@
 {
   "name": "@inboxfm-connect/sdk",
   "version": "0.2.0",
+  "description": "Node.js and browser client for the Inboxfm Connect API",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Mihir-Rabari/inboxfm-connect.git",
+    "directory": "packages/connect-sdk"
+  },
+  "homepage": "https://github.com/Mihir-Rabari/inboxfm-connect/tree/dev/packages/connect-sdk#readme",
+  "bugs": "https://github.com/Mihir-Rabari/inboxfm-connect/issues",
+  "engines": {
+    "node": ">=20"
+  },
   "type": "commonjs",
   "sideEffects": false,
-  "main": "./dist/src/index.js",
-  "types": "./dist/src/index.d.ts",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist", "README.md", "CHANGELOG.md", "LICENSE"],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
-    "build": "tsc -p tsconfig.lib.json && cp package.json dist/",
+    "build": "node scripts/build.mjs",
+    "prepack": "npm run build",
     "lint": "eslint \"src/**/*.ts\"",
     "test": "vitest run",
     "typecheck": "tsc -p tsconfig.test.json",
     "generate": "tsx scripts/generate-types.ts",
-    "generate:check": "tsx scripts/generate-types.ts --check"
+    "generate:check": "tsx scripts/generate-types.ts --check",
+    "pack:verify": "npm run build && node scripts/verify-package.mjs"
   },
   "devDependencies": {
     "@inboxfm-connect/core-utils": "workspace:*",

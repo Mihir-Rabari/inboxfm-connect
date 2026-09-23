@@ -18,6 +18,7 @@ import {
 } from '@inboxfm-connect/shared'
 import { repoFactory } from '../../core/db/repo-factory'
 import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
+import { projectExecutionConcurrencyGuard } from '../concurrency/project-execution-concurrency-guard'
 import { executionService } from '../execution.service'
 import { TriggerBindingEntity, TriggerBindingSchema } from './trigger-binding-entity'
 
@@ -293,7 +294,21 @@ async function executeEngineHook<HT extends TriggerHookType>({ binding, hookType
         webserverId: 'inline',
     }
 
-    return userInteractionWatcher.submitAndWaitForResponse<ExecuteTriggerResponse<HT>>(jobData, engineHookLog)
+    // Only the RUN hook (an actual flow-trigger execution, fired from a webhook
+    // burst, a cron schedule, or a manual run) is metered here — ON_ENABLE/
+    // ON_DISABLE/RENEW are low-frequency lifecycle events, not the noisy,
+    // burst-prone path the per-project concurrency cap exists to bound.
+    if (hookType !== TriggerHookType.RUN) {
+        return userInteractionWatcher.submitAndWaitForResponse<ExecuteTriggerResponse<HT>>(jobData, engineHookLog)
+    }
+
+    const slot = await projectExecutionConcurrencyGuard.acquire({ projectId: binding.projectId, log: engineHookLog })
+    try {
+        return await userInteractionWatcher.submitAndWaitForResponse<ExecuteTriggerResponse<HT>>(jobData, engineHookLog)
+    }
+    finally {
+        await slot.release()
+    }
 }
 
 type CreateParams = {

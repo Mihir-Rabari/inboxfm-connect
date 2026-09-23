@@ -69,6 +69,19 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
     [AppSystemProp.REDIS_TYPE]: RedisType.STANDALONE,
     [AppSystemProp.TRIGGER_DEFAULT_POLL_INTERVAL]: '5',
     [AppSystemProp.DEFAULT_CONCURRENT_JOBS_LIMIT]: '5',
+    [AppSystemProp.PROJECT_EXECUTION_CONCURRENCY_LIMITER_ENABLED]: 'false',
+    // Every execution (trigger RUN, the only path that reaches the shared 10-slot
+    // in-process sandbox pool for a project-attributable run) holds one slot for its
+    // duration. 5 concurrent in-flight runs is generous for a single project on a
+    // typical self-hosted deployment while still stopping one project from occupying
+    // the whole shared pool. Disabled by default so an existing self-hosted deployment
+    // never starts rejecting requests it didn't reject before.
+    [AppSystemProp.PROJECT_EXECUTION_CONCURRENCY_LIMIT]: '5',
+    // Backstop only: a slot's TTL is refreshed on every acquire, so it never expires
+    // while the project keeps executing. It only matters if a process dies mid-execution
+    // without releasing its slot — the TTL self-heals that leak. Set comfortably above
+    // FLOW_TIMEOUT_SECONDS' default (600s) plus provisioning/queueing overhead.
+    [AppSystemProp.PROJECT_EXECUTION_CONCURRENCY_SLOT_TTL_SECONDS]: '900',
     [AppSystemProp.PROJECT_RATE_LIMITER_ENABLED]: 'false',
     // 300 req/min per project comfortably covers a busy builder session (flow
     // editor autosave + polling) and normal webhook/API traffic for a single

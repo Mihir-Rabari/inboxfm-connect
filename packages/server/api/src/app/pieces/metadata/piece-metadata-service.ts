@@ -441,7 +441,8 @@ async function fetchPieceVersion({ pieceName, version, platformId, log }: FetchP
 }
 
 export async function fetchLatestCompatiblePiecesFromDB(currentRelease: string): Promise<PieceMetadataSchema[]> {
-    const cached = await pieceListCache.get(currentRelease)
+    const version = await pieceListCache.getVersion(currentRelease)
+    const cached = await pieceListCache.get(currentRelease, version)
     if (!isNil(cached)) {
         return cached
     }
@@ -455,7 +456,11 @@ export async function fetchLatestCompatiblePiecesFromDB(currentRelease: string):
     const latestIds = pickLatestVersionIds(compatibleKeys)
     const pieces = latestIds.length > 0 ? await pieceRepos().find({ where: { id: In(latestIds) } }) : []
 
-    await pieceListCache.put(currentRelease, pieces)
+    // Only cache under the version read at the start of this fetch. If a concurrent sync bumped
+    // the version while this DB read was in flight, `version` is already stale — writing it back
+    // would resurrect data that predates the invalidation. See piece-list-cache.ts for the full
+    // race this guards against.
+    await pieceListCache.putIfCurrent(currentRelease, version, pieces)
     return pieces
 }
 

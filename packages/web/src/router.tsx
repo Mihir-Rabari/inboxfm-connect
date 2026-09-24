@@ -28,6 +28,7 @@ const DevelopersPage = lazy(() => import('./pages/developers'))
 const SettingsPage = lazy(() => import('./pages/settings'))
 const LoginPage = lazy(() => import('./pages/auth/login'))
 const ConnectPage = lazy(() => import('./pages/connect'))
+const WelcomePage = lazy(() => import('./pages/welcome'))
 const NotFoundPage = lazy(() => import('./pages/not-found'))
 
 const withSuspense = (Component: React.ComponentType) => (
@@ -37,6 +38,10 @@ const withSuspense = (Component: React.ComponentType) => (
 )
 
 export const router = createBrowserRouter([
+  {
+    path: '/welcome',
+    element: withSuspense(WelcomePage),
+  },
   {
     path: '/login',
     element: withSuspense(LoginPage),

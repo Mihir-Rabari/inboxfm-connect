@@ -1,3 +1,4 @@
+import { isNil } from '@inboxfm-connect/core-utils'
 import { DataSource } from 'typeorm'
 import { system } from '../../../../src/app/helper/system/system'
 import { AppSystemProp } from '../../../../src/app/helper/system/system-props'
@@ -8,8 +9,14 @@ import { AppSystemProp } from '../../../../src/app/helper/system/system-props'
  * scaled past the database's connection budget. This is NOT a multi-replica GKE fleet test —
  * it exercises the same pool-exhaustion path (pg-pool's checkout queue) a real fleet would hit,
  * against a real Postgres, inside a single process.
+ *
+ * Needs a real TCP Postgres instance to open a second, independent connection pool against —
+ * the default CE test run (`main` CI job) uses the embedded, in-process PGlite engine, which has
+ * no host/port to dial. Runs only in the `tool-search-postgres` CI job, which brings up a real
+ * Postgres service and sets AP_POSTGRES_HOST; everywhere else it self-skips.
  */
 const SHORT_CONNECT_TIMEOUT_MS = 500
+const hasRealPostgresHost = !isNil(system.get(AppSystemProp.POSTGRES_HOST))
 
 function buildUndersizedDataSource(): DataSource {
     return new DataSource({
@@ -26,7 +33,7 @@ function buildUndersizedDataSource(): DataSource {
     })
 }
 
-describe('Postgres connection saturation', () => {
+describe.skipIf(!hasRealPostgresHost)('Postgres connection saturation', () => {
     let dataSource: DataSource
 
     beforeAll(async () => {

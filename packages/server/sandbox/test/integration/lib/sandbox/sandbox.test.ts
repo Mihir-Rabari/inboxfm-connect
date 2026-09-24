@@ -1,9 +1,9 @@
 import { ChildProcess } from 'child_process'
 import { EventEmitter } from 'node:events'
-import { describe, it, expect, vi, afterEach } from 'vitest'
-import { io as ioClient, type Socket as ClientSocket } from 'socket.io-client'
 import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
-import { EngineResponseStatus } from '@inboxfm-connect/shared'
+import { EngineOperation, EngineOperationType, EngineResponseStatus, TriggerHookType } from '@inboxfm-connect/shared'
+import { type Socket as ClientSocket, io as ioClient } from 'socket.io-client'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { createSandbox } from '../../../../src/lib/sandbox/sandbox'
 import { Sandbox, SandboxLogger, SandboxMount, SandboxProcessMaker } from '../../../../src/lib/sandbox/types'
 
@@ -41,8 +41,8 @@ function createTestProcessMaker() {
             const port = params.env.AP_SANDBOX_WS_PORT
             const token = params.env.AP_SANDBOX_WS_TOKEN ?? null
             child = new EventEmitter() as ChildProcess & EventEmitter
-            ;(child as ChildProcess).pid = 12345
-            ;(child as ChildProcess).exitCode = null
+            ;(child as unknown as { pid: number }).pid = 12345
+            ;(child as unknown as { exitCode: number | null }).exitCode = null
             ;(child as ChildProcess).kill = vi.fn()
             ;(child as unknown as { stdout: EventEmitter }).stdout = new EventEmitter()
             ;(child as unknown as { stderr: EventEmitter }).stderr = new EventEmitter()
@@ -79,6 +79,20 @@ const startOptions = {
     flowVersionId: 'fv-1',
     platformId: 'plat-1',
     mounts: [],
+}
+
+// Only the RPC transport is under test here — the operation's own field values are irrelevant.
+const testOperationType = EngineOperationType.EXECUTE_TRIGGER_HOOK
+const testOperation: EngineOperation = {
+    projectId: 'project-1',
+    engineToken: 'engine-token',
+    internalApiUrl: 'http://127.0.0.1/api/',
+    publicApiUrl: 'http://127.0.0.1/api/',
+    timeoutInSeconds: 10,
+    platformId: 'plat-1',
+    hookType: TriggerHookType.RUN,
+    test: false,
+    webhookUrl: 'http://127.0.0.1/webhook',
 }
 
 describe('createSandbox', () => {
@@ -484,8 +498,8 @@ describe('createSandbox', () => {
             })
 
             const result = await sandbox.execute(
-                'EXECUTE_FLOW' as any,
-                {} as any,
+                testOperationType,
+                testOperation,
                 { timeoutInSeconds: 10 },
             )
 
@@ -514,16 +528,16 @@ describe('createSandbox', () => {
             })
 
             const firstResult = await sandbox.execute(
-                'EXECUTE_FLOW' as any,
-                {} as any,
+                testOperationType,
+                testOperation,
                 { timeoutInSeconds: 10 },
             )
             expect(firstResult.status).toBe(EngineResponseStatus.INTERNAL_ERROR)
             expect(firstResult.error).toBe('Engine error: AppWebhookUrlNotAvailableError')
 
             const secondResult = await sandbox.execute(
-                'EXECUTE_FLOW' as any,
-                {} as any,
+                testOperationType,
+                testOperation,
                 { timeoutInSeconds: 10 },
             )
             expect(secondResult.status).toBe(EngineResponseStatus.OK)
@@ -547,8 +561,8 @@ describe('createSandbox', () => {
             })
 
             const result = await sandbox.execute(
-                'EXECUTE_FLOW' as any,
-                {} as any,
+                testOperationType,
+                testOperation,
                 { timeoutInSeconds: 10 },
             )
 
@@ -566,8 +580,8 @@ describe('createSandbox', () => {
             })
 
             const executePromise = sandbox.execute(
-                'EXECUTE_FLOW' as any,
-                {} as any,
+                testOperationType,
+                testOperation,
                 { timeoutInSeconds: 0.5 },
             )
 
@@ -590,8 +604,8 @@ describe('createSandbox', () => {
             })
 
             const executePromise = sandbox.execute(
-                'EXECUTE_FLOW' as any,
-                {} as any,
+                testOperationType,
+                testOperation,
                 { timeoutInSeconds: 10 },
             )
 
@@ -617,8 +631,8 @@ describe('createSandbox', () => {
             })
 
             const executePromise = sandbox.execute(
-                'EXECUTE_FLOW' as any,
-                {} as any,
+                testOperationType,
+                testOperation,
                 { timeoutInSeconds: 10 },
             )
 
@@ -641,8 +655,8 @@ describe('createSandbox', () => {
             })
 
             const executePromise = sandbox.execute(
-                'EXECUTE_FLOW' as any,
-                {} as any,
+                testOperationType,
+                testOperation,
                 { timeoutInSeconds: 10 },
             )
 
@@ -662,13 +676,13 @@ describe('createSandbox', () => {
             const nativeStack = 'Error: Boom inside engine trigger hook: cannot read properties of undefined\n    at run (google-sheets)\n'
 
             client.on('rpc', () => {
-                ;(child.stderr as unknown as EventEmitter).emit('data', Buffer.from(nativeStack))
+                (child.stderr as unknown as EventEmitter).emit('data', Buffer.from(nativeStack))
                 setTimeout(() => child.emit('close', 1, null), 20)
             })
 
             const executePromise = sandbox.execute(
-                'EXECUTE_TRIGGER_HOOK' as any,
-                {} as any,
+                testOperationType,
+                testOperation,
                 { timeoutInSeconds: 10 },
             )
 
@@ -689,13 +703,13 @@ describe('createSandbox', () => {
             const child = testPM.getChild()
 
             client.on('rpc', () => {
-                ;(child.stderr as unknown as EventEmitter).emit('data', Buffer.from('FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory\n'))
+                (child.stderr as unknown as EventEmitter).emit('data', Buffer.from('FATAL ERROR: Reached heap limit Allocation failed - JavaScript heap out of memory\n'))
                 setTimeout(() => child.emit('close', 1, null), 20)
             })
 
             const executePromise = sandbox.execute(
-                'EXECUTE_TRIGGER_HOOK' as any,
-                {} as any,
+                testOperationType,
+                testOperation,
                 { timeoutInSeconds: 10 },
             )
 
@@ -721,8 +735,8 @@ describe('createSandbox', () => {
             })
 
             await sandbox.execute(
-                'EXECUTE_FLOW' as any,
-                {} as any,
+                testOperationType,
+                testOperation,
                 { timeoutInSeconds: 10 },
             )
 

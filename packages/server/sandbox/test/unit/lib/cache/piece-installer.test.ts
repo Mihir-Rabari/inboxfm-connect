@@ -1,11 +1,12 @@
+import { randomUUID } from 'node:crypto'
 import { access, mkdir, readFile, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { randomUUID } from 'node:crypto'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { ApLogger } from '@inboxfm-connect/server-utils'
 import { PackageType, PieceType } from '@inboxfm-connect/shared'
 import type { OfficialPiecePackage, PrivatePiecePackage } from '@inboxfm-connect/shared'
-import type { ApLogger } from '@inboxfm-connect/server-utils'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { isValidPackageName, pieceInstaller } from '../../../../src/lib/cache/pieces/piece-installer'
 
 // Module-level variable updated per test so the vi.mock factory can reference it
 let testWorkspace = ''
@@ -24,9 +25,6 @@ vi.mock('../../../../src/lib/cache/cache-paths', () => ({
         getGlobalCachePathLatestVersion: () => testWorkspace,
     }),
 }))
-
-// Import after mocks are registered
-const { pieceInstaller, isValidPackageName } = await import('../../../../src/lib/cache/pieces/piece-installer')
 
 function makePiece(name: string, version = '1.0.0'): OfficialPiecePackage {
     return {
@@ -58,6 +56,16 @@ function readyFilePath(piece: OfficialPiecePackage | PrivatePiecePackage): strin
 
 async function pathExists(p: string): Promise<boolean> {
     return access(p).then(() => true, () => false)
+}
+
+async function captureError(promise: Promise<unknown>): Promise<Error> {
+    try {
+        await promise
+        throw new Error('Expected promise to reject')
+    }
+    catch (e) {
+        return e as Error
+    }
 }
 
 const fakeLog = {
@@ -134,7 +142,7 @@ describe('pieceInstaller', () => {
             .mockResolvedValueOnce({ output: '' })                           // good individual
             .mockRejectedValueOnce(new Error('workspace:* resolve error'))  // bad individual
 
-        const error = await installer.install({ pieces: [good, bad], includeFilters: false, ...bundleSource }).catch(e => e as Error)
+        const error = await captureError(installer.install({ pieces: [good, bad], includeFilters: false, ...bundleSource }))
 
         expect(error).toBeInstanceOf(Error)
         expect(error.message).toContain('@inboxfm-connect/piece-bad@1.0.0')
@@ -155,7 +163,7 @@ describe('pieceInstaller', () => {
             .mockRejectedValueOnce(new Error('workspace:* resolve error'))  // piece-x individual
             .mockRejectedValueOnce(new Error('workspace:* resolve error'))  // piece-y individual
 
-        const error = await installer.install({ pieces: [piece1, piece2], includeFilters: false, ...bundleSource }).catch(e => e as Error)
+        const error = await captureError(installer.install({ pieces: [piece1, piece2], includeFilters: false, ...bundleSource }))
 
         expect(error).toBeInstanceOf(Error)
         expect(error.message).toContain('@inboxfm-connect/piece-x@1.0.0')

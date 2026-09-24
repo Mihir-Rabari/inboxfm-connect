@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events'
 import path from 'path'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { omit } from '@inboxfm-connect/shared'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { spawnMock, mkdirMock, execPromiseMock } = vi.hoisted(() => ({
     spawnMock: vi.fn(),
@@ -20,7 +21,7 @@ vi.mock('../../../../src/lib/utils/exec', () => ({
     execPromise: execPromiseMock,
 }))
 
-import { isolateProcess, getIsolateExecutableName } from '../../../../src/lib/sandbox/isolate'
+import { getIsolateExecutableName, isolateProcess } from '../../../../src/lib/sandbox/isolate'
 import { SandboxLogger, SandboxMount } from '../../../../src/lib/sandbox/types'
 
 function createMockLogger(): SandboxLogger {
@@ -278,8 +279,7 @@ describe('isolateProcess', () => {
             'AP_SANDBOX_WS_PORT',
             'AP_SANDBOX_WS_TOKEN',
         ])('throws when required env "%s" is missing', async (missingKey) => {
-            const env = { ...BASE_ENV } as Record<string, string>
-            delete env[missingKey]
+            const env = omit(BASE_ENV, [missingKey])
             await expect(callCreate({ env })).rejects.toThrow(/Required sandbox env/)
             expect(execPromiseMock).not.toHaveBeenCalled()
             expect(mkdirMock).not.toHaveBeenCalled()

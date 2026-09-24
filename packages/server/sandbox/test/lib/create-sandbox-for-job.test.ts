@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ApEnvironment, ExecutionMode, NetworkMode } from '@inboxfm-connect/shared'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const { createSandboxMock, isolateProcessMock, simpleProcessMock, getGlobalCacheCommonPathMock, getGlobalCodeCachePathMock, getEnginePathMock } = vi.hoisted(() => ({
     createSandboxMock: vi.fn(),
@@ -186,8 +186,8 @@ describe('createSandboxForJob', () => {
         it('only propagates env vars that exist in process.env (no undefined leak)', () => {
             const originalProcessEnv = { ...process.env }
             try {
-                process.env.PROPAGATED_YES = 'forwarded'
-                delete process.env.PROPAGATED_NO
+                process.env['PROPAGATED_YES'] = 'forwarded'
+                delete process.env['PROPAGATED_NO']
                 const settings = buildSettings({
                     SANDBOX_PROPAGATED_ENV_VARS: ['PROPAGATED_YES', 'PROPAGATED_NO'],
                 })

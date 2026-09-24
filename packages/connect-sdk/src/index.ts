@@ -1,4 +1,4 @@
-import type { ConnectionsPage, CreateConnectSessionResponseContract, ExecuteRequestContract } from './api-types'
+import type { ConnectionsPage, CreateConnectSessionResponseContract, ExecuteRequestContract, IntegrationToolsResponse, ListConnectionsQueryContract, Tool, ToolContract, ToolInput, ToolInputContract } from './api-types'
 import { ConnectError } from './errors'
 import { transport } from './transport'
 
@@ -39,15 +39,30 @@ export class InboxFM {
         })
     }
 
-    async listConnections({ externalUserId, pieceName, ...requestOptions }: ListConnectionsParams): Promise<ListConnectionsResult> {
+    async listConnections({ externalUserId, pieceName, cursor, limit, ...requestOptions }: ListConnectionsParams): Promise<ListConnectionsResult> {
         const query = new URLSearchParams({ projectId: this.projectId, externalId: externalUserId })
         if (pieceName) {
             query.set('pieceName', pieceName)
+        }
+        if (cursor) {
+            query.set('cursor', cursor)
+        }
+        if (limit !== undefined) {
+            query.set('limit', String(limit))
         }
         return this.request<ListConnectionsResult>(`/v1/connections?${query.toString()}`, {
             method: 'GET',
             ...requestOptions,
         })
+    }
+
+    async listTools({ integration, version, ...requestOptions }: ListToolsParams): Promise<Tool[]> {
+        const query = version ? `?${new URLSearchParams({ version }).toString()}` : ''
+        const metadata = await this.request<IntegrationToolsResponse>(`/v1/integrations/${encodeURIComponent(integration)}${query}`, {
+            method: 'GET',
+            ...requestOptions,
+        })
+        return Object.values(metadata.actions).map((action) => toTool({ action }))
     }
 
     async execute({ integration, tool, connectionId, externalUserId, input, ...requestOptions }: ExecuteParams): Promise<unknown> {
@@ -90,9 +105,32 @@ export class InboxFM {
     }
 }
 
+function toTool({ action }: { action: IntegrationToolsResponse['actions'][string] }): Tool {
+    const summary: ToolContract = {
+        name: action.name,
+        displayName: action.displayName,
+        description: action.description,
+        requireAuth: action.requireAuth,
+        ...(action.audience !== undefined ? { audience: action.audience } : {}),
+        ...(action.aiMetadata !== undefined ? { aiMetadata: action.aiMetadata } : {}),
+    }
+    const inputs = Object.entries(action.props).map(([name, prop]) => toToolInput({ name, prop }))
+    return { ...summary, inputs }
+}
+
+function toToolInput({ name, prop }: { name: string, prop: ToolInputContract }): ToolInput {
+    return {
+        name,
+        displayName: prop.displayName,
+        type: prop.type,
+        required: prop.required,
+        ...(prop.description !== undefined ? { description: prop.description } : {}),
+    }
+}
+
 export { ConnectError }
-export type { ConnectErrorCategory, ConnectErrorOptions } from './errors'
-export type { Connection } from './api-types'
+export type { ConnectErrorCategory, ConnectErrorOptions, ServerErrorCode } from './errors'
+export type { Connection, ConnectionsPage, Tool, ToolInput } from './api-types'
 
 export type ConnectRequestOptions = {
     signal?: AbortSignal
@@ -122,9 +160,14 @@ export type CreateConnectSessionResult = CreateConnectSessionResponseContract
 export type ListConnectionsParams = {
     externalUserId: string
     pieceName?: string
-} & ConnectRequestOptions
+} & Pick<ListConnectionsQueryContract, 'cursor' | 'limit'> & ConnectRequestOptions
 
 export type ListConnectionsResult = ConnectionsPage
+
+export type ListToolsParams = {
+    integration: string
+    version?: string
+} & ConnectRequestOptions
 
 export type ExecuteParams = Omit<ExecuteRequestContract, 'projectId'> & ConnectRequestOptions
 

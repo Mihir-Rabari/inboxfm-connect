@@ -124,6 +124,13 @@
                   ]
                },
                {
+                  "group": "Connect SDK",
+                  "pages": [
+                     "connect-sdk/overview",
+                     "connect-sdk/reference"
+                  ]
+               },
+               {
                   "group": "About",
                   "pages": [
                      "about/i18n",

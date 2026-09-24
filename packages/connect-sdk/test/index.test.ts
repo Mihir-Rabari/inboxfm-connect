@@ -165,3 +165,194 @@ describe('InboxFM transport', () => {
         expect(String(url)).not.toContain('projectId=project-a')
     })
 })
+
+describe('InboxFM request shapes', () => {
+    let fetchMock: ReturnType<typeof vi.fn>
+
+    beforeEach(() => {
+        fetchMock = vi.fn()
+        vi.stubGlobal('fetch', fetchMock)
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    it('normalizes a trailing slash on baseUrl so paths are never doubled', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ status: 200, body: { data: [], next: null, previous: null } }))
+
+        await client({ baseUrl: 'https://api.example.com/api///' }).listConnections({ externalUserId: 'user_1' })
+
+        const [url] = fetchMock.mock.calls[0]
+        expect(String(url)).toMatch(/^https:\/\/api\.example\.com\/api\/v1\/connections\?/)
+    })
+
+    it('sends every createConnectSession field in the body alongside the configured project id', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ status: 201, body: { token: 't', connectUrl: 'https://x', expiresAt: '2026-01-01' } }))
+
+        await client().createConnectSession({ externalUserId: 'user_1', allowedPieceNames: ['@inboxfm-connect/piece-slack'], expiresInSeconds: 600 })
+
+        const [url, init] = fetchMock.mock.calls[0]
+        expect(String(url)).toBe('https://api.example.com/v1/connect-sessions')
+        expect(init.method).toBe('POST')
+        expect(JSON.parse(init.body)).toEqual({
+            projectId: 'project-a',
+            externalUserId: 'user_1',
+            allowedPieceNames: ['@inboxfm-connect/piece-slack'],
+            expiresInSeconds: 600,
+        })
+    })
+
+    it('filters listConnections by piece name and maps externalUserId to the externalId query param', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ status: 200, body: { data: [], next: null, previous: null } }))
+
+        await client().listConnections({ externalUserId: 'user_1', pieceName: '@inboxfm-connect/piece-slack' })
+
+        const url = new URL(String(fetchMock.mock.calls[0][0]))
+        expect(url.searchParams.get('externalId')).toBe('user_1')
+        expect(url.searchParams.get('pieceName')).toBe('@inboxfm-connect/piece-slack')
+        expect(url.searchParams.get('projectId')).toBe('project-a')
+        expect(url.searchParams.has('cursor')).toBe(false)
+        expect(url.searchParams.has('limit')).toBe(false)
+    })
+
+    it('forwards the pagination cursor and page size to listConnections', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ status: 200, body: { data: [], next: null, previous: 'prev-cursor' } }))
+
+        await client().listConnections({ externalUserId: 'user_1', cursor: 'next-cursor', limit: 50 })
+
+        const url = new URL(String(fetchMock.mock.calls[0][0]))
+        expect(url.searchParams.get('cursor')).toBe('next-cursor')
+        expect(url.searchParams.get('limit')).toBe('50')
+    })
+
+    it('posts execute with the project id and returns the raw tool output unchanged', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ status: 200, body: 'smoke-ready' }))
+
+        const output = await client().execute({
+            integration: '@inboxfm-connect/piece-text-helper',
+            tool: 'concat',
+            externalUserId: 'user_1',
+            input: { texts: ['smoke', 'ready'], separator: '-' },
+        })
+
+        expect(output).toBe('smoke-ready')
+        const [url, init] = fetchMock.mock.calls[0]
+        expect(String(url)).toBe('https://api.example.com/v1/execute')
+        expect(JSON.parse(init.body)).toEqual({
+            projectId: 'project-a',
+            integration: '@inboxfm-connect/piece-text-helper',
+            tool: 'concat',
+            externalUserId: 'user_1',
+            input: { texts: ['smoke', 'ready'], separator: '-' },
+        })
+    })
+
+    it('surfaces a failed tool run (the server maps ENGINE_OPERATION_FAILURE to 400) as a typed, non-retried ConnectError', async () => {
+        fetchMock.mockResolvedValue(jsonResponse({ status: 400, body: { code: 'ENGINE_OPERATION_FAILURE', params: { message: 'boom' } } }))
+
+        await expect(client().execute({ integration: 'x', tool: 'y', connectionId: 'conn_1', input: {}, retryable: true })).rejects.toMatchObject({
+            category: 'validation',
+            retryable: false,
+            code: 'ENGINE_OPERATION_FAILURE',
+            params: { message: 'boom' },
+        })
+    })
+
+    it('does not retry deleteConnection on a 404, since the connection is already gone', async () => {
+        fetchMock.mockResolvedValue(jsonResponse({ status: 404, body: { code: 'ENTITY_NOT_FOUND', params: {} } }))
+
+        await expect(client().deleteConnection({ connectionId: 'conn_1' })).rejects.toMatchObject({ category: 'not_found' })
+
+        const [url, init] = fetchMock.mock.calls[0]
+        expect(String(url)).toBe('https://api.example.com/v1/connections/conn_1')
+        expect(init.method).toBe('DELETE')
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe('InboxFM.listTools', () => {
+    let fetchMock: ReturnType<typeof vi.fn>
+
+    beforeEach(() => {
+        fetchMock = vi.fn()
+        vi.stubGlobal('fetch', fetchMock)
+    })
+
+    afterEach(() => {
+        vi.unstubAllGlobals()
+    })
+
+    const integrationMetadata = {
+        name: '@inboxfm-connect/piece-text-helper',
+        displayName: 'Text Helper',
+        platformId: 'platform-internal',
+        triggers: { ignored: { name: 'ignored' } },
+        actions: {
+            concat: {
+                name: 'concat',
+                displayName: 'Concatenate',
+                description: 'Join texts with a separator',
+                requireAuth: false,
+                audience: 'both',
+                aiMetadata: { idempotent: true },
+                errorHandlingOptions: { retryOnFailure: { value: false } },
+                outputSchema: { type: 'string' },
+                props: {
+                    texts: { displayName: 'Texts', type: 'ARRAY', required: true, properties: {} },
+                    separator: { displayName: 'Separator', description: 'Placed between texts', type: 'SHORT_TEXT', required: false, defaultValue: '' },
+                },
+            },
+        },
+    }
+
+    it('fetches the integration by its URL-encoded scoped name and maps actions to tools', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ status: 200, body: integrationMetadata }))
+
+        const tools = await client().listTools({ integration: '@inboxfm-connect/piece-text-helper' })
+
+        const [url, init] = fetchMock.mock.calls[0]
+        expect(String(url)).toBe('https://api.example.com/v1/integrations/%40inboxfm-connect%2Fpiece-text-helper')
+        expect(init.method).toBe('GET')
+        expect(init.headers.Authorization).toBe('Bearer test-key')
+        expect(tools).toEqual([
+            {
+                name: 'concat',
+                displayName: 'Concatenate',
+                description: 'Join texts with a separator',
+                requireAuth: false,
+                audience: 'both',
+                aiMetadata: { idempotent: true },
+                inputs: [
+                    { name: 'texts', displayName: 'Texts', type: 'ARRAY', required: true },
+                    { name: 'separator', displayName: 'Separator', description: 'Placed between texts', type: 'SHORT_TEXT', required: false },
+                ],
+            },
+        ])
+    })
+
+    it('pins a specific integration version through the version query param', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ status: 200, body: { actions: {} } }))
+
+        const tools = await client().listTools({ integration: 'text-helper', version: '0.5.1' })
+
+        expect(tools).toEqual([])
+        expect(new URL(String(fetchMock.mock.calls[0][0])).searchParams.get('version')).toBe('0.5.1')
+    })
+
+    it('retries like any safe GET on a transient network failure', async () => {
+        fetchMock
+            .mockRejectedValueOnce(new TypeError('fetch failed'))
+            .mockResolvedValueOnce(jsonResponse({ status: 200, body: { actions: {} } }))
+
+        await client().listTools({ integration: 'text-helper' })
+
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it('surfaces an unknown integration as a not_found ConnectError', async () => {
+        fetchMock.mockResolvedValueOnce(jsonResponse({ status: 404, body: { code: 'ENTITY_NOT_FOUND', params: {} } }))
+
+        await expect(client().listTools({ integration: 'does-not-exist' })).rejects.toMatchObject({ category: 'not_found' })
+    })
+})

@@ -340,6 +340,7 @@
       "version": "0.2.0",
       "devDependencies": {
         "@inboxfm-connect/core-utils": "workspace:*",
+        "@inboxfm-connect/pieces-framework": "workspace:*",
         "@inboxfm-connect/shared": "workspace:*",
         "@types/node": "24.11.0",
         "json-schema-to-typescript": "16.0.0",

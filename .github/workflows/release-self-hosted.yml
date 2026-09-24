@@ -60,6 +60,13 @@ jobs:
           tags: |
             activepieces/activepieces:${{ inputs.tag }}
             ghcr.io/activepieces/activepieces:${{ inputs.tag }}
+          build-args: |
+            SENTRY_ORG=${{ vars.SENTRY_ORG }}
+            SENTRY_PROJECT=${{ vars.SENTRY_PROJECT }}
+            SENTRY_RELEASE=${{ inputs.tag }}
+            SENTRY_ENVIRONMENT=self-hosted
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - name: Create git tag
         run: |

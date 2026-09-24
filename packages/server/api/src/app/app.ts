@@ -45,6 +45,7 @@ import { oauthAppModule } from './ee/oauth-apps/oauth-app.module'
 import { enterpriseFilteringUtils } from './ee/pieces/filters/piece-filtering-utils'
 import { platformPieceModule } from './ee/pieces/platform-piece-module'
 import { adminPlatformModule } from './ee/platform/admin/admin-platform.controller'
+import { concurrencyPoolExecutionHooks } from './ee/platform/concurrency-pool/concurrency-pool-execution-hooks'
 import { platformAiCreditsService } from './ee/platform/platform-plan/platform-ai-credits.service'
 import { platformPlanModule } from './ee/platform/platform-plan/platform-plan.module'
 import { platformWebhooksModule } from './ee/platform-webhooks/platform-webhooks.module'
@@ -58,6 +59,7 @@ import { secretManagersModule } from './ee/secret-managers/secret-managers.modul
 import { signingKeyModule } from './ee/signing-key/signing-key-module'
 import { userModule } from './ee/users/user.module'
 import { executeModule } from './execute/execute.module'
+import { projectExecutionConcurrencyHooks } from './execution/concurrency/project-execution-concurrency-hooks'
 import { executionModule } from './execution/execution.module'
 import { fileModule } from './file/file.module'
 import { flagModule } from './flags/flag.module'
@@ -305,6 +307,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             projectHooks.set(projectEnterpriseHooks)
             flagHooks.set(enterpriseFlagsHooks)
             pieceFilteringHooks.set(enterpriseFilteringUtils)
+            projectExecutionConcurrencyHooks.set(concurrencyPoolExecutionHooks)
             exceptionHandler.initializeSentry(system.get(AppSystemProp.SENTRY_DSN))
             systemJobHandlers.registerJobHandler(SystemJobName.HARD_DELETE_PLATFORM, (data) => platformBackgroundJobs(app.log).hardDeletePlatformHandler(data))
             break
@@ -334,6 +337,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             projectHooks.set(projectEnterpriseHooks)
             flagHooks.set(enterpriseFlagsHooks)
             pieceFilteringHooks.set(enterpriseFilteringUtils)
+            projectExecutionConcurrencyHooks.set(concurrencyPoolExecutionHooks)
             break
         case ApEdition.COMMUNITY:
             await app.register(platformProjectModule)

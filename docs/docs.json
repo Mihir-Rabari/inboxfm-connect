@@ -240,7 +240,8 @@
                            "install/configure-operate/enterprise-license",
                            "install/configure-operate/setup-ssl",
                            "install/configure-operate/setup-s3",
-                           "install/configure-operate/backup-and-restore"
+                           "install/configure-operate/backup-and-restore",
+                           "install/configure-operate/postgres-connection-budget"
                         ]
                      },
                      {

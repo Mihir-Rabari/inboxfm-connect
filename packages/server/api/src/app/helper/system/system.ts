@@ -104,6 +104,7 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
     [AppSystemProp.ENABLE_FLOW_ON_PUBLISH]: 'true',
     [AppSystemProp.ISSUE_ARCHIVE_DAYS]: '7',
     [AppSystemProp.POSTGRES_IDLE_TIMEOUT_MS]: '300000',
+    [AppSystemProp.POSTGRES_CONNECTION_TIMEOUT_MS]: '10000',
     [AppSystemProp.SCIM_DEFAULT_PROJECT_ROLE]: DefaultProjectRole.EDITOR,
     [AppSystemProp.NETWORK_MODE]: NetworkMode.UNRESTRICTED,
     [AppSystemProp.LOG_SAMPLE_RATE_INFO]: '100',

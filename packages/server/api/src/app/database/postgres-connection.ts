@@ -21,6 +21,21 @@ const getSslConfig = (): boolean | TlsOptions => {
 }
 
 /**
+ * pg-pool only emits `'error'` for background client errors (e.g. an idle connection dropped by
+ * the server) — without this handler those errors are unhandled and crash the process. It does
+ * NOT fire for pool-checkout timeouts (`connectTimeoutMS`); those reject the specific query the
+ * caller is awaiting instead. See `postgres-pool-metrics.ts` for the periodic saturation snapshot
+ * that covers checkout-side pressure.
+ */
+const poolErrorHandler = (error: unknown): void => {
+    system.globalLogger().error({
+        pool: {
+            poolError: error,
+        },
+    }, '[postgres-connection] Postgres pool raised a background client error')
+}
+
+/**
  * This fork squashed the entire historical migration chain (350+ files going back to
  * the original Activepieces schema, many referencing tables/columns from features this
  * fork has since removed — flow builder, templates, trigger sources) into one migration
@@ -47,6 +62,8 @@ export const createPostgresDataSource = (): DataSource => {
         synchronize: false,
     }
 
+    const connectTimeoutMS = system.getNumberOrThrow(AppSystemProp.POSTGRES_CONNECTION_TIMEOUT_MS)
+
     const url = system.get(AppSystemProp.POSTGRES_URL)
 
     if (!isNil(url)) {
@@ -54,6 +71,8 @@ export const createPostgresDataSource = (): DataSource => {
             type: 'postgres',
             url,
             ssl: getSslConfig(),
+            connectTimeoutMS,
+            poolErrorHandler,
             ...spreadIfDefined('poolSize', system.get(AppSystemProp.POSTGRES_POOL_SIZE)),
             ...migrationConfig,
             ...commonProperties,
@@ -76,6 +95,8 @@ export const createPostgresDataSource = (): DataSource => {
         password,
         database,
         ssl: getSslConfig(),
+        connectTimeoutMS,
+        poolErrorHandler,
         ...spreadIfDefined('poolSize', system.get(AppSystemProp.POSTGRES_POOL_SIZE)),
         ...commonProperties,
         ...migrationConfig,

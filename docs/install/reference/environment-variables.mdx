@@ -93,8 +93,11 @@ embedded PGLite database. Set the connection with discrete fields or a single
 | ❗ `AP_POSTGRES_PASSWORD` | PostgreSQL password. Generate one with `openssl rand -hex 32`. | `None` |
 | `AP_POSTGRES_USE_SSL` | Connect to PostgreSQL over SSL. | `false` |
 | `AP_POSTGRES_SSL_CA` | SSL certificate (CA) used to connect to PostgreSQL. | `None` |
-| `AP_POSTGRES_POOL_SIZE` | Maximum number of clients in the connection pool. | `None` |
+| `AP_POSTGRES_POOL_SIZE` | Maximum number of clients in the connection pool (per replica). | `10` (the `pg` driver default) |
 | `AP_POSTGRES_IDLE_TIMEOUT_MS` | Idle timeout (ms) for pooled PostgreSQL connections. | `300000` |
+| `AP_POSTGRES_CONNECTION_TIMEOUT_MS` | Bounded wait (ms) when acquiring a connection — both for opening a new physical connection and for queuing behind an exhausted pool. Turns "hangs forever" into an actionable timeout error. | `10000` |
+| `AP_POSTGRES_MAX_CONNECTIONS` | The Postgres server's own `max_connections` capacity. Declaring it opts every app-role replica into the startup connection-budget check — see [Postgres Connection Budget](/install/configure-operate/postgres-connection-budget). Unset by default: **zero-setup, no check runs.** | `None` |
+| `AP_POSTGRES_EXPECTED_APP_REPLICAS` | How many replicas run with `AP_CONTAINER_TYPE=APP` or `WORKER_AND_APP` (the only roles that open a Postgres pool). Only read when `AP_POSTGRES_MAX_CONNECTIONS` is set. | `1` |
 
 ---
 

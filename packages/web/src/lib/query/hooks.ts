@@ -201,6 +201,9 @@ export function useTriggerBindingsQuery() {
     queryKey: ['trigger-bindings', apiClient.getProjectId()],
     queryFn: () => automationsApi.listTriggerBindings(),
     select: (page) => page.data,
+    // Every current call site (Trigger Bindings list, Dashboard summary) renders
+    // this as primary data, so a fetch failure should surface a toast.
+    meta: { showErrorToast: true },
   })
 }
 
@@ -286,6 +289,9 @@ export function useScheduledTasksQuery() {
     queryKey: ['scheduled-tasks', apiClient.getProjectId()],
     queryFn: () => automationsApi.listScheduledTasks(),
     select: (page) => page.data,
+    // Every current call site (Scheduled Tasks list, Dashboard summary) renders
+    // this as primary data, so a fetch failure should surface a toast.
+    meta: { showErrorToast: true },
   })
 }
 
@@ -352,6 +358,9 @@ export function useMcpServerQuery(projectId?: string) {
     queryKey: ['mcp-server', effectiveProjectId],
     queryFn: () => apiClient.get<PopulatedMcpServer>(`/projects/${encodeURIComponent(effectiveProjectId ?? '')}/mcp-server`),
     enabled: !!effectiveProjectId,
+    // Sole call site is the MCP Hub page, where this is the primary data driving
+    // the whole page.
+    meta: { showErrorToast: true },
   })
 }
 
@@ -406,6 +415,9 @@ export function useExecutionsQuery(params?: { status?: ExecutionStatus; limit?: 
     queryKey: ['executions', params ?? {}, projectId],
     queryFn: () => executionsApi.list({ status: params?.status, limit: params?.limit }),
     placeholderData: keepPreviousData,
+    // Every current call site (Activity list, Dashboard "Recent Executions") renders
+    // this as primary data, so a fetch failure should surface a toast.
+    meta: { showErrorToast: true },
   })
 }
 

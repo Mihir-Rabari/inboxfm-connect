@@ -99,10 +99,10 @@ This is the time the **worker** is occupied per job — and at concurrency 1 it 
 ## How to reproduce
 
 ```bash
-benchmark/run-gke.sh [total_requests] [concurrency]
+benchmark/run-gke.sh [requests_per_round] [concurrency] [rounds]
 ```
 
-The script mints a worker token, deploys `benchmark/k8s-sandbox.yaml` to the cluster, runs the load test against the app LoadBalancer, and reports warm throughput and the per-run breakdown from worker-pod logs. Set `APP_REPLICAS` and `WORKER_REPLICAS` (keeping the 1:10 ratio) to reproduce any row in the results table.
+The results above were measured on the flow-webhook path, which the headless API no longer has. The script now deploys `benchmark/k8s-sandbox.yaml`, provisions a Text Helper connection and API key, and drives `POST /v1/execute` through the app LoadBalancer with the load runner in `benchmark/gate`. It reports cold-boot latency, warm latency and throughput, and app vs worker CPU. `/v1/execute` runs in the app tier, so scale with `APP_REPLICAS`.
 
 <Tip>
 This benchmark runs in `SANDBOX_CODE_ONLY` mode. It does **not** represent the performance of Inboxfm Connect Cloud, which uses a different sandboxing mechanism for multi-tenancy. See [Sandboxing](/install/architecture/sandboxing).

@@ -121,10 +121,13 @@ jobs:
           set -euo pipefail
           pids=()
 
-          npx turbo run test --filter=@inboxfm-connect/engine --filter=@inboxfm-connect/shared --filter=@inboxfm-connect/sdk &
+          # --only: "Build core projects" already built every dependency. `build` has
+          # cache: false, so without it each concurrent turbo process rebuilds the shared
+          # packages into the same dist/ dirs and one reads the other's half-written output.
+          npx turbo run test --only --filter=@inboxfm-connect/engine --filter=@inboxfm-connect/shared --filter=@inboxfm-connect/sdk &
           pids+=($!)
 
-          npx turbo run test-unit test-ce test-ee test-cloud check-migrations --filter=api &
+          npx turbo run test-unit test-ce test-ee test-cloud check-migrations --only --filter=api &
           pids+=($!)
 
           npx tsx tools/scripts/check-migration-rollback.ts &

@@ -94,6 +94,7 @@ export type ApErrorParams =
     | SignInAttemptsExceededParams
     | CaptchaVerificationFailedParams
     | ApiKeyRateLimitExceededParams
+    | ProjectExecutionConcurrencyLimitExceededParams
 
 export type TriggerExecutionFailedParams = BaseErrorParams<ErrorCode.TRIGGER_EXECUTION_FAILED, {
     flowId: FlowId
@@ -513,6 +514,13 @@ export type ApiKeyRateLimitExceededParams = BaseErrorParams<ErrorCode.API_KEY_RA
     windowSeconds: number
 }>
 
+export type ProjectExecutionConcurrencyLimitExceededParams = BaseErrorParams<ErrorCode.PROJECT_EXECUTION_CONCURRENCY_LIMIT_EXCEEDED, {
+    projectId: ProjectId
+    limit: number
+    activeCount: number
+    retryAfterSeconds: number
+}>
+
 export enum ErrorCode {
     INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR',
     MACHINE_NOT_CONNECTED = 'MACHINE_NOT_CONNECTED',
@@ -591,4 +599,5 @@ export enum ErrorCode {
     SIGN_IN_ATTEMPTS_EXCEEDED = 'SIGN_IN_ATTEMPTS_EXCEEDED',
     CAPTCHA_VERIFICATION_FAILED = 'CAPTCHA_VERIFICATION_FAILED',
     API_KEY_RATE_LIMIT_EXCEEDED = 'API_KEY_RATE_LIMIT_EXCEEDED',
+    PROJECT_EXECUTION_CONCURRENCY_LIMIT_EXCEEDED = 'PROJECT_EXECUTION_CONCURRENCY_LIMIT_EXCEEDED',
 }

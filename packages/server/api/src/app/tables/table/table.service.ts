@@ -27,9 +27,12 @@ export const tableService = {
             folderId,
         })
         if (request.fields) {
-            await Promise.all(request.fields.map(async (field) => {
+            // Sequential, not Promise.all: each field's position is assigned by the next
+            // free slot at insert time, so creating them one at a time makes the initial
+            // field order match the order they were declared in the request.
+            for (const field of request.fields) {
                 await fieldService.createFromState({ projectId, field, tableId: table.id })
-            }))
+            }
         }
         return table
     },
@@ -196,7 +199,6 @@ export const tableService = {
     }: ExportTableParams): Promise<ExportTableResponse> {
         const table = await this.getOneOrThrow({ projectId, id })
 
-        // TODO: Change field sorting to use position when it's added
         const fields = await fieldService.getAll({ projectId, tableId: id })
 
         const records = await recordRepo().find({

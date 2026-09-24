@@ -1,4 +1,5 @@
-import { ALL_PRINCIPAL_TYPES } from '@inboxfm-connect/shared'
+import { PlatformId } from '@inboxfm-connect/core-utils'
+import { ALL_PRINCIPAL_TYPES, Principal } from '@inboxfm-connect/shared'
 import { FastifyRequest } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { securityAccess } from '../core/security/authorization/fastify-security'
@@ -19,9 +20,11 @@ export const flagController: FastifyPluginAsyncZod = async (app) => {
             logLevel: 'silent',
         },
         async (request: FastifyRequest) => {
-            const flags = await flagService(request.log).getAll()
+            const flags = await flagService(request.log).getAll({
+                platformId: getPlatformIdFromPrincipal(request.principal),
+            })
             const flagsMap: Record<string, string | boolean | number | Record<string, unknown>> = flags.reduce(
-                (map, flag) => ({ ...map, [flag.id as string]: flag.value }),
+                (map, flag) => ({ ...map, [flag.id]: flag.value }),
                 {},
             )
             return flagHooks.get().modify({
@@ -31,4 +34,8 @@ export const flagController: FastifyPluginAsyncZod = async (app) => {
         },
     )
     
+}
+
+function getPlatformIdFromPrincipal(principal: Principal): PlatformId | null {
+    return 'platform' in principal ? principal.platform.id : null
 }

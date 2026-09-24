@@ -1,5 +1,7 @@
 # Folder Organization
 
+> **⚠️ STALE — needs human review.** Verified against the current source tree: `packages/server/api/src/app/flows/folder/` no longer exists (the flow module it belongs to is gone entirely). Left as-is rather than rewritten speculatively — needs review by someone with full context on whether/how folder organization exists in the current model (tables still exist — see `.agents/features/tables.md` — but flows do not).
+
 ## Summary
 Folders provide a lightweight organizational layer for flows within a project. Each folder has a display name (unique case-insensitively per project) and a display order. Flows can be assigned to a folder via their `folderId` field. The folder list endpoint returns `numberOfFlows` and `numberOfTables` counts alongside each folder, computed via correlated subqueries. A special sentinel value `NULL` (string `"NULL"`) represents uncategorized flows that have no folder. Creating or renaming a folder fires audit events. Folder names are enforced as unique per project (case-insensitive).
 

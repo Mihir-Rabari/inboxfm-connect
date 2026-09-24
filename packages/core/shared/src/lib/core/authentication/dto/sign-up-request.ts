@@ -9,6 +9,9 @@ export const SignUpRequest = z.object({
     lastName: z.string().regex(new RegExp(SAFE_STRING_PATTERN)),
     trackEvents: z.boolean(),
     newsLetter: z.boolean(),
+    // Only read when AP_CAPTCHA_PROVIDER is configured (off by default — see
+    // captcha-verifier.ts); ignored otherwise, so existing callers are unaffected.
+    captchaToken: z.string().optional(),
 })
 
 export type SignUpRequest = z.infer<typeof SignUpRequest>

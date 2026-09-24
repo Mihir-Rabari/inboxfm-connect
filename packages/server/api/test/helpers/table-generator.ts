@@ -1,6 +1,6 @@
+import { faker } from '@faker-js/faker'
 import { apId } from '@inboxfm-connect/core-utils'
 import { Field, FieldState, FieldType, PopulatedTable, TableAutomationStatus } from '@inboxfm-connect/shared'
-import { faker } from '@faker-js/faker'
 
 export const tableGenerator = {
     simpleTable(table: Partial<PopulatedTable>): PopulatedTable {
@@ -10,8 +10,8 @@ export const tableGenerator = {
             name: faker.lorem.word(),
             externalId: table.externalId ?? apId(),
             fields: table.fields ?? [
-                tableGenerator.generateRandomField(tableId),
-                tableGenerator.generateRandomField(tableId),
+                tableGenerator.generateRandomField(tableId, 0),
+                tableGenerator.generateRandomField(tableId, 1),
             ],
             projectId: apId(),
             created: faker.date.recent().toISOString(),
@@ -20,7 +20,7 @@ export const tableGenerator = {
             trigger: table.trigger ?? null,
         }
     },
-    generateRandomField(tableId: string): Field {
+    generateRandomField(tableId: string, position = 0): Field {
         return {
             id: apId(),
             projectId: apId(),
@@ -30,6 +30,7 @@ export const tableGenerator = {
             name: faker.lorem.word(),
             type: FieldType.TEXT,
             externalId: apId(),
+            position,
         }
     },
     generateRandomDropdownField(): FieldState {

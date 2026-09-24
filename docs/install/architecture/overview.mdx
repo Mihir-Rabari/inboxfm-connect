@@ -1,18 +1,18 @@
 ---
 title: "Overview"
-description: "How Activepieces is put together, and why it runs flows the way it does"
+description: "How Inboxfm Connect is put together, and why it runs flows the way it does"
 icon: "cube"
 ---
 
-This section explains **why** Activepieces works the way it does: the components, the execution model, and the trade-offs behind them. If you want to *do* something (size a deployment, set up SSL, scale workers), start with [Configure & Operate](../configure-operate/production-setup). Come here when you want the reasoning under those choices.
+This section explains **why** Inboxfm Connect works the way it does: the components, the execution model, and the trade-offs behind them. If you want to *do* something (size a deployment, set up SSL, scale workers), start with [Configure & Operate](../configure-operate/production-setup). Come here when you want the reasoning under those choices.
 
 This page describes the main components, with a focus on how flows run.
 
 ## Components
 
-<img src="/resources/diagrams/activepieces-architecture.png" alt="Activepieces production architecture: client, app, Redis job queue, Postgres, S3, and one-flow-per-worker execution tier" />
+<img src="/resources/diagrams/activepieces-architecture.png" alt="Inboxfm Connect production architecture: client, app, Redis job queue, Postgres, S3, and one-flow-per-worker execution tier" />
 
-**Activepieces:**
+**Inboxfm Connect:**
 
 - **App**: The main application that organizes everything from APIs to scheduled jobs.
 - **Worker**: Polls for new jobs, allocates a sandbox from the pool, executes the flows with the engine inside the sandbox, and sends results back to the app.
@@ -21,7 +21,7 @@ This page describes the main components, with a focus on how flows run.
 - **UI**: Frontend written in React.
 
 **Third Party**:
-- **Postgres**: The main database for Activepieces.
+- **Postgres**: The main database for Inboxfm Connect.
 - **Redis**: Powers the queue using [BullMQ](https://docs.bullmq.io/).
 
 ## Reliability & Scalability
@@ -32,7 +32,7 @@ Postgres and Redis availability is outside the scope of this documentation, as m
 
 Everything is queue-backed: webhooks and recurring jobs land on Redis, and workers poll them off it. A spike does not drop work. It queues and drains as slots free. For exactly what survives a crash, what runs at-least-once, and where each promise stops, see [Guarantees](../guarantees/crash-recovery).
 
-To scale Activepieces, add replicas of the workers, the app, or the Postgres database. A small Redis instance is enough: it handles thousands of jobs per second and rarely becomes a bottleneck. For the concrete sizing model, see [Production Setup](../configure-operate/production-setup).
+To scale Inboxfm Connect, add replicas of the workers, the app, or the Postgres database. A small Redis instance is enough: it handles thousands of jobs per second and rarely becomes a bottleneck. For the concrete sizing model, see [Production Setup](../configure-operate/production-setup).
 
 ## Repository Structure
 

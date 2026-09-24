@@ -1,18 +1,24 @@
 import { ActivepiecesError, apId, ErrorCode, isNil, SeekPage } from '@inboxfm-connect/core-utils'
 import { scheduler } from '@inboxfm-connect/scheduler'
+import { apLogger } from '@inboxfm-connect/server-utils'
 import {
     CreateTriggerBindingRequest,
     ExecuteTriggerResponse,
     Execution,
+    PackageType,
+    PiecePackage,
+    PieceType,
     PlatformId,
     ProjectId,
     TriggerBinding,
     TriggerBindingStatus,
     TriggerHookType,
     UpdateTriggerBindingRequest,
+    WorkerJobType,
 } from '@inboxfm-connect/shared'
 import { repoFactory } from '../../core/db/repo-factory'
 import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
+import { projectExecutionConcurrencyGuard } from '../concurrency/project-execution-concurrency-guard'
 import { executionService } from '../execution.service'
 import { TriggerBindingEntity, TriggerBindingSchema } from './trigger-binding-entity'
 
@@ -251,9 +257,17 @@ async function unsyncTriggerSchedule(id: string): Promise<void> {
     await scheduler.cancel(`trigger-renew-${id}`)
 }
 
+const engineHookLog = apLogger.create({ bindings: {} })
+
 async function executeEngineHook<HT extends TriggerHookType>({ binding, hookType, triggerPayload }: ExecuteEngineHookParams<HT>): Promise<ExecuteTriggerResponse<HT>> {
+    const piece: PiecePackage = {
+        pieceName: binding.pieceName,
+        pieceVersion: binding.pieceVersion,
+        packageType: PackageType.REGISTRY,
+        pieceType: PieceType.OFFICIAL,
+    }
     const jobData = {
-        jobType: 'EXECUTE_TRIGGER_HOOK' as const,
+        jobType: WorkerJobType.EXECUTE_TRIGGER_HOOK,
         platformId: binding.platformId,
         projectId: binding.projectId,
         schemaVersion: 1,
@@ -275,17 +289,26 @@ async function executeEngineHook<HT extends TriggerHookType>({ binding, hookType
         },
         webhookUrl: `http://localhost:3000/v1/trigger-bindings/${binding.id}/webhook`,
         triggerPayload,
-        piece: {
-            pieceName: binding.pieceName,
-            pieceVersion: binding.pieceVersion,
-            packageType: 'REGISTRY' as const,
-            pieceType: 'OFFICIAL' as const,
-        },
+        piece,
         requestId: apId(),
         webserverId: 'inline',
     }
 
-    return userInteractionWatcher.submitAndWaitForResponse<ExecuteTriggerResponse<HT>>(jobData, console as any)
+    // Only the RUN hook (an actual flow-trigger execution, fired from a webhook
+    // burst, a cron schedule, or a manual run) is metered here — ON_ENABLE/
+    // ON_DISABLE/RENEW are low-frequency lifecycle events, not the noisy,
+    // burst-prone path the per-project concurrency cap exists to bound.
+    if (hookType !== TriggerHookType.RUN) {
+        return userInteractionWatcher.submitAndWaitForResponse<ExecuteTriggerResponse<HT>>(jobData, engineHookLog)
+    }
+
+    const slot = await projectExecutionConcurrencyGuard.acquire({ projectId: binding.projectId, log: engineHookLog })
+    try {
+        return await userInteractionWatcher.submitAndWaitForResponse<ExecuteTriggerResponse<HT>>(jobData, engineHookLog)
+    }
+    finally {
+        await slot.release()
+    }
 }
 
 type CreateParams = {

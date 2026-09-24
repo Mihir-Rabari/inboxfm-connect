@@ -1,5 +1,7 @@
 # Flows Module
 
+> **⚠️ STALE — needs human review.** Verified against the current source tree: `packages/server/api/src/app/flows/` and `packages/web/src/app/builder/` (the XYFlow canvas described below) no longer exist, and no `POST /v1/flows/:id` route is registered. `packages/core/shared/src/lib/automation/flows/` (Flow/FlowVersion/FlowOperationRequest types referenced below) was likewise not found. The product's automation model has moved to a headless, MCP-first execution model (see `README.md`) built on `TriggerBindingEntity`, `ScheduledTaskEntity`, `ExecutionEntity` and `ToolCallEntity` under `packages/server/api/src/app/execution/`. This file describes the removed visual flow builder in detail and was left as-is rather than rewritten speculatively — it needs a full rewrite by someone with complete knowledge of the current execution model.
+
 ## Summary
 Flows are the core automation primitive in Activepieces. Each flow is a versioned directed graph of trigger and action steps stored as a JSONB tree. The module handles the full lifecycle: draft editing via a single-endpoint operation dispatch, publishing (locking a version and registering the trigger source), enabling/disabling, folder organization, sample data capture for testing, human-input forms/chat interfaces, PNG export of the canvas, and the visual builder frontend powered by XYFlow. All 26 flow modification types are dispatched through one endpoint (`POST /v1/flows/:id`) with a discriminated-union body.
 

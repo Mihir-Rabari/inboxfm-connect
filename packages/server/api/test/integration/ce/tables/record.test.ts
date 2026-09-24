@@ -237,8 +237,8 @@ afterAll(async () => {
 
         it('should add new cell to existing record (upsert)', async () => {
             const ctx = await setup()
-            const { table, field } = await createTableWithField(ctx)
-            const field2 = createMockField({ tableId: table.id, projectId: ctx.project.id })
+            const { table } = await createTableWithField(ctx)
+            const field2 = createMockField({ tableId: table.id, projectId: ctx.project.id, position: 1 })
             field2.type = FieldType.TEXT
             await db.save('field', field2)
             const record = createMockRecord({ tableId: table.id, projectId: ctx.project.id })

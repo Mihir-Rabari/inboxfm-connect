@@ -20,6 +20,7 @@ const ScheduledTasksPage = lazy(() => import('./pages/automations/schedules'))
 const NewScheduledTaskPage = lazy(() => import('./pages/automations/schedules-new'))
 const ScheduledTaskDetailPage = lazy(() => import('./pages/automations/schedules-detail'))
 const EditScheduledTaskPage = lazy(() => import('./pages/automations/schedules-edit'))
+const ApiKeysPage = lazy(() => import('./pages/api-keys'))
 const McpPage = lazy(() => import('./pages/mcp'))
 const ActivityPage = lazy(() => import('./pages/activity'))
 const ExecutionDetailPage = lazy(() => import('./pages/activity/detail'))
@@ -27,6 +28,7 @@ const DevelopersPage = lazy(() => import('./pages/developers'))
 const SettingsPage = lazy(() => import('./pages/settings'))
 const LoginPage = lazy(() => import('./pages/auth/login'))
 const ConnectPage = lazy(() => import('./pages/connect'))
+const WelcomePage = lazy(() => import('./pages/welcome'))
 const NotFoundPage = lazy(() => import('./pages/not-found'))
 
 const withSuspense = (Component: React.ComponentType) => (
@@ -36,6 +38,10 @@ const withSuspense = (Component: React.ComponentType) => (
 )
 
 export const router = createBrowserRouter([
+  {
+    path: '/welcome',
+    element: withSuspense(WelcomePage),
+  },
   {
     path: '/login',
     element: withSuspense(LoginPage),
@@ -131,6 +137,10 @@ export const router = createBrowserRouter([
       {
         path: 'developers',
         element: withSuspense(DevelopersPage),
+      },
+      {
+        path: 'api-keys',
+        element: withSuspense(ApiKeysPage),
       },
       {
         path: 'settings',

@@ -2,6 +2,24 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
+# Workload kind rendered by the chart (templates/deployment.yaml):
+#   rollout     - Argo Rollout (argoproj.io/v1alpha1) using the blue/green
+#                 strategy below. Requires the Argo Rollouts controller
+#                 installed in the cluster.
+#   statefulset - StatefulSet (apps/v1). With persistence.enabled, each
+#                 replica gets its own PVC via volumeClaimTemplates.
+# Optional, statefulset-only: podManagementPolicy: OrderedReady
+workloadType: rollout
+
+# Blue/green settings for the default workloadType=rollout mode
+# (templates/deployment.yaml reads these unconditionally when
+# workloadType is not "statefulset"). Values mirror the Argo Rollouts
+# spec defaults.
+rollout:
+  blueGreen:
+    autoPromotionEnabled: true
+    scaleDownDelaySeconds: 30
+
 # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
 replicaCount: 1
 
@@ -90,6 +108,12 @@ resources: {}
   #   memory: 128Mi
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+# Both probes point at the canonical health endpoint. The Fastify API is mounted
+# under the /api prefix, so the path is /api/v1/health — the same path the
+# Docker image HEALTHCHECK uses. The endpoint is dependency-aware: APP
+# containers verify database connectivity (SELECT 1) and WORKER containers
+# report their worker status; it returns 503 while unhealthy. Readiness
+# therefore keeps pods out of the Service until the API can serve traffic.
 livenessProbe:
   httpGet:
     path: /api/v1/health
@@ -98,12 +122,23 @@ livenessProbe:
   periodSeconds: 10
 readinessProbe:
   httpGet:
-    path: /v1/health
+    path: /api/v1/health
     port: http
   initialDelaySeconds: 5
   periodSeconds: 5
 
 # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
+# When enabled, templates/hpa.yaml targets the workload rendered for
+# workloadType above: the Argo Rollout (argoproj.io/v1alpha1) by default, or
+# the StatefulSet (apps/v1) when workloadType=statefulset. The workload's
+# replicas field is omitted so the HPA owns the replica count.
+# Combination notes:
+# - workloadType=rollout: the Argo Rollouts controller must be installed; the
+#   Rollout exposes the scale subresource the HPA uses.
+# - workloadType=statefulset: the StatefulSet scale subresource requires
+#   Kubernetes >= 1.22. With persistence.enabled, each replica gets its own
+#   PVC via volumeClaimTemplates, and scaled-down replicas leave their PVCs
+#   behind until deleted manually.
 autoscaling:
   enabled: false
   minReplicas: 1

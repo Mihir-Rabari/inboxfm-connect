@@ -1,7 +1,10 @@
-import { ActivepiecesError, ApId, apId, assertNotNullOrUndefined, ErrorCode, isNil, Metadata, ProjectId, spreadIfDefined, UserId } from '@inboxfm-connect/core-utils'
+import { ActivepiecesError, ApId, apId, assertNotNullOrUndefined, ErrorCode, isNil, Metadata, PlatformId, ProjectId, spreadIfDefined, UserId } from '@inboxfm-connect/core-utils'
+import { apDayjs } from '@inboxfm-connect/server-utils'
 import { ColorName, Project, ProjectIcon, ProjectType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { Brackets, EntityManager, IsNull, Not, ObjectLiteral, SelectQueryBuilder } from 'typeorm'
+import { SystemJobName } from '../helper/system-jobs/common'
+import { systemJobsSchedule } from '../helper/system-jobs/system-job'
 import { userService } from '../user/user-service'
 import { projectHooks, ProjectPostCreateContext } from './project-hooks'
 import { projectRepo } from './project-repo'
@@ -29,6 +32,53 @@ export const projectService = (log: FastifyBaseLogger) => ({
         return projectRepo().findOneBy({
             ownerId: params.ownerId,
             platformId: params.platformId,
+        })
+    },
+
+    async deletePersonalProjectForUser({ userId, platformId }: DeletePersonalProjectForUserParams): Promise<void> {
+        const personalProject = await projectRepo().findOneBy({
+            ownerId: userId,
+            platformId,
+            type: ProjectType.PERSONAL,
+        })
+        if (isNil(personalProject)) {
+            return
+        }
+        const softDeleteResult = await projectRepo().softDelete({
+            id: personalProject.id,
+            platformId,
+        })
+        if (softDeleteResult.affected === 0) {
+            throw new ActivepiecesError({
+                code: ErrorCode.ENTITY_NOT_FOUND,
+                params: {
+                    entityType: 'project',
+                    entityId: personalProject.id,
+                },
+            })
+        }
+        // Dependent rows are cleaned up asynchronously by the hard-delete system
+        // job; keying the job per project keeps repeated calls idempotent.
+        await systemJobsSchedule(log).upsertJob({
+            job: {
+                name: SystemJobName.HARD_DELETE_PROJECT,
+                data: {
+                    projectId: personalProject.id,
+                    platformId,
+                },
+                jobId: `hard-delete-project-${personalProject.id}`,
+            },
+            schedule: {
+                type: 'one-time',
+                date: apDayjs(),
+            },
+            customConfig: {
+                attempts: 25,
+                backoff: {
+                    type: 'fixed',
+                    delay: 60000,
+                },
+            },
         })
     },
 
@@ -253,6 +303,11 @@ type GetAllForUserParams = {
 type GetOneByOwnerAndPlatformParams = {
     ownerId: UserId
     platformId: string
+}
+
+type DeletePersonalProjectForUserParams = {
+    userId: UserId
+    platformId: PlatformId
 }
 
 type ExistsParams = {

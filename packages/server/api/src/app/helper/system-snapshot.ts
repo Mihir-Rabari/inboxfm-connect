@@ -10,7 +10,7 @@ function mbRounded(bytes: number): number {
     return Math.round(bytes / (1024 * 1024))
 }
 
-async function buildQueueCounts(log: FastifyBaseLogger): Promise<Record<string, unknown>> {
+async function buildQueueCounts(_log: FastifyBaseLogger): Promise<Record<string, unknown>> {
     return {}
 }
 

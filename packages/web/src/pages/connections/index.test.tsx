@@ -80,7 +80,7 @@ describe('Connections page', () => {
     vi.restoreAllMocks()
   })
 
-  it('renders the connection table with integration, name, auth type, status and created columns', async () => {
+  it('renders the connection table with integration, name, external user, auth type, status and created columns', async () => {
     stubApi(successRoutes())
     const container = renderConnections()
 
@@ -90,6 +90,7 @@ describe('Connections page', () => {
     expect(headers).toEqual([
       'Integration',
       'Connection name',
+      'External user',
       'Auth type',
       'Status',
       'Created',
@@ -98,6 +99,8 @@ describe('Connections page', () => {
 
     const text = document.body.textContent || ''
     expect(text).toContain('GitHub')
+    expect(text).toContain('ext_conn_1')
+    expect(text).toContain('ext_conn_2')
     expect(text).toContain('OAuth 2.0')
     expect(text).toContain('Connected')
     expect(text).toContain('Slack')

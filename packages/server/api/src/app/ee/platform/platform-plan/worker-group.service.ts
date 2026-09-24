@@ -4,14 +4,12 @@ import { FastifyBaseLogger } from 'fastify'
 import { distributedStore } from '../../../database/redis-connections'
 import { platformPlanRepo } from './platform-plan.service'
 
-export const CANARY_WORKER_GROUP_ID = 'canary'
-
 const NO_WORKER_GROUP_SENTINEL = '__none__'
 const CACHE_TTL_SECONDS = apDayjsDuration(5, 'minute').asSeconds()
 const getWorkerGroupCacheKey = (platformId: string): string => `platform:${platformId}:worker_group_id:v2`
 const getWorkerGroupsEnabledCacheKey = (platformId: string): string => `platform:${platformId}:worker_groups_enabled`
 
-export const workerGroupService = (log: FastifyBaseLogger) => ({
+export const workerGroupService = (_log: FastifyBaseLogger) => ({
     async isWorkerGroupsEnabled({ platformId }: { platformId: string }): Promise<boolean> {
         const cached = await distributedStore.get<string>(getWorkerGroupsEnabledCacheKey(platformId))
         if (!isNil(cached)) {
@@ -51,23 +49,12 @@ export const workerGroupService = (log: FastifyBaseLogger) => ({
         return plan?.platformId ?? null
     },
 
-    async isCanaryPlatform({ platformId }: { platformId: string }): Promise<boolean> {
-        const groupId = await this.getWorkerGroupId({ platformId })
-        return groupId === CANARY_WORKER_GROUP_ID
-    },
-
     async updateWorkerGroup({ platformId, workerGroupId }: { platformId: string, workerGroupId: string | null }): Promise<void> {
         await platformPlanRepo().update({ platformId }, { workerGroupId })
         await distributedStore.delete(getWorkerGroupCacheKey(platformId))
     },
 
-    async updateCanary({ platformId, canary }: { platformId: string, canary: boolean }): Promise<void> {
-        const workerGroupId = canary ? CANARY_WORKER_GROUP_ID : null
-        await platformPlanRepo().update({ platformId }, { workerGroupId })
-        await distributedStore.delete(getWorkerGroupCacheKey(platformId))
-    },
-
-    async moveJobsToTargetQueue({ platformId, workerGroupId }: { platformId: string, workerGroupId: string | null }): Promise<void> {
+    async moveJobsToTargetQueue(_params: { platformId: string, workerGroupId: string | null }): Promise<void> {
         // No-op: queues are eliminated in headless platform
     },
 })

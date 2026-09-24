@@ -14,6 +14,24 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
     [AppSystemProp.API_RATE_LIMIT_AUTHN_ENABLED]: 'true',
     [AppSystemProp.API_RATE_LIMIT_AUTHN_MAX]: '50',
     [AppSystemProp.API_RATE_LIMIT_AUTHN_WINDOW]: '1 minute',
+    // Tighter, IP-scoped tier applied only to sign-up / sign-in / password-reset
+    // routes (see authentication.controller.ts, otp-controller.ts,
+    // enterprise-local-authn-controller.ts) — these are the routes an attacker
+    // would actually script against, so they get a lower ceiling than the general
+    // AUTHN tier above (which also covers the already-authenticated
+    // switch-platform route). Gated by the same AP_API_RATE_LIMIT_AUTHN_ENABLED
+    // flag that registers the underlying @fastify/rate-limit plugin.
+    [AppSystemProp.API_RATE_LIMIT_AUTHN_ABUSE_MAX]: '10',
+    [AppSystemProp.API_RATE_LIMIT_AUTHN_ABUSE_WINDOW]: '1 minute',
+    // Per-email (not per-IP) counter on failed sign-in attempts, so credential
+    // stuffing against a single account from many IPs/a botnet can't outrun the
+    // per-IP tier above. 5 failed attempts / 15-minute window per email is a
+    // standard OWASP-style lockout threshold; a legitimate user mistyping their
+    // password a couple of times is unaffected, and the counter is cleared on the
+    // next successful sign-in (see sign-in-email-throttle.ts).
+    [AppSystemProp.API_SIGN_IN_EMAIL_THROTTLE_ENABLED]: 'true',
+    [AppSystemProp.API_SIGN_IN_EMAIL_THROTTLE_MAX_ATTEMPTS]: '5',
+    [AppSystemProp.API_SIGN_IN_EMAIL_THROTTLE_WINDOW_SECONDS]: '900',
     [AppSystemProp.WORKERS]: '1',
     [AppSystemProp.CLIENT_REAL_IP_HEADER]: 'x-real-ip',
     [AppSystemProp.CLOUD_AUTH_ENABLED]: 'true',
@@ -51,12 +69,42 @@ const systemPropDefaultValues: Partial<Record<SystemProp, string>> = {
     [AppSystemProp.REDIS_TYPE]: RedisType.STANDALONE,
     [AppSystemProp.TRIGGER_DEFAULT_POLL_INTERVAL]: '5',
     [AppSystemProp.DEFAULT_CONCURRENT_JOBS_LIMIT]: '5',
+    [AppSystemProp.PROJECT_EXECUTION_CONCURRENCY_LIMITER_ENABLED]: 'false',
+    // Every execution (trigger RUN, the only path that reaches the shared 10-slot
+    // in-process sandbox pool for a project-attributable run) holds one slot for its
+    // duration. 5 concurrent in-flight runs is generous for a single project on a
+    // typical self-hosted deployment while still stopping one project from occupying
+    // the whole shared pool. Disabled by default so an existing self-hosted deployment
+    // never starts rejecting requests it didn't reject before.
+    [AppSystemProp.PROJECT_EXECUTION_CONCURRENCY_LIMIT]: '5',
+    // Backstop only: a slot's TTL is refreshed on every acquire, so it never expires
+    // while the project keeps executing. It only matters if a process dies mid-execution
+    // without releasing its slot — the TTL self-heals that leak. Set comfortably above
+    // FLOW_TIMEOUT_SECONDS' default (600s) plus provisioning/queueing overhead.
+    [AppSystemProp.PROJECT_EXECUTION_CONCURRENCY_SLOT_TTL_SECONDS]: '900',
     [AppSystemProp.PROJECT_RATE_LIMITER_ENABLED]: 'false',
+    // 300 req/min per project comfortably covers a busy builder session (flow
+    // editor autosave + polling) and normal webhook/API traffic for a single
+    // project, while still capping a runaway script or misbehaving integration.
+    [AppSystemProp.PROJECT_RATE_LIMITER_MAX_REQUESTS]: '300',
+    [AppSystemProp.PROJECT_RATE_LIMITER_WINDOW_SECONDS]: '60',
+    [AppSystemProp.API_KEY_RATE_LIMITER_ENABLED]: 'false',
+    // Per-key (not per-project, not per-IP) tier: a service credential that leaks or
+    // misbehaves is capped independently of how many other keys/projects share the
+    // same platform. 120 req/min per key is generous for typical machine-to-machine
+    // polling/webhook traffic while still bounding a runaway or compromised key.
+    [AppSystemProp.API_KEY_RATE_LIMITER_MAX_REQUESTS]: '120',
+    [AppSystemProp.API_KEY_RATE_LIMITER_WINDOW_SECONDS]: '60',
+    // How long a rotated-out key keeps authenticating after `rotate` mints its
+    // replacement, so callers have a window to swap the new value in before the old
+    // one is rejected. 24h covers a typical deploy cycle without forcing a hard cutover.
+    [AppSystemProp.API_KEY_ROTATION_GRACE_PERIOD_SECONDS]: '86400',
     [AppSystemProp.MAX_RECORDS_PER_TABLE]: '10000',
     [AppSystemProp.MAX_FIELDS_PER_TABLE]: '100',
     [AppSystemProp.ENABLE_FLOW_ON_PUBLISH]: 'true',
     [AppSystemProp.ISSUE_ARCHIVE_DAYS]: '7',
     [AppSystemProp.POSTGRES_IDLE_TIMEOUT_MS]: '300000',
+    [AppSystemProp.POSTGRES_CONNECTION_TIMEOUT_MS]: '10000',
     [AppSystemProp.SCIM_DEFAULT_PROJECT_ROLE]: DefaultProjectRole.EDITOR,
     [AppSystemProp.NETWORK_MODE]: NetworkMode.UNRESTRICTED,
     [AppSystemProp.LOG_SAMPLE_RATE_INFO]: '100',

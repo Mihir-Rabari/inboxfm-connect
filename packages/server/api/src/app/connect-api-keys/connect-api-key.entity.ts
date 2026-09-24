@@ -38,6 +38,10 @@ export const ConnectApiKeyEntity = new EntitySchema<ConnectApiKeySchema>({
             type: String,
             nullable: true,
         },
+        expiresAt: {
+            type: String,
+            nullable: true,
+        },
     },
     indices: [
         {

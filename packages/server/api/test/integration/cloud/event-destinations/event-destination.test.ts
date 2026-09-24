@@ -24,13 +24,13 @@ describe('Event Destinations API', () => {
 
             const response = await ctx.post('/v1/event-destinations', {
                 url: 'https://example.com/webhook',
-                events: [ApplicationEventName.FLOW_CREATED],
+                events: [ApplicationEventName.CONNECTION_UPSERTED],
             })
 
             expect(response?.statusCode).toBe(StatusCodes.OK)
             const body = response?.json()
             expect(body.url).toBe('https://example.com/webhook')
-            expect(body.events).toContain(ApplicationEventName.FLOW_CREATED)
+            expect(body.events).toContain(ApplicationEventName.CONNECTION_UPSERTED)
             expect(body.platformId).toBe(ctx.platform.id)
             expect(body.id).toBeDefined()
         })
@@ -42,7 +42,7 @@ describe('Event Destinations API', () => {
 
             await ctx.post('/v1/event-destinations', {
                 url: 'https://example.com/webhook1',
-                events: [ApplicationEventName.FLOW_CREATED],
+                events: [ApplicationEventName.CONNECTION_UPSERTED],
             })
 
             const response = await ctx.get('/v1/event-destinations')
@@ -70,7 +70,7 @@ describe('Event Destinations API', () => {
 
             const createResponse = await ctx.post('/v1/event-destinations', {
                 url: 'https://example.com/original',
-                events: [ApplicationEventName.FLOW_CREATED],
+                events: [ApplicationEventName.CONNECTION_UPSERTED],
             })
             const destId = createResponse?.json().id
 
@@ -79,17 +79,17 @@ describe('Event Destinations API', () => {
                 url: `/api/v1/event-destinations/${destId}`,
                 body: {
                     url: 'https://example.com/updated',
-                    events: [ApplicationEventName.FLOW_DELETED, ApplicationEventName.FLOW_CREATED],
+                    events: [ApplicationEventName.CONNECTION_DELETED, ApplicationEventName.CONNECTION_UPSERTED],
                 },
             })
 
             expect(response?.statusCode).toBe(StatusCodes.OK)
             const body = response?.json()
             expect(body.url).toBe('https://example.com/updated')
-            expect(body.events).toContain(ApplicationEventName.FLOW_DELETED)
+            expect(body.events).toContain(ApplicationEventName.CONNECTION_DELETED)
         })
 
-        it('should return error for non-existent destination', async () => {
+        it('should return 404 for non-existent destination', async () => {
             const ctx = await createTestContext(app!)
             const nonExistentId = apId()
 
@@ -98,12 +98,63 @@ describe('Event Destinations API', () => {
                 url: `/api/v1/event-destinations/${nonExistentId}`,
                 body: {
                     url: 'https://example.com/updated',
-                    events: [ApplicationEventName.FLOW_CREATED],
+                    events: [ApplicationEventName.CONNECTION_UPSERTED],
                 },
             })
 
-            // TODO: Server returns 500 instead of 404 for non-existent destinations — this is a server bug
-            expect(response?.statusCode).toBe(StatusCodes.INTERNAL_SERVER_ERROR)
+            expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
+            const body = response?.json()
+            expect(body.code).toBe('ENTITY_NOT_FOUND')
+            expect(body.params.entityId).toBe(nonExistentId)
+            expect(body.params.entityType).toBe('event_destination')
+        })
+
+        it('should return 404 when updating a destination of another platform', async () => {
+            const ctx1 = await createTestContext(app!)
+            const ctx2 = await createTestContext(app!)
+
+            const createResponse = await ctx1.post('/v1/event-destinations', {
+                url: 'https://example.com/platform1',
+                events: [ApplicationEventName.CONNECTION_UPSERTED],
+            })
+            const destId = createResponse?.json().id
+
+            const response = await ctx2.inject({
+                method: 'PATCH',
+                url: `/api/v1/event-destinations/${destId}`,
+                body: {
+                    url: 'https://example.com/cross-tenant',
+                    events: [ApplicationEventName.CONNECTION_UPSERTED],
+                },
+            })
+
+            expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
+            const body = response?.json()
+            expect(body.code).toBe('ENTITY_NOT_FOUND')
+        })
+
+        it('should return 404 for a deleted destination', async () => {
+            const ctx = await createTestContext(app!)
+
+            const createResponse = await ctx.post('/v1/event-destinations', {
+                url: 'https://example.com/deleted',
+                events: [ApplicationEventName.CONNECTION_UPSERTED],
+            })
+            const destId = createResponse?.json().id
+            await ctx.delete(`/v1/event-destinations/${destId}`)
+
+            const response = await ctx.inject({
+                method: 'PATCH',
+                url: `/api/v1/event-destinations/${destId}`,
+                body: {
+                    url: 'https://example.com/updated',
+                    events: [ApplicationEventName.CONNECTION_UPSERTED],
+                },
+            })
+
+            expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
+            const body = response?.json()
+            expect(body.code).toBe('ENTITY_NOT_FOUND')
         })
     })
 
@@ -113,7 +164,7 @@ describe('Event Destinations API', () => {
 
             const createResponse = await ctx.post('/v1/event-destinations', {
                 url: 'https://example.com/delete-me',
-                events: [ApplicationEventName.FLOW_CREATED],
+                events: [ApplicationEventName.CONNECTION_UPSERTED],
             })
             const destId = createResponse?.json().id
 
@@ -138,13 +189,13 @@ describe('Event Destinations API', () => {
 
             const response = await ctx.post('/v1/event-destinations/test', {
                 url: 'https://example.com/webhook',
-                event: ApplicationEventName.FLOW_CREATED,
+                event: ApplicationEventName.CONNECTION_UPSERTED,
             })
 
             expect(response?.statusCode).toBe(StatusCodes.OK)
         })
 
-        it('should accept a test request with no event (defaults to flow.created)', async () => {
+        it('should accept a test request with no event (defaults to connection.upserted)', async () => {
             const ctx = await createTestContext(app!)
 
             const response = await ctx.post('/v1/event-destinations/test', {
@@ -178,7 +229,7 @@ describe('Event Destinations API', () => {
                 headers: { authorization: `Bearer ${memberToken}` },
                 body: {
                     url: 'https://example.com/unauthorized',
-                    events: [ApplicationEventName.FLOW_CREATED],
+                    events: [ApplicationEventName.CONNECTION_UPSERTED],
                 },
             })
 
@@ -191,7 +242,7 @@ describe('Event Destinations API', () => {
 
             await ctx1.post('/v1/event-destinations', {
                 url: 'https://example.com/platform1',
-                events: [ApplicationEventName.FLOW_CREATED],
+                events: [ApplicationEventName.CONNECTION_UPSERTED],
             })
 
             const response = await ctx2.get('/v1/event-destinations')

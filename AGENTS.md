@@ -67,8 +67,8 @@ Open-source AI-first workflow automation platform. Self-hosted or cloud. 400+ in
 ## Testing
 
 ```bash
-npm run test-unit     # Vitest: engine + shared
-npm run test-api      # API integration (CE, EE, Cloud)
+npm run test-unit     # Vitest: engine, shared, sdk, and api's test/unit (no DB/Redis/network)
+npm run test-api      # API integration (CE, EE, Cloud) — needs Postgres + Redis
 ```
 API tests: `setupTestEnvironment()` + `createTestContext(app)` → `ctx.post()`, `ctx.get()`. DB auto-cleaned between tests.
 
@@ -95,6 +95,13 @@ When running in `--mode=cloud`, do not use OAuth2 connections — the OAuth prov
 - If the PR includes any contributions to integrations (integrations under `packages/integrations`), also add the appropriate integrations label (in addition to the primary label above):
   - **`area/third-party-integrations`** — for third-party integrations (most integrations under `packages/integrations/community/`)
   - **`area/core-integrations`** — for core integrations (under `packages/integrations/core/`)
+
+## Multi-Agent Workflow
+
+- **Branch off `dev`, PR into `dev`** — `main` is the stable branch, `dev` is the integration branch multiple agents work against concurrently. Never push directly to `main`.
+- **One issue per branch/PR** — pick up a single tracked issue from the GitHub issue tracker rather than bundling unrelated work; reference the issue number in the PR description.
+- **A scheduled PR watcher reviews every open PR** (comment-only, never merges) — it specifically flags new `ee/` imports outside `ee/`, missing entity registration, and missing `projectId`/`platformId` scoping, since those are the highest-cost mistakes when many agents touch the codebase at once. Treat its comments like a human reviewer's.
+- **Check for in-flight work before starting** — another agent may already be on the same issue; check open PRs/branches first to avoid duplicate, conflicting work.
 
 ## Database Migrations
 

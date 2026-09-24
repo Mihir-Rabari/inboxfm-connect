@@ -90,6 +90,11 @@ export type ApErrorParams =
     | ExecutionStateMissingParams
     | GenericErrorParams
     | SandboxCapacityExceededParams
+    | ProjectRateLimitExceededParams
+    | SignInAttemptsExceededParams
+    | CaptchaVerificationFailedParams
+    | ApiKeyRateLimitExceededParams
+    | ProjectExecutionConcurrencyLimitExceededParams
 
 export type TriggerExecutionFailedParams = BaseErrorParams<ErrorCode.TRIGGER_EXECUTION_FAILED, {
     flowId: FlowId
@@ -487,6 +492,35 @@ export type GenericErrorParams = BaseErrorParams<ErrorCode.GENERIC_ERROR, {
 
 export type SandboxCapacityExceededParams = BaseErrorParams<ErrorCode.SANDBOX_CAPACITY_EXCEEDED, Record<string, never>>
 
+export type ProjectRateLimitExceededParams = BaseErrorParams<ErrorCode.PROJECT_RATE_LIMIT_EXCEEDED, {
+    projectId: ProjectId
+    limit: number
+    windowSeconds: number
+}>
+
+export type SignInAttemptsExceededParams = BaseErrorParams<ErrorCode.SIGN_IN_ATTEMPTS_EXCEEDED, {
+    email: string
+    limit: number
+    windowSeconds: number
+}>
+
+export type CaptchaVerificationFailedParams = BaseErrorParams<ErrorCode.CAPTCHA_VERIFICATION_FAILED, {
+    provider: string
+}>
+
+export type ApiKeyRateLimitExceededParams = BaseErrorParams<ErrorCode.API_KEY_RATE_LIMIT_EXCEEDED, {
+    apiKeyId: string
+    limit: number
+    windowSeconds: number
+}>
+
+export type ProjectExecutionConcurrencyLimitExceededParams = BaseErrorParams<ErrorCode.PROJECT_EXECUTION_CONCURRENCY_LIMIT_EXCEEDED, {
+    projectId: ProjectId
+    limit: number
+    activeCount: number
+    retryAfterSeconds: number
+}>
+
 export enum ErrorCode {
     INTERNAL_SERVER_ERROR = 'INTERNAL_SERVER_ERROR',
     MACHINE_NOT_CONNECTED = 'MACHINE_NOT_CONNECTED',
@@ -561,4 +595,9 @@ export enum ErrorCode {
     RESUME_LOGS_FILE_MISSING = 'RESUME_LOGS_FILE_MISSING',
     EXECUTION_STATE_MISSING = 'EXECUTION_STATE_MISSING',
     GENERIC_ERROR = 'GENERIC_ERROR',
+    PROJECT_RATE_LIMIT_EXCEEDED = 'PROJECT_RATE_LIMIT_EXCEEDED',
+    SIGN_IN_ATTEMPTS_EXCEEDED = 'SIGN_IN_ATTEMPTS_EXCEEDED',
+    CAPTCHA_VERIFICATION_FAILED = 'CAPTCHA_VERIFICATION_FAILED',
+    API_KEY_RATE_LIMIT_EXCEEDED = 'API_KEY_RATE_LIMIT_EXCEEDED',
+    PROJECT_EXECUTION_CONCURRENCY_LIMIT_EXCEEDED = 'PROJECT_EXECUTION_CONCURRENCY_LIMIT_EXCEEDED',
 }

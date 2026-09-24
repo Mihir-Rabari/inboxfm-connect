@@ -23,12 +23,12 @@ function stubBackend() {
   global.fetch = vi.fn(stubFetch)
 }
 
-async function renderRouterAt(path: string): Promise<HTMLElement> {
+async function navigateAndMount(path: string): Promise<HTMLElement> {
   await act(async () => {
     await router.navigate(path)
   })
 
-  const container = mount(
+  return mount(
     <QueryClientProvider client={queryClient}>
       <ThemeProvider defaultTheme="light">
         <AuthProvider>
@@ -37,7 +37,10 @@ async function renderRouterAt(path: string): Promise<HTMLElement> {
       </ThemeProvider>
     </QueryClientProvider>
   )
+}
 
+async function renderRouterAt(path: string): Promise<HTMLElement> {
+  const container = await navigateAndMount(path)
   await waitFor(() => container.querySelector('aside') !== null)
   return container
 }
@@ -72,5 +75,15 @@ describe('router', () => {
 
     expect(container.querySelector('aside')).not.toBeNull()
     expect(document.body.textContent).toContain('404')
+  }, 15000)
+
+  it('serves the public landing page at /welcome without the app shell', async () => {
+    const container = await navigateAndMount('/welcome')
+
+    await waitFor(() => document.body.textContent?.includes('InboxFM Connect') === true)
+
+    expect(container.querySelector('aside')).toBeNull()
+    expect(document.body.textContent).toContain('Workflow automation built for')
+    expect(document.body.querySelector('a[href="/login"]')).not.toBeNull()
   }, 15000)
 })

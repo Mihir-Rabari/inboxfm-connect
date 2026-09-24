@@ -428,6 +428,29 @@ export interface ProjectApiKeyWithValue extends ProjectApiKey {
   value: string
 }
 
+/** Platform-wide `sk-` key. Creation/listing is gated server-side by `platform.plan.apiKeysEnabled`. */
+export interface PlatformApiKey {
+  id: string
+  created: string
+  displayName: string
+  platformId: string
+  truncatedValue: string
+  lastUsedAt: string | null
+}
+
+export interface PlatformApiKeyWithValue extends PlatformApiKey {
+  value: string
+}
+
+export interface PlatformPlan {
+  apiKeysEnabled: boolean
+}
+
+export interface PlatformWithPlan {
+  id: string
+  plan: PlatformPlan
+}
+
 export interface SeekPage<T> {
   data: T[]
   next: string | null

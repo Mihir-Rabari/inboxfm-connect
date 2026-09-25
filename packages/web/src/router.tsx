@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppShell } from './components/layout/app-shell'
+import { RequireAuth } from './components/layout/require-auth'
 import { LoadingState } from './components/ui/loading-state'
 
 const DashboardPage = lazy(() => import('./pages/dashboard'))
@@ -52,7 +53,11 @@ export const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <AppShell />,
+    element: (
+      <RequireAuth>
+        <AppShell />
+      </RequireAuth>
+    ),
     children: [
       {
         index: true,

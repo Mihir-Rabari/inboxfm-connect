@@ -1,4 +1,8 @@
 import { z } from 'zod'
+import { FieldType } from '../../automation/tables/field'
+import { TableAutomationStatus, TableAutomationTrigger } from '../../automation/tables/table'
+import { ScheduledTaskStatus } from '../../execution/scheduled-task'
+import { TriggerBindingStatus } from '../../execution/trigger-binding'
 
 export const ProjectReplaceResourceKind = z.enum(['table', 'trigger_binding', 'scheduled_task', 'mcp_server'])
 export type ProjectReplaceResourceKind = z.infer<typeof ProjectReplaceResourceKind>
@@ -11,11 +15,11 @@ export const TableSnapshotSchema = z.object({
     externalId: z.string(),
     fields: z.array(z.object({
         name: z.string(),
-        type: z.string(),
+        type: z.union([z.nativeEnum(FieldType), z.string()]),
         externalId: z.string().optional(),
     })).optional(),
-    status: z.string().nullable().optional(),
-    trigger: z.string().nullable().optional(),
+    status: z.union([z.nativeEnum(TableAutomationStatus), z.string()]).nullable().optional(),
+    trigger: z.union([z.nativeEnum(TableAutomationTrigger), z.string()]).nullable().optional(),
 })
 export type TableSnapshotSchema = z.infer<typeof TableSnapshotSchema>
 
@@ -28,7 +32,7 @@ export const TriggerBindingSnapshotSchema = z.object({
     connectionExternalId: z.string().nullable().optional(),
     settings: z.record(z.string(), z.unknown()),
     propertySettings: z.record(z.string(), z.unknown()).nullable().optional(),
-    status: z.string(),
+    status: z.union([z.nativeEnum(TriggerBindingStatus), z.string()]),
 })
 export type TriggerBindingSnapshotSchema = z.infer<typeof TriggerBindingSnapshotSchema>
 
@@ -37,7 +41,7 @@ export const ScheduledTaskSnapshotSchema = z.object({
     prompt: z.string(),
     cronExpression: z.string(),
     timezone: z.string(),
-    status: z.string(),
+    status: z.union([z.nativeEnum(ScheduledTaskStatus), z.string()]),
 })
 export type ScheduledTaskSnapshotSchema = z.infer<typeof ScheduledTaskSnapshotSchema>
 
@@ -130,6 +134,7 @@ export type ProjectReplaceArtifact = z.infer<typeof ProjectReplaceArtifact>
 
 export const ProjectReplaceApplyRequest = z.object({
     plan: ProjectReplacePlan,
+    snapshot: ProjectStateSnapshot.optional(),
     dryRun: z.boolean().optional(),
     force: z.boolean().optional(),
 })

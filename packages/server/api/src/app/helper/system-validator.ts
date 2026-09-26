@@ -227,6 +227,7 @@ const systemPropValidators: {
         return !isNaN(n) && n >= 0 && n <= 100 ? true : 'Value must be a number between 0 and 100'
     },
     [AppSystemProp.LOG_KEEP_SLOW_MS]: numberValidator,
+    [AppSystemProp.PROJECT_REPLACE_SIGNING_SECRET]: stringValidator,
 }
 
 

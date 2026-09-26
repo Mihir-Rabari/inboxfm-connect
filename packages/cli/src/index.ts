@@ -9,6 +9,7 @@ import { bundlePieceCommand } from './lib/commands/bundle-piece';
 import { migratePieceCommand } from './lib/commands/migrate-piece';
 import { generateWorkerTokenCommand } from './lib/commands/generate-worker-token';
 import { generateTranslationFileForAllPiecesCommand, generateTranslationFileForPieceCommand } from './lib/commands/generate-translation-file-for-piece';
+import { projectReplaceCommand } from './lib/commands/project-replace';
 
 const pieceCommand = new Command('pieces')
   .description('Manage pieces');
@@ -39,6 +40,8 @@ workerCommand.addCommand(generateWorkerTokenCommand)
 
 const projectCommand = new Command('project')
   .description('Manage projects')
+
+projectCommand.addCommand(projectReplaceCommand)
 
 
 const program = new Command();

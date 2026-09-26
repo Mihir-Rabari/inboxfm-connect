@@ -59,7 +59,7 @@ const basePiecesController: FastifyPluginAsyncZod = async (app) => {
                 i18n: undefined,
             }
         })
-        return paginatePieces(mappedPieces, query.cursor, query.limit)
+        return paginatePieces(mappedPieces, query.cursor, query.limit, query)
     })
 
     app.get(
@@ -139,11 +139,38 @@ const basePiecesController: FastifyPluginAsyncZod = async (app) => {
 
 }
 
-const DEFAULT_PAGE_SIZE = 10
+const DEFAULT_PAGE_SIZE = 20
 
 type PieceCursorPayload = {
     name: string
     index: number
+    queryHash?: string
+}
+
+function computeQueryFingerprint(query?: Record<string, unknown>): string {
+    if (!query) {
+        return ''
+    }
+    const relevantKeys = [
+        'searchQuery',
+        'sortBy',
+        'orderBy',
+        'suggestionType',
+        'categories',
+        'includeTags',
+        'includeHidden',
+        'edition',
+        'locale',
+        'projectId',
+    ]
+    const filtered: Record<string, unknown> = {}
+    for (const key of relevantKeys.sort()) {
+        const val = query[key]
+        if (val !== undefined && val !== null && val !== '') {
+            filtered[key] = Array.isArray(val) ? [...val].sort() : val
+        }
+    }
+    return Buffer.from(JSON.stringify(filtered)).toString('base64')
 }
 
 function encodePieceCursor(payload: PieceCursorPayload): string {
@@ -153,7 +180,11 @@ function encodePieceCursor(payload: PieceCursorPayload): string {
 function decodePieceCursor(cursorStr: string): PieceCursorPayload | null {
     try {
         const decoded = Buffer.from(cursorStr, 'base64').toString('utf8')
-        return JSON.parse(decoded) as PieceCursorPayload
+        const parsed = JSON.parse(decoded)
+        if (typeof parsed !== 'object' || parsed === null || typeof parsed.name !== 'string' || typeof parsed.index !== 'number') {
+            return null
+        }
+        return parsed as PieceCursorPayload
     }
     catch {
         return null
@@ -164,12 +195,15 @@ function paginatePieces(
     pieces: PieceMetadataModelSummary[],
     cursorRequest?: string,
     limitRequest?: number,
+    activeQuery?: Record<string, unknown>,
 ): SeekPage<PieceMetadataModelSummary> {
     if (limitRequest === undefined && cursorRequest === undefined) {
         return paginationHelper.createPage(pieces, { afterCursor: null, beforeCursor: null })
     }
 
-    const limit = limitRequest ?? DEFAULT_PAGE_SIZE
+    const rawLimit = limitRequest ?? DEFAULT_PAGE_SIZE
+    const limit = Math.max(1, Math.min(Math.floor(rawLimit) || DEFAULT_PAGE_SIZE, 500))
+    const currentQueryHash = computeQueryFingerprint(activeQuery)
     const decodedCursor = paginationHelper.decodeCursor(cursorRequest)
 
     let startIndex = 0
@@ -178,36 +212,71 @@ function paginatePieces(
     if (decodedCursor.nextCursor) {
         const payload = decodePieceCursor(decodedCursor.nextCursor)
         if (payload) {
-            let foundIdx = -1
-            if (payload.index >= 0 && payload.index < pieces.length && pieces[payload.index].name === payload.name) {
-                foundIdx = payload.index
+            // Stale cursor query check
+            if (payload.queryHash && payload.queryHash !== currentQueryHash) {
+                // Restart at first page
+                startIndex = 0
+                endIndex = Math.min(limit, pieces.length)
             }
             else {
-                foundIdx = pieces.findIndex((p) => p.name === payload.name)
-            }
-            if (foundIdx !== -1) {
-                startIndex = foundIdx + 1
-            }
-        }
-        startIndex = Math.max(0, Math.min(startIndex, pieces.length))
-        endIndex = Math.min(startIndex + limit, pieces.length)
-    }
-    else if (decodedCursor.previousCursor) {
-        const payload = decodePieceCursor(decodedCursor.previousCursor)
-        let foundIdx = pieces.length
-        if (payload) {
-            if (payload.index >= 0 && payload.index < pieces.length && pieces[payload.index].name === payload.name) {
-                foundIdx = payload.index
-            }
-            else {
-                const idx = pieces.findIndex((p) => p.name === payload.name)
-                if (idx !== -1) {
-                    foundIdx = idx
+                let foundIdx = -1
+                if (payload.index >= 0 && payload.index < pieces.length && pieces[payload.index].name === payload.name) {
+                    foundIdx = payload.index
+                }
+                else {
+                    foundIdx = pieces.findIndex((p) => p.name === payload.name)
+                }
+                if (foundIdx !== -1) {
+                    startIndex = foundIdx + 1
+                    startIndex = Math.max(0, Math.min(startIndex, pieces.length))
+                    endIndex = Math.min(startIndex + limit, pieces.length)
+                }
+                else {
+                    // Anchor piece not found in list -> fallback to first page
+                    startIndex = 0
+                    endIndex = Math.min(limit, pieces.length)
                 }
             }
         }
-        endIndex = Math.max(0, Math.min(foundIdx, pieces.length))
-        startIndex = Math.max(0, endIndex - limit)
+        else {
+            // Malformed next cursor -> fallback to first page
+            startIndex = 0
+            endIndex = Math.min(limit, pieces.length)
+        }
+    }
+    else if (decodedCursor.previousCursor) {
+        const payload = decodePieceCursor(decodedCursor.previousCursor)
+        if (payload) {
+            // Stale cursor query check
+            if (payload.queryHash && payload.queryHash !== currentQueryHash) {
+                // Restart at first page
+                startIndex = 0
+                endIndex = Math.min(limit, pieces.length)
+            }
+            else {
+                let foundIdx = -1
+                if (payload.index >= 0 && payload.index < pieces.length && pieces[payload.index].name === payload.name) {
+                    foundIdx = payload.index
+                }
+                else {
+                    foundIdx = pieces.findIndex((p) => p.name === payload.name)
+                }
+                if (foundIdx !== -1) {
+                    endIndex = foundIdx
+                    startIndex = Math.max(0, endIndex - limit)
+                }
+                else {
+                    // Anchor piece not found in list -> fallback to first page
+                    startIndex = 0
+                    endIndex = Math.min(limit, pieces.length)
+                }
+            }
+        }
+        else {
+            // Malformed previous cursor -> fallback to first page
+            startIndex = 0
+            endIndex = Math.min(limit, pieces.length)
+        }
     }
     else {
         startIndex = 0
@@ -219,10 +288,10 @@ function paginatePieces(
     const hasPrevious = startIndex > 0
 
     const afterCursor = (data.length > 0 && hasMore)
-        ? encodePieceCursor({ name: data[data.length - 1].name, index: startIndex + data.length - 1 })
+        ? encodePieceCursor({ name: data[data.length - 1].name, index: startIndex + data.length - 1, queryHash: currentQueryHash })
         : null
     const beforeCursor = (data.length > 0 && hasPrevious)
-        ? encodePieceCursor({ name: data[0].name, index: startIndex })
+        ? encodePieceCursor({ name: data[0].name, index: startIndex, queryHash: currentQueryHash })
         : null
 
     return paginationHelper.createPage(data, { afterCursor, beforeCursor })

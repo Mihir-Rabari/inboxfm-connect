@@ -85,7 +85,7 @@ export default function DashboardPage() {
               <Skeleton className="h-7 w-16" />
             ) : (
               <div className="text-2xl font-bold tracking-tight text-foreground">
-                {totalToolsCount > 0 ? totalToolsCount : integrationList.length}
+                {totalToolsCount}
               </div>
             )}
             <p className="text-[11px] text-muted-foreground mt-0.5">

@@ -1,21 +1,28 @@
-import { apId } from '@inboxfm-connect/core-utils'
+import crypto from 'crypto'
+import { AIProviderName, apId } from '@inboxfm-connect/core-utils'
 import {
+    AgentToolType,
     AppConnectionScope,
     AppConnectionType,
     ConnectionMappingSchema,
     FieldType,
+    McpAuthType,
+    McpProtocol,
     PackageType,
     PieceType,
     ProjectReplaceArtifact,
     ProjectStateSnapshot,
+    ProviderMappingSchema,
     TableAutomationStatus,
     TableAutomationTrigger,
 } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { vi } from 'vitest'
+import { agentService } from '../../../../src/app/agents/agent.service'
 import { appConnectionService } from '../../../../src/app/app-connection/app-connection-service/app-connection-service'
 import { userInteractionWatcher } from '../../../../src/app/helper/user-interaction/user-interaction-watcher'
+import { mockAndSaveAIProvider } from '../../../helpers/mocks'
 import { createTestContext, TestContext } from '../../../helpers/test-context'
 import { setupTestEnvironment, teardownTestEnvironment } from '../../../helpers/test-setup'
 
@@ -1605,6 +1612,771 @@ describe('Project Replace API (CE)', () => {
             })
 
             expect(applyRes.statusCode).toBe(StatusCodes.FORBIDDEN)
+        })
+    })
+
+    describe('Agent Definition and Tool Binding Mirroring (Issue #52)', () => {
+        it('should export standalone agent definitions and sanitize tool secrets', async () => {
+            const conn = await appConnectionService(app!.log).upsert({
+                projectIds: [ctx.project.id],
+                platformId: ctx.platform.id,
+                externalId: 'agent-conn-src',
+                displayName: 'Slack for Agent',
+                pieceName: '@inboxfm-connect/piece-slack',
+                pieceVersion: '0.1.0',
+                type: AppConnectionType.SECRET_TEXT,
+                value: { type: AppConnectionType.SECRET_TEXT, secret_text: 'super-secret' },
+                scope: AppConnectionScope.PROJECT,
+                ownerId: null,
+            })
+
+            await agentService.create({
+                projectId: ctx.project.id,
+                platformId: ctx.platform.id,
+                externalId: 'agent-export-test',
+                displayName: 'Customer Support Bot',
+                description: 'Handles support requests',
+                prompt: 'You are a support bot.',
+                maxSteps: 15,
+                model: {
+                    provider: 'openai',
+                    model: 'gpt-4o',
+                },
+                tools: [
+                    {
+                        type: AgentToolType.PIECE,
+                        toolName: 'send_slack_message',
+                        pieceMetadata: {
+                            pieceName: '@inboxfm-connect/piece-slack',
+                            pieceVersion: '0.1.0',
+                            actionName: 'send_message',
+                            predefinedInput: {
+                                auth: conn.id,
+                                fields: {},
+                            },
+                        },
+                    },
+                    {
+                        type: AgentToolType.MCP,
+                        toolName: 'knowledge_mcp',
+                        serverUrl: 'https://mcp.example.com',
+                        protocol: McpProtocol.SSE,
+                        auth: {
+                            type: McpAuthType.ACCESS_TOKEN,
+                            accessToken: 'live-bearer-secret-token',
+                        },
+                    },
+                ],
+                structuredOutput: null,
+                status: 'ENABLED',
+            })
+
+            const exportRes = await app!.inject({
+                method: 'GET',
+                url: `/api/v1/projects/${ctx.project.id}/replace/export`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+            })
+
+            expect(exportRes.statusCode).toBe(StatusCodes.OK)
+            const snapshot: ProjectStateSnapshot = exportRes.json()
+            expect(snapshot.agents).toBeDefined()
+            expect(snapshot.agents.length).toBe(1)
+
+            const exportedAgent = snapshot.agents[0]
+            expect(exportedAgent.externalId).toBe('agent-export-test')
+            expect(exportedAgent.displayName).toBe('Customer Support Bot')
+            expect(exportedAgent.maxSteps).toBe(15)
+
+            const pieceTool = exportedAgent.tools.find(t => t.type === AgentToolType.PIECE)
+            expect(pieceTool).toBeDefined()
+            expect(pieceTool!.pieceMetadata.predefinedInput?.auth).toBe("{{connections['agent-conn-src']}}")
+            expect(snapshot.requiredConnections.some(c => c.externalId === 'agent-conn-src')).toBe(true)
+
+            const mcpTool = exportedAgent.tools.find(t => t.type === AgentToolType.MCP)
+            expect(mcpTool).toBeDefined()
+            expect((mcpTool as any).auth.accessToken).toBe('[REDACTED]')
+        })
+
+        it('should fail preflight when required AI provider is missing on destination', async () => {
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                agents: [
+                    {
+                        externalId: 'agent-missing-provider',
+                        displayName: 'Claude Agent',
+                        prompt: 'Hello world',
+                        maxSteps: 10,
+                        model: {
+                            provider: 'anthropic',
+                            model: 'claude-3-5-sonnet',
+                        },
+                        tools: [],
+                        structuredOutput: null,
+                        status: 'ENABLED',
+                    },
+                ],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+
+            expect(planRes.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            const body = planRes.json()
+            expect(body.plan.preflight.passed).toBe(false)
+            const missingProviderError = body.plan.preflight.errors.find(
+                (e: { kind: string, details?: { provider?: string } }) => e.kind === 'MISSING_AI_PROVIDER' && e.details?.provider === 'anthropic'
+            )
+            expect(missingProviderError).toBeDefined()
+        })
+
+        it('should pass preflight and apply agent when AI provider is remapped to configured destination provider', async () => {
+            await mockAndSaveAIProvider({
+                platformId: ctx.platform.id,
+                provider: AIProviderName.ANTHROPIC,
+                displayName: 'Anthropic Dest',
+            })
+
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                agents: [
+                    {
+                        externalId: 'agent-remapped-provider',
+                        displayName: 'Support Assistant',
+                        description: 'Handles tickets',
+                        prompt: 'Answer politely',
+                        maxSteps: 8,
+                        model: {
+                            provider: 'openai',
+                            model: 'gpt-4o',
+                        },
+                        tools: [],
+                        structuredOutput: null,
+                        status: 'ENABLED',
+                    },
+                ],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const providerMappings: ProviderMappingSchema[] = [
+                { sourceProvider: 'openai', destProvider: 'anthropic' },
+            ]
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    snapshot: sourceSnapshot,
+                    providerMappings,
+                },
+            })
+
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+            expect(artifact.plan.preflight.passed).toBe(true)
+            expect(artifact.plan.changes.creates.some(c => c.kind === 'agent' && c.externalId === 'agent-remapped-provider')).toBe(true)
+
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                    providerMappings,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.OK)
+            const applyResult = applyRes.json()
+            expect(applyResult.applied.agentsCreated).toBe(1)
+            expect(applyResult.failed.length).toBe(0)
+
+            const createdAgent = await agentService.getByExternalId({
+                externalId: 'agent-remapped-provider',
+                projectId: ctx.project.id,
+                platformId: ctx.platform.id,
+            })
+            expect(createdAgent).toBeDefined()
+            expect(createdAgent!.model.provider).toBe('anthropic')
+            expect(createdAgent!.displayName).toBe('Support Assistant')
+        })
+
+        it('should converge idempotently on retry with 0 duplicate agents', async () => {
+            await mockAndSaveAIProvider({
+                platformId: ctx.platform.id,
+                provider: AIProviderName.ANTHROPIC,
+            })
+
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                agents: [
+                    {
+                        externalId: 'agent-idempotent-test',
+                        displayName: 'Idempotent Agent',
+                        prompt: 'Prompt 1',
+                        maxSteps: 10,
+                        model: {
+                            provider: 'anthropic',
+                            model: 'claude-3-5-sonnet',
+                        },
+                        tools: [],
+                        structuredOutput: null,
+                        status: 'ENABLED',
+                    },
+                ],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const plan1 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+            expect(plan1.statusCode).toBe(StatusCodes.OK)
+
+            const apply1 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: plan1.json().plan,
+                    snapshot: sourceSnapshot,
+                },
+            })
+            expect(apply1.statusCode).toBe(StatusCodes.OK)
+            expect(apply1.json().applied.agentsCreated).toBe(1)
+
+            const plan2 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+            expect(plan2.statusCode).toBe(StatusCodes.OK)
+            const plan2Data: ProjectReplaceArtifact = plan2.json()
+            expect(plan2Data.plan.changes.creates.filter(c => c.kind === 'agent').length).toBe(0)
+            expect(plan2Data.plan.changes.unchanged.some(u => u.kind === 'agent' && u.externalId === 'agent-idempotent-test')).toBe(true)
+
+            const apply2 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: plan2Data.plan,
+                    snapshot: sourceSnapshot,
+                },
+            })
+            expect(apply2.statusCode).toBe(StatusCodes.OK)
+            expect(apply2.json().applied.agentsCreated).toBe(0)
+            expect(apply2.json().applied.agentsUnchanged).toBe(1)
+
+            const allAgents = await agentService.listByProjectId({ projectId: ctx.project.id })
+            const matchingAgents = allAgents.filter(a => a.externalId === 'agent-idempotent-test')
+            expect(matchingAgents.length).toBe(1)
+        })
+
+        it('should maintain backward compatibility by extracting agents from legacy flow definitions', async () => {
+            await mockAndSaveAIProvider({
+                platformId: ctx.platform.id,
+                provider: AIProviderName.ANTHROPIC,
+            })
+
+            const legacySnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                agents: [],
+                flows: [
+                    {
+                        id: 'flow-legacy-1',
+                        version: {
+                            trigger: {
+                                name: 'trigger',
+                                type: 'PIECE',
+                                settings: {
+                                    pieceName: '@inboxfm-connect/piece-ai',
+                                    input: {
+                                        agentId: 'legacy-flow-agent-99',
+                                        prompt: 'Agent extracted from flow',
+                                        model: {
+                                            provider: 'anthropic',
+                                            model: 'claude-3-5-sonnet',
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                ],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: legacySnapshot,
+            })
+
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const planData: ProjectReplaceArtifact = planRes.json()
+            expect(planData.plan.changes.creates.some(c => c.kind === 'agent' && c.externalId === 'legacy-flow-agent-99')).toBe(true)
+
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: planData.plan,
+                    snapshot: legacySnapshot,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.OK)
+            expect(applyRes.json().applied.agentsCreated).toBe(1)
+
+            const created = await agentService.getByExternalId({
+                externalId: 'legacy-flow-agent-99',
+                projectId: ctx.project.id,
+            })
+            expect(created).toBeDefined()
+            expect(created!.prompt).toBe('Agent extracted from flow')
+        })
+
+        it('should enforce dependency ordering (tables/connections before agents before trigger bindings)', async () => {
+            await mockAndSaveAIProvider({
+                platformId: ctx.platform.id,
+                provider: AIProviderName.ANTHROPIC,
+            })
+
+            await appConnectionService(app!.log).upsert({
+                projectIds: [ctx.project.id],
+                platformId: ctx.platform.id,
+                externalId: 'ordered-conn-1',
+                displayName: 'Ordered Conn',
+                pieceName: '@inboxfm-connect/piece-slack',
+                pieceVersion: '0.1.0',
+                type: AppConnectionType.SECRET_TEXT,
+                value: { type: AppConnectionType.SECRET_TEXT, secret_text: 'token' },
+                scope: AppConnectionScope.PROJECT,
+                ownerId: null,
+            })
+
+            const complexSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [
+                    {
+                        name: 'OrderedTable',
+                        externalId: 'tbl-ordered-1',
+                        fields: [{ name: 'col1', type: FieldType.TEXT }],
+                    },
+                ],
+                agents: [
+                    {
+                        externalId: 'agent-ordered-1',
+                        displayName: 'Ordered Agent',
+                        prompt: 'Agent prompt',
+                        maxSteps: 10,
+                        model: {
+                            provider: 'anthropic',
+                            model: 'claude-3-5-sonnet',
+                        },
+                        tools: [],
+                        structuredOutput: null,
+                        status: 'ENABLED',
+                    },
+                ],
+                triggerBindings: [
+                    {
+                        externalId: 'tb-ordered-1',
+                        pieceName: '@inboxfm-connect/piece-slack',
+                        pieceVersion: '0.1.0',
+                        triggerName: 'new_message',
+                        promptTemplate: 'Run agent {{prompt}}',
+                        connectionExternalId: 'ordered-conn-1',
+                        settings: {},
+                        propertySettings: null,
+                        status: 'ENABLED',
+                    },
+                ],
+                scheduledTasks: [
+                    {
+                        externalId: 'st-ordered-1',
+                        prompt: 'Run daily agent task',
+                        cronExpression: '0 0 * * *',
+                        timezone: 'UTC',
+                        status: 'ENABLED',
+                    },
+                ],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [
+                    {
+                        externalId: 'ordered-conn-1',
+                        pieceName: '@inboxfm-connect/piece-slack',
+                    },
+                ],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: complexSnapshot,
+            })
+
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const planData: ProjectReplaceArtifact = planRes.json()
+
+            const kinds = planData.plan.changes.creates.map(c => c.kind)
+            const tableIdx = kinds.indexOf('table')
+            const agentIdx = kinds.indexOf('agent')
+            const tbIdx = kinds.indexOf('trigger_binding')
+            const stIdx = kinds.indexOf('scheduled_task')
+
+            expect(tableIdx).toBeGreaterThanOrEqual(0)
+            expect(agentIdx).toBeGreaterThan(tableIdx)
+            expect(tbIdx).toBeGreaterThan(agentIdx)
+            expect(stIdx).toBeGreaterThan(agentIdx)
+        })
+
+        it('should maintain strict project isolation for agents with same externalId across different projects', async () => {
+            await mockAndSaveAIProvider({
+                platformId: ctx.platform.id,
+                provider: AIProviderName.ANTHROPIC,
+            })
+
+            const ctx2 = await createTestContext(app!)
+            await mockAndSaveAIProvider({
+                platformId: ctx2.platform.id,
+                provider: AIProviderName.ANTHROPIC,
+            })
+
+            const snapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                agents: [
+                    {
+                        externalId: 'shared-external-id-agent',
+                        displayName: 'Project A Agent',
+                        prompt: 'Prompt for Project A',
+                        maxSteps: 5,
+                        model: {
+                            provider: 'anthropic',
+                            model: 'claude-3-5-sonnet',
+                        },
+                        tools: [],
+                        structuredOutput: null,
+                        status: 'ENABLED',
+                    },
+                ],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const plan1 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: snapshot,
+            })
+            await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: { plan: plan1.json().plan, snapshot },
+            })
+
+            const snapshot2: ProjectStateSnapshot = {
+                ...snapshot,
+                agents: [
+                    {
+                        ...snapshot.agents[0],
+                        displayName: 'Project B Agent',
+                        prompt: 'Prompt for Project B',
+                    },
+                ],
+            }
+            const plan2 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx2.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx2.token}` },
+                body: snapshot2,
+            })
+            await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx2.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx2.token}` },
+                body: { plan: plan2.json().plan, snapshot: snapshot2 },
+            })
+
+            const agentA = await agentService.getByExternalId({ externalId: 'shared-external-id-agent', projectId: ctx.project.id })
+            const agentB = await agentService.getByExternalId({ externalId: 'shared-external-id-agent', projectId: ctx2.project.id })
+
+            expect(agentA).toBeDefined()
+            expect(agentB).toBeDefined()
+            expect(agentA!.id).not.toBe(agentB!.id)
+            expect(agentA!.displayName).toBe('Project A Agent')
+            expect(agentB!.displayName).toBe('Project B Agent')
+
+            const emptySnapshot: ProjectStateSnapshot = {
+                ...snapshot,
+                agents: [],
+            }
+            const planDelete = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx2.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx2.token}` },
+                body: emptySnapshot,
+            })
+            await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx2.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx2.token}` },
+                body: { plan: planDelete.json().plan, snapshot: emptySnapshot },
+            })
+
+            const agentBDeleted = await agentService.getByExternalId({ externalId: 'shared-external-id-agent', projectId: ctx2.project.id })
+            const agentAStillThere = await agentService.getByExternalId({ externalId: 'shared-external-id-agent', projectId: ctx.project.id })
+
+            expect(agentBDeleted).toBeNull()
+            expect(agentAStillThere).toBeDefined()
+            expect(agentAStillThere!.displayName).toBe('Project A Agent')
+        })
+
+        it('should redact unresolvable/foreign tool auth secrets on export and resolve same-project connections', async () => {
+            const ctx = await createTestContext(app!)
+            const ctxOther = await createTestContext(app!)
+
+            // 1. Create connection in other project
+            const foreignConn = await appConnectionService(app!.log).upsert({
+                projectIds: [ctxOther.project.id],
+                platformId: ctxOther.platform.id,
+                externalId: 'foreign-conn',
+                displayName: 'Foreign Slack Conn',
+                pieceName: '@inboxfm-connect/piece-slack',
+                pieceVersion: '0.1.0',
+                type: AppConnectionType.SECRET_TEXT,
+                value: {
+                    type: AppConnectionType.SECRET_TEXT,
+                    secret_text: 'foreign-token',
+                },
+                scope: AppConnectionScope.PROJECT,
+                ownerId: null,
+            })
+
+            // 2. Create connection in this project
+            const ownConn = await appConnectionService(app!.log).upsert({
+                projectIds: [ctx.project.id],
+                platformId: ctx.platform.id,
+                externalId: 'own-conn',
+                displayName: 'Own Slack Conn',
+                pieceName: '@inboxfm-connect/piece-slack',
+                pieceVersion: '0.1.0',
+                type: AppConnectionType.SECRET_TEXT,
+                value: {
+                    type: AppConnectionType.SECRET_TEXT,
+                    secret_text: 'own-token',
+                },
+                scope: AppConnectionScope.PROJECT,
+                ownerId: null,
+            })
+
+            // 3. Create an agent in ctx.project with 3 tools:
+            // a) raw literal secret
+            // b) foreign connection ref
+            // c) own connection ref
+            await agentService.create({
+                projectId: ctx.project.id,
+                platformId: ctx.platform.id,
+                externalId: 'secret-test-agent',
+                displayName: 'Secret Test Agent',
+                prompt: 'Test prompt',
+                model: { provider: AIProviderName.OPENAI, model: 'gpt-4o' },
+                status: 'ENABLED',
+                tools: [
+                    {
+                        type: 'PIECE',
+                        pieceMetadata: {
+                            pieceName: '@inboxfm-connect/piece-slack',
+                            pieceVersion: '0.1.0',
+                            actionName: 'send_message',
+                            predefinedInput: {
+                                auth: 'sk-proj-raw-secret-token-12345',
+                            },
+                        },
+                    },
+                    {
+                        type: 'PIECE',
+                        pieceMetadata: {
+                            pieceName: '@inboxfm-connect/piece-slack',
+                            pieceVersion: '0.1.0',
+                            actionName: 'send_message',
+                            predefinedInput: {
+                                auth: `{{connections['${foreignConn.externalId}']}}`,
+                            },
+                        },
+                    },
+                    {
+                        type: 'PIECE',
+                        pieceMetadata: {
+                            pieceName: '@inboxfm-connect/piece-slack',
+                            pieceVersion: '0.1.0',
+                            actionName: 'send_message',
+                            predefinedInput: {
+                                auth: `{{connections['${ownConn.externalId}']}}`,
+                            },
+                        },
+                    },
+                ],
+            })
+
+            // 4. Export snapshot
+            const exportRes = await app!.inject({
+                method: 'GET',
+                url: `/api/v1/projects/${ctx.project.id}/replace/export`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+            })
+            expect(exportRes.statusCode).toBe(StatusCodes.OK)
+            const snapshot = exportRes.json() as ProjectStateSnapshot
+
+            const exportedAgent = snapshot.agents?.find(a => a.externalId === 'secret-test-agent')
+            expect(exportedAgent).toBeDefined()
+            expect(exportedAgent!.tools).toHaveLength(3)
+
+            // Verify raw literal secret is redacted
+            expect((exportedAgent!.tools[0] as any).pieceMetadata.predefinedInput.auth).toBe('[REDACTED]')
+
+            // Verify foreign connection ref is redacted because it does not belong to this project
+            expect((exportedAgent!.tools[1] as any).pieceMetadata.predefinedInput.auth).toBe('[REDACTED]')
+
+            // Verify own connection ref is preserved
+            expect((exportedAgent!.tools[2] as any).pieceMetadata.predefinedInput.auth).toBe(`{{connections['${ownConn.externalId}']}}`)
+        })
+
+        it('should reject agent preflight when connection exists on platform but in a different project', async () => {
+            const ctxDest = await createTestContext(app!)
+            const ctxOther = await createTestContext(app!)
+
+            await mockAndSaveAIProvider({
+                platformId: ctxDest.platform.id,
+                provider: AIProviderName.OPENAI,
+            })
+
+            // Connection created in ctxOther, NOT ctxDest
+            await appConnectionService(app!.log).upsert({
+                projectIds: [ctxOther.project.id],
+                platformId: ctxOther.platform.id,
+                externalId: 'other-project-conn',
+                displayName: 'Other Project Slack Conn',
+                pieceName: '@inboxfm-connect/piece-slack',
+                pieceVersion: '0.1.0',
+                type: AppConnectionType.SECRET_TEXT,
+                value: {
+                    type: AppConnectionType.SECRET_TEXT,
+                    secret_text: 'token',
+                },
+                scope: AppConnectionScope.PROJECT,
+                ownerId: null,
+            })
+
+            const snapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.122.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+                agents: [
+                    {
+                        externalId: 'cross-project-test-agent',
+                        displayName: 'Cross Project Test Agent',
+                        prompt: 'Hello',
+                        maxSteps: 5,
+                        model: { provider: AIProviderName.OPENAI, model: 'gpt-4o' },
+                        status: 'ENABLED',
+                        tools: [
+                            {
+                                type: AgentToolType.PIECE,
+                                toolName: 'send_slack',
+                                pieceMetadata: {
+                                    pieceName: '@inboxfm-connect/piece-slack',
+                                    pieceVersion: '0.1.0',
+                                    actionName: 'send_message',
+                                    predefinedInput: {
+                                        auth: `{{connections['other-project-conn']}}`,
+                                        fields: {},
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ],
+            }
+
+            // Create plan on ctxDest
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctxDest.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctxDest.token}` },
+                body: snapshot,
+            })
+
+            expect(planRes.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            const body = planRes.json()
+            expect(body.plan.preflight.passed).toBe(false)
+            expect(body.plan.preflight.errors.some((e: any) =>
+                e.kind === 'MISSING_CONNECTION' && e.details?.connectionExternalId === 'other-project-conn'
+            )).toBe(true)
         })
     })
 })

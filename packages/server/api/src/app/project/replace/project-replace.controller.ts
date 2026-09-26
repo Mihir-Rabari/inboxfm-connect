@@ -1,4 +1,4 @@
-import { ConnectionMappingSchema, Permission, PlatformRole, PrincipalType, ProjectReplaceApplyRequest, ProjectStateSnapshot } from '@inboxfm-connect/shared'
+import { ConnectionMappingSchema, Permission, PlatformRole, PrincipalType, ProjectReplaceApplyRequest, ProjectStateSnapshot, ProviderMappingSchema } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
@@ -16,6 +16,7 @@ const PlanBodySchema = z.union([
     z.object({
         snapshot: ProjectStateSnapshot,
         connectionMappings: z.array(ConnectionMappingSchema).optional(),
+        providerMappings: z.array(ProviderMappingSchema).optional(),
     }),
 ])
 
@@ -56,12 +57,14 @@ export const projectReplaceController: FastifyPluginAsyncZod = async (fastify) =
         const platformId = request.principal.platform.id
         const snapshot = 'snapshot' in request.body ? request.body.snapshot : request.body
         const connectionMappings = 'connectionMappings' in request.body ? request.body.connectionMappings : undefined
+        const providerMappings = 'providerMappings' in request.body ? request.body.providerMappings : undefined
 
         const plan = await projectReplaceService(request.log).createPlan({
             targetProjectId: projectId,
             targetPlatformId: platformId,
             snapshot,
             connectionMappings,
+            providerMappings,
         })
         const statusCode = plan.preflight.passed ? StatusCodes.OK : StatusCodes.BAD_REQUEST
         return reply.status(statusCode).send({
@@ -121,6 +124,7 @@ export const projectReplaceController: FastifyPluginAsyncZod = async (fastify) =
                 deployCustomIntegrations: z.boolean().optional(),
                 inspectOnly: z.boolean().optional(),
                 connectionMappings: z.array(ConnectionMappingSchema).optional(),
+                providerMappings: z.array(ProviderMappingSchema).optional(),
             }),
         },
         config: {
@@ -157,6 +161,7 @@ export const projectReplaceController: FastifyPluginAsyncZod = async (fastify) =
                 deployCustomIntegrations: request.body.deployCustomIntegrations,
                 inspectOnly: request.body.inspectOnly,
                 connectionMappings: request.body.connectionMappings,
+                providerMappings: request.body.providerMappings,
             },
             snapshot: request.body.snapshot,
         })
@@ -172,7 +177,10 @@ export const projectReplaceController: FastifyPluginAsyncZod = async (fastify) =
                 snapshot: ProjectStateSnapshot,
                 dryRun: z.boolean().optional(),
                 force: z.boolean().optional(),
+                deployCustomIntegrations: z.boolean().optional(),
+                inspectOnly: z.boolean().optional(),
                 connectionMappings: z.array(ConnectionMappingSchema).optional(),
+                providerMappings: z.array(ProviderMappingSchema).optional(),
             }),
         },
         config: {
@@ -187,11 +195,24 @@ export const projectReplaceController: FastifyPluginAsyncZod = async (fastify) =
         const platformId = request.principal.platform.id
         const service = projectReplaceService(request.log)
 
+        if (request.body.deployCustomIntegrations) {
+            if (request.principal.type === PrincipalType.USER) {
+                const user = await userService(request.log).getOneOrFail({ id: request.principal.id })
+                if (user.platformRole !== PlatformRole.ADMIN) {
+                    return reply.status(StatusCodes.FORBIDDEN).send({
+                        code: 'PERMISSION_DENIED',
+                        message: 'Deploying custom integrations platform-wide requires platform administrator permissions.',
+                    })
+                }
+            }
+        }
+
         const plan = await service.createPlan({
             targetProjectId: projectId,
             targetPlatformId: platformId,
             snapshot: request.body.snapshot,
             connectionMappings: request.body.connectionMappings,
+            providerMappings: request.body.providerMappings,
         })
 
         if (!plan.preflight.passed && !request.body.force) {
@@ -220,7 +241,10 @@ export const projectReplaceController: FastifyPluginAsyncZod = async (fastify) =
                 snapshot: request.body.snapshot,
                 dryRun: false,
                 force: request.body.force,
+                deployCustomIntegrations: request.body.deployCustomIntegrations,
+                inspectOnly: request.body.inspectOnly,
                 connectionMappings: request.body.connectionMappings,
+                providerMappings: request.body.providerMappings,
             },
             snapshot: request.body.snapshot,
         })

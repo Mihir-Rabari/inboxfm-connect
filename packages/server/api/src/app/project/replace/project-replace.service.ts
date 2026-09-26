@@ -1,9 +1,22 @@
 import crypto from 'crypto'
-import { apId } from '@inboxfm-connect/core-utils'
+import { AIProviderName, apId, ApMultipartFile } from '@inboxfm-connect/core-utils'
 import { apVersionUtil } from '@inboxfm-connect/server-utils'
 import {
+    Agent,
+    AgentOutputField,
+    AgentSnapshotSchema,
+    AgentTool,
+    AppConnectionScope,
+    AppConnectionType,
+    AppConnectionValue,
+    ConnectionMappingSchema,
+    ConnectionPreflightReportSchema,
     Field,
     FieldType,
+    McpAuthType,
+    PackageType,
+    PieceScope,
+    PieceType,
     PreflightError,
     ProjectReplaceApplyRequest,
     ProjectReplaceApplyResult,
@@ -11,25 +24,21 @@ import {
     ProjectReplacePlan,
     ProjectReplaceResourceKind,
     ProjectStateSnapshot,
+    ProviderMappingSchema,
+    RequiredPieceSchema,
     ScheduledTaskStatus,
     Table,
     TableAutomationStatus,
     TableAutomationTrigger,
     TriggerBindingStatus,
-    PackageType,
-    PieceScope,
-    PieceType,
-    RequiredPieceSchema,
-    AppConnectionScope,
-    AppConnectionType,
-    AppConnectionValue,
-    ConnectionMappingSchema,
-    ConnectionPreflightReportSchema,
 } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import semver from 'semver'
 import { ArrayContains } from 'typeorm'
+import { agentService } from '../../agents/agent.service'
+import { AgentEntity, AgentSchema } from '../../agents/agent.entity'
+import { AIProviderEntity, AIProviderSchema } from '../../ai/ai-provider-entity'
 import { ConnectionEntity } from '../../app-connection/app-connection.entity'
 import { appConnectionService } from '../../app-connection/app-connection-service/app-connection-service'
 import { repoFactory } from '../../core/db/repo-factory'
@@ -38,6 +47,7 @@ import { scheduledTaskService } from '../../execution/scheduled-task/scheduled-t
 import { TriggerBindingEntity } from '../../execution/trigger-binding/trigger-binding-entity'
 import { triggerBindingService } from '../../execution/trigger-binding/trigger-binding.service'
 import { fileRepo } from '../../file/file.service'
+import { flagService } from '../../flags/flag.service'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 import { mcpServerService } from '../../mcp/mcp-service'
@@ -49,12 +59,261 @@ import { TableEntity } from '../../tables/table/table.entity'
 import { tableService } from '../../tables/table/table.service'
 
 import { distributedLock } from '../../database/redis-connections'
-import { ApMultipartFile } from '@inboxfm-connect/core-utils'
 
 const tableRepo = repoFactory(TableEntity)
 const triggerBindingRepo = repoFactory(TriggerBindingEntity)
 const scheduledTaskRepo = repoFactory(ScheduledTaskEntity)
 const connectionRepo = repoFactory(ConnectionEntity)
+const agentRepo = repoFactory<AgentSchema>(AgentEntity)
+const aiProviderRepo = repoFactory<AIProviderSchema>(AIProviderEntity)
+
+const RESOURCE_CREATE_ORDER: Record<ProjectReplaceResourceKind, number> = {
+    custom_piece: 0,
+    connection: 1,
+    table: 2,
+    agent: 3,
+    trigger_binding: 4,
+    scheduled_task: 5,
+    mcp_server: 6,
+}
+
+const RESOURCE_DELETE_ORDER: Record<ProjectReplaceResourceKind, number> = {
+    mcp_server: 0,
+    scheduled_task: 1,
+    trigger_binding: 2,
+    agent: 3,
+    table: 4,
+    connection: 5,
+    custom_piece: 6,
+}
+
+function parseConnectionRef(auth: unknown): string | null {
+    if (typeof auth !== 'string') return null
+    const match = auth.match(/^\{\{connections\['([^']+)'\]\}\}$/) || auth.match(/^\{\{connections\["([^"]+)"\]\}\}$/)
+    if (match) return match[1]
+    return auth
+}
+
+function sanitizeHeaders(headers: Record<string, string>): Record<string, string> {
+    const sanitized: Record<string, string> = {}
+    for (const [key, value] of Object.entries(headers)) {
+        const lower = key.toLowerCase()
+        if (lower.includes('auth') || lower.includes('token') || lower.includes('key') || lower.includes('secret') || lower.includes('bearer')) {
+            sanitized[key] = '[REDACTED]'
+        }
+        else {
+            sanitized[key] = value
+        }
+    }
+    return sanitized
+}
+
+function sanitizeMcpTool(tool: AgentTool): AgentTool {
+    if (tool.type !== 'MCP') return tool
+    const auth = tool.auth
+    if (!auth || auth.type === McpAuthType.NONE) return tool
+
+    if (auth.type === McpAuthType.ACCESS_TOKEN) {
+        return {
+            ...tool,
+            auth: {
+                type: McpAuthType.ACCESS_TOKEN,
+                accessToken: '[REDACTED]',
+            },
+        }
+    }
+    if (auth.type === McpAuthType.API_KEY) {
+        return {
+            ...tool,
+            auth: {
+                type: McpAuthType.API_KEY,
+                apiKey: '[REDACTED]',
+                apiKeyHeader: auth.apiKeyHeader,
+            },
+        }
+    }
+    if (auth.type === McpAuthType.HEADERS) {
+        return {
+            ...tool,
+            auth: {
+                type: McpAuthType.HEADERS,
+                headers: sanitizeHeaders(auth.headers),
+            },
+        }
+    }
+    return tool
+}
+
+function extractAgentsFromFlows(flows?: Array<Record<string, unknown>>): AgentSnapshotSchema[] {
+    if (!flows || !Array.isArray(flows)) return []
+    const agents: AgentSnapshotSchema[] = []
+    const seenExtIds = new Set<string>()
+
+    for (const flow of flows) {
+        const flowVersion = (flow.version ?? flow) as Record<string, unknown>
+        const trigger = flowVersion.trigger as Record<string, unknown> | undefined
+        if (!trigger) continue
+
+        const steps: Array<Record<string, unknown>> = []
+        const collectSteps = (step?: Record<string, unknown>) => {
+            if (!step) return
+            steps.push(step)
+            if (step.nextAction) collectSteps(step.nextAction as Record<string, unknown>)
+            if (Array.isArray(step.children)) {
+                for (const c of step.children) collectSteps(c as Record<string, unknown>)
+            }
+        }
+        collectSteps(trigger)
+
+        for (const step of steps) {
+            const settings = step.settings as Record<string, unknown> | undefined
+            const input = settings?.input as Record<string, unknown> | undefined
+            if (!input) continue
+
+            const agentId = (input.agentId ?? input.externalAgentId) as string | undefined
+            if (agentId && !seenExtIds.has(agentId)) {
+                seenExtIds.add(agentId)
+                const modelInput = input.model as { provider?: string, model?: string } | undefined
+                agents.push({
+                    externalId: agentId,
+                    displayName: (step.displayName as string) ?? (step.name as string) ?? `Flow Agent (${agentId})`,
+                    description: (step.description as string) ?? 'Agent extracted from legacy flow definition',
+                    prompt: (input.prompt as string) ?? '',
+                    maxSteps: typeof input.maxSteps === 'number' ? input.maxSteps : 10,
+                    model: {
+                        provider: modelInput?.provider ?? (input.provider as string) ?? '',
+                        model: modelInput?.model ?? (input.modelName as string) ?? '',
+                    },
+                    tools: Array.isArray(input.agentTools) ? (input.agentTools as AgentTool[]) : [],
+                    structuredOutput: null,
+                    status: 'ENABLED',
+                })
+            }
+        }
+    }
+
+    return agents
+}
+
+function normalizeToolsForComparison(tools: AgentTool[], connectionMappings?: ConnectionMappingSchema[]): AgentTool[] {
+    const connMap = new Map<string, string>()
+    if (connectionMappings) {
+        for (const cm of connectionMappings) {
+            if (cm.destExternalId) connMap.set(cm.sourceExternalId, cm.destExternalId)
+        }
+    }
+
+    return (tools ?? []).map((t) => {
+        if (t.type === 'PIECE') {
+            const rawAuth = t.pieceMetadata?.predefinedInput?.auth
+            let normalizedAuth = rawAuth
+            if (rawAuth) {
+                const ref = parseConnectionRef(rawAuth)
+                if (ref) {
+                    const mappedRef = connMap.get(ref) ?? ref
+                    normalizedAuth = `{{connections['${mappedRef}']}}`
+                }
+            }
+            return {
+                ...t,
+                pieceMetadata: {
+                    ...t.pieceMetadata,
+                    ...(normalizedAuth ? {
+                        predefinedInput: {
+                            fields: t.pieceMetadata.predefinedInput?.fields ?? {},
+                            auth: normalizedAuth,
+                        },
+                    } : {}),
+                },
+            }
+        }
+        if (t.type === 'MCP') {
+            return sanitizeMcpTool(t)
+        }
+        return t
+    })
+}
+
+function remapAgentTools(
+    tools: AgentTool[],
+    resolvedConnections: Map<string, string>,
+    connectionMappings?: ConnectionMappingSchema[],
+    existingTools?: AgentTool[],
+): AgentTool[] {
+    const getMcpToolKey = (t: AgentTool) => {
+        const serverId = (t as any).serverUrl || (t as any).serverExternalId || (t as any).serverName || 'default'
+        return `${serverId}::${t.toolName}`
+    }
+
+    const existingMcpMap = new Map<string, AgentTool>()
+    if (existingTools) {
+        for (const et of existingTools) {
+            if (et.type === 'MCP') {
+                existingMcpMap.set(getMcpToolKey(et), et)
+            }
+        }
+    }
+
+    const connMap = new Map<string, string>()
+    if (connectionMappings) {
+        for (const cm of connectionMappings) {
+            if (cm.destExternalId) connMap.set(cm.sourceExternalId, cm.destExternalId)
+        }
+    }
+
+    return (tools ?? []).map((t) => {
+        if (t.type === 'PIECE') {
+            const rawAuth = t.pieceMetadata?.predefinedInput?.auth
+            if (rawAuth) {
+                const ref = parseConnectionRef(rawAuth)
+                if (ref) {
+                    const destExtId = resolvedConnections.get(ref) ?? connMap.get(ref) ?? ref
+                    return {
+                        ...t,
+                        pieceMetadata: {
+                            ...t.pieceMetadata,
+                            predefinedInput: {
+                                fields: t.pieceMetadata.predefinedInput?.fields ?? {},
+                                auth: `{{connections['${destExtId}']}}`,
+                            },
+                        },
+                    }
+                }
+            }
+            return t
+        }
+        if (t.type === 'MCP') {
+            const existing = existingMcpMap.get(getMcpToolKey(t))
+            if (existing && existing.type === 'MCP') {
+                let preservedAuth = t.auth
+                if (t.auth.type === McpAuthType.ACCESS_TOKEN && t.auth.accessToken === '[REDACTED]' && existing.auth.type === McpAuthType.ACCESS_TOKEN) {
+                    preservedAuth = existing.auth
+                }
+                else if (t.auth.type === McpAuthType.API_KEY && t.auth.apiKey === '[REDACTED]' && existing.auth.type === McpAuthType.API_KEY) {
+                    preservedAuth = existing.auth
+                }
+                else if (t.auth.type === McpAuthType.HEADERS && existing.auth.type === McpAuthType.HEADERS) {
+                    const mergedHeaders = { ...t.auth.headers }
+                    for (const [k, v] of Object.entries(mergedHeaders)) {
+                        if (v === '[REDACTED]' && existing.auth.headers[k]) {
+                            mergedHeaders[k] = existing.auth.headers[k]
+                        }
+                    }
+                    preservedAuth = {
+                        type: McpAuthType.HEADERS,
+                        headers: mergedHeaders,
+                    }
+                }
+                return {
+                    ...t,
+                    auth: preservedAuth,
+                }
+            }
+            return t
+        }
+        return t
+    })
+}
 
 function getSigningSecret(): string {
     const dedicatedSecret = system.get(AppSystemProp.PROJECT_REPLACE_SIGNING_SECRET)
@@ -186,7 +445,66 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             status: st.status,
         }))
 
-        // 4. MCP server (disabledTools only, NO live bearer tokens!)
+        // 4. Agents (mirror complete definitions, model/provider references, tool bindings, sanitize secrets)
+        const agents = await agentRepo().find({ where: { projectId } })
+        const agentsSnapshot: AgentSnapshotSchema[] = []
+        for (const ag of agents) {
+            const sanitizedTools: AgentTool[] = []
+            for (const tool of (ag.tools ?? [])) {
+                if (tool.type === 'PIECE') {
+                    requiredPiecesMap.set(tool.pieceMetadata.pieceName, tool.pieceMetadata.pieceVersion)
+                    let toolCopy = { ...tool, pieceMetadata: { ...tool.pieceMetadata } }
+                    if (tool.pieceMetadata.predefinedInput?.auth) {
+                        const rawAuth = tool.pieceMetadata.predefinedInput.auth
+                        const ref = parseConnectionRef(rawAuth)
+                        let resolvedAuth = '[REDACTED]'
+                        if (ref) {
+                            const conn = await connectionRepo().findOne({
+                                where: [
+                                    { id: ref, platformId, projectIds: ArrayContains([projectId]) },
+                                    { externalId: ref, platformId, projectIds: ArrayContains([projectId]) },
+                                ],
+                            })
+                            if (conn && conn.externalId) {
+                                requiredConnectionsMap.set(conn.externalId, conn.pieceName)
+                                resolvedAuth = `{{connections['${conn.externalId}']}}`
+                            }
+                        }
+                        toolCopy = {
+                            ...toolCopy,
+                            pieceMetadata: {
+                                ...toolCopy.pieceMetadata,
+                                predefinedInput: {
+                                    fields: tool.pieceMetadata.predefinedInput?.fields ?? {},
+                                    auth: resolvedAuth,
+                                },
+                            },
+                        }
+                    }
+                    sanitizedTools.push(toolCopy)
+                }
+                else if (tool.type === 'MCP') {
+                    sanitizedTools.push(sanitizeMcpTool(tool))
+                }
+                else {
+                    sanitizedTools.push(tool)
+                }
+            }
+
+            agentsSnapshot.push({
+                externalId: ag.externalId,
+                displayName: ag.displayName,
+                description: ag.description ?? null,
+                prompt: ag.prompt,
+                maxSteps: ag.maxSteps,
+                model: ag.model,
+                tools: sanitizedTools,
+                structuredOutput: ag.structuredOutput ?? null,
+                status: (ag.status as 'ENABLED' | 'DISABLED') ?? 'ENABLED',
+            })
+        }
+
+        // 5. MCP server (disabledTools only, NO live bearer tokens!)
         const mcpServer = await mcpServerService(log).getByProjectId(projectId)
         const mcpSnapshot = {
             disabledTools: mcpServer?.disabledTools ?? [],
@@ -247,6 +565,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                 projectId,
             },
             tables: tablesSnapshot,
+            agents: agentsSnapshot,
             triggerBindings: triggerBindingsSnapshot,
             scheduledTasks: scheduledTasksSnapshot,
             mcp: mcpSnapshot,
@@ -264,12 +583,13 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             tablesWithFields.push({
                 name: t.name,
                 externalId: t.externalId,
-                status: t.status,
-                trigger: t.trigger,
-                fields: fields.map((f: Field) => ({ name: f.name, type: f.type, externalId: f.externalId })).sort((a, b) => (a.externalId || '').localeCompare(b.externalId || '')),
+                status: t.status ?? null,
+                trigger: t.trigger ?? null,
+                fields: fields.map((f: Field) => ({ name: f.name, type: f.type, externalId: f.externalId ?? f.id })).sort((a, b) => (a.externalId || '').localeCompare(b.externalId || '')),
             })
         }
 
+        const agents = await agentRepo().find({ where: { projectId } })
         const triggerBindings = await triggerBindingRepo().find({ where: { projectId } })
         const scheduledTasks = await scheduledTaskRepo().find({ where: { projectId } })
         const mcpServer = await mcpServerService(log).getByProjectId(projectId)
@@ -282,6 +602,20 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
 
         const normalized = {
             tables: tablesWithFields.sort((a, b) => (a.externalId || '').localeCompare(b.externalId || '')),
+            agents: agents.map((a) => ({
+                externalId: a.externalId,
+                displayName: a.displayName,
+                description: a.description ?? null,
+                prompt: a.prompt,
+                maxSteps: a.maxSteps,
+                model: {
+                    provider: a.model.provider,
+                    model: a.model.model,
+                },
+                tools: a.tools.map(sanitizeMcpTool),
+                structuredOutput: a.structuredOutput ?? null,
+                status: a.status,
+            })).sort((a, b) => a.externalId.localeCompare(b.externalId)),
             triggerBindings: triggerBindings.map((tb) => ({
                 pieceName: tb.pieceName,
                 pieceVersion: tb.pieceVersion,
@@ -315,11 +649,13 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
         targetPlatformId,
         snapshot,
         connectionMappings,
+        providerMappings,
     }: {
         targetProjectId: string
         targetPlatformId: string
         snapshot: ProjectStateSnapshot
         connectionMappings?: ConnectionMappingSchema[]
+        providerMappings?: ProviderMappingSchema[]
     }): Promise<ProjectReplacePlan> {
         const currentVersion = apVersionUtil.getCurrentRelease()
         const preflightErrors: PreflightError[] = []
@@ -692,6 +1028,107 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             }
         }
 
+        // 3.5. Preflight: AI Providers and Agent Tool Connections
+        const effectiveAgents = (snapshot.agents && snapshot.agents.length > 0)
+            ? snapshot.agents
+            : extractAgentsFromFlows(snapshot.flows)
+
+        const providerMap = new Map<string, string>()
+        if (providerMappings) {
+            for (const pm of providerMappings) {
+                providerMap.set(pm.sourceProvider.toLowerCase(), pm.destProvider)
+            }
+        }
+
+        for (const agent of effectiveAgents) {
+            const rawProvider = agent.model.provider
+            const mappedProvider = providerMap.get(rawProvider.toLowerCase()) ?? rawProvider
+
+            const standardProvider = Object.values(AIProviderName).find(p => p.toLowerCase() === mappedProvider.toLowerCase())
+            const isStandardProvider = Boolean(standardProvider)
+            if (!isStandardProvider && mappedProvider.toLowerCase() !== 'activepieces') {
+                preflightErrors.push({
+                    kind: 'INCOMPATIBLE_AI_PROVIDER',
+                    message: `AI provider "${mappedProvider}" specified for agent "${agent.displayName}" (${agent.externalId}) is not a recognized or supported provider.`,
+                    details: {
+                        agentExternalId: agent.externalId,
+                        sourceProvider: rawProvider,
+                        mappedProvider,
+                    },
+                })
+                continue
+            }
+
+            let isAvailable = false
+            if (mappedProvider.toLowerCase() === AIProviderName.ACTIVEPIECES.toLowerCase() || mappedProvider.toLowerCase() === 'activepieces') {
+                const activepiecesExists = await aiProviderRepo().findOne({
+                    where: {
+                        platformId: targetPlatformId,
+                        provider: AIProviderName.ACTIVEPIECES,
+                    },
+                })
+                const creditsEnabled = flagService(log).aiCreditsEnabled()
+                isAvailable = Boolean(activepiecesExists) || creditsEnabled
+            }
+            else {
+                isAvailable = await aiProviderRepo().existsBy({
+                    platformId: targetPlatformId,
+                    provider: (standardProvider ?? mappedProvider) as AIProviderName,
+                })
+            }
+
+            if (!isAvailable) {
+                preflightErrors.push({
+                    kind: 'MISSING_AI_PROVIDER',
+                    message: `Required AI provider "${mappedProvider}" for agent "${agent.displayName}" (${agent.externalId}) is not configured on destination platform.`,
+                    details: {
+                        agentExternalId: agent.externalId,
+                        sourceProvider: rawProvider,
+                        provider: mappedProvider,
+                        effectiveProvider: mappedProvider,
+                        actionableHelp: `Configure provider "${mappedProvider}" on destination or supply --provider-map ${rawProvider}=<destProvider>.`,
+                    },
+                })
+            }
+
+            for (const tool of (agent.tools ?? [])) {
+                if (tool.type === 'PIECE' && tool.pieceMetadata?.predefinedInput?.auth) {
+                    const ref = parseConnectionRef(tool.pieceMetadata.predefinedInput.auth)
+                    if (ref) {
+                        const isMatched = connectionsReport.matched.some(m => m.sourceExternalId === ref || m.destExternalId === ref)
+                        const isMapped = connectionsReport.mapped.some(m => m.sourceExternalId === ref)
+                        const isBootstrap = mappingsMap.has(ref) && !!mappingsMap.get(ref)!.value
+                        if (!isMatched && !isMapped && !isBootstrap) {
+                            const destConn = await connectionRepo().findOne({
+                                where: {
+                                    externalId: ref,
+                                    platformId: targetPlatformId,
+                                    projectIds: ArrayContains([targetProjectId]),
+                                },
+                            })
+                            if (!destConn && !connectionsReport.missing.some(m => m.externalId === ref)) {
+                                preflightErrors.push({
+                                    kind: 'MISSING_CONNECTION',
+                                    message: `Required connection "${ref}" for agent "${agent.displayName}" tool (${tool.pieceMetadata.pieceName}) does not exist on destination.`,
+                                    details: {
+                                        agentExternalId: agent.externalId,
+                                        connectionExternalId: ref,
+                                        pieceName: tool.pieceMetadata.pieceName,
+                                        actionableHelp: `Supply connection mapping via --connection-map ${ref}=<destExternalId> or bootstrap credentials.`,
+                                    },
+                                })
+                                connectionsReport.missing.push({
+                                    externalId: ref,
+                                    pieceName: tool.pieceMetadata.pieceName,
+                                    actionableHelp: `Supply connection mapping or bootstrap credentials for "${ref}".`,
+                                })
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         // 4. Current destination state & state hash
         const destinationStateHash = await this.computeDestinationStateHash(targetProjectId, targetPlatformId)
 
@@ -755,7 +1192,76 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             }
         }
 
-        // Trigger Bindings Diff
+        // Agents Diff
+        const destAgents = await agentRepo().find({ where: { projectId: targetProjectId } })
+        const destAgentMap = new Map<string, typeof destAgents[0]>()
+        for (const da of destAgents) {
+            destAgentMap.set(da.externalId, da)
+        }
+
+        const sourceAgentExtIds = new Set<string>()
+        for (const srcAgent of effectiveAgents) {
+            sourceAgentExtIds.add(srcAgent.externalId)
+            const matched = destAgentMap.get(srcAgent.externalId)
+
+            const rawProvider = srcAgent.model.provider
+            const targetProvider = providerMap.get(rawProvider.toLowerCase()) ?? rawProvider
+
+            if (!matched) {
+                creates.push({
+                    kind: 'agent',
+                    externalId: srcAgent.externalId,
+                    op: 'CREATE',
+                    name: srcAgent.displayName,
+                    description: `Create agent "${srcAgent.displayName}" (${srcAgent.externalId})`,
+                })
+            }
+            else {
+                const modelChanged = matched.model.provider !== targetProvider || matched.model.model !== srcAgent.model.model
+                const basicChanged = matched.displayName !== srcAgent.displayName
+                    || (matched.description ?? null) !== (srcAgent.description ?? null)
+                    || matched.prompt !== srcAgent.prompt
+                    || matched.maxSteps !== (srcAgent.maxSteps ?? 10)
+                    || matched.status !== (srcAgent.status ?? 'ENABLED')
+                    || canonicalJson(matched.structuredOutput ?? null) !== canonicalJson(srcAgent.structuredOutput ?? null)
+
+                const normalizedSrcTools = normalizeToolsForComparison(srcAgent.tools, connectionMappings)
+                const normalizedDestTools = normalizeToolsForComparison(matched.tools)
+                const toolsChanged = canonicalJson(normalizedSrcTools) !== canonicalJson(normalizedDestTools)
+
+                if (modelChanged || basicChanged || toolsChanged) {
+                    updates.push({
+                        kind: 'agent',
+                        externalId: srcAgent.externalId,
+                        op: 'UPDATE',
+                        name: srcAgent.displayName,
+                        description: `Update agent "${srcAgent.displayName}" (${srcAgent.externalId})`,
+                        changes: {
+                            ...(modelChanged && { model: { from: matched.model, to: { provider: targetProvider, model: srcAgent.model.model } } }),
+                            ...(basicChanged && { basicChanged: true }),
+                            ...(toolsChanged && { toolsChanged: true }),
+                        },
+                    })
+                }
+                else {
+                    unchanged.push({ kind: 'agent', externalId: srcAgent.externalId })
+                }
+            }
+        }
+
+        for (const [destExtId, destAgent] of destAgentMap.entries()) {
+            if (!sourceAgentExtIds.has(destExtId)) {
+                deletes.push({
+                    kind: 'agent',
+                    externalId: destExtId,
+                    op: 'DELETE',
+                    name: destAgent.displayName,
+                    description: `Delete agent "${destAgent.displayName}" (${destExtId})`,
+                })
+            }
+        }
+
+        // Trigger Bindings Diff — use snapshot externalId for collision-free identity
         const destTriggerBindings = await triggerBindingRepo().find({ where: { projectId: targetProjectId } })
         const destTbMap = new Map<string, typeof destTriggerBindings[0]>()
         for (const dtb of destTriggerBindings) {
@@ -882,12 +1388,12 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             unchanged.push({ kind: 'mcp_server', externalId: targetProjectId })
         }
 
-        // Sort all diff items deterministically
-        const sortDiff = (a: ProjectReplaceDiffItem, b: ProjectReplaceDiffItem) =>
+        // Dependency Ordering: ensure dependencies are created before dependents, and deletes happen in reverse
+        const sortDiffDeterministic = (a: ProjectReplaceDiffItem, b: ProjectReplaceDiffItem) =>
             `${a.kind}:${a.op}:${a.externalId}`.localeCompare(`${b.kind}:${b.op}:${b.externalId}`)
-        creates.sort(sortDiff)
-        updates.sort(sortDiff)
-        deletes.sort(sortDiff)
+        creates.sort((a, b) => (RESOURCE_CREATE_ORDER[a.kind] - RESOURCE_CREATE_ORDER[b.kind]) || sortDiffDeterministic(a, b))
+        updates.sort((a, b) => (RESOURCE_CREATE_ORDER[a.kind] - RESOURCE_CREATE_ORDER[b.kind]) || sortDiffDeterministic(a, b))
+        deletes.sort((a, b) => (RESOURCE_DELETE_ORDER[a.kind] - RESOURCE_DELETE_ORDER[b.kind]) || sortDiffDeterministic(a, b))
         unchanged.sort((a, b) => `${a.kind}:${a.externalId}`.localeCompare(`${b.kind}:${b.externalId}`))
 
         // 6. Checksum and Plan Signature
@@ -1023,6 +1529,10 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     tablesUpdated: 0,
                     tablesDeleted: 0,
                     tablesUnchanged: 0,
+                    agentsCreated: 0,
+                    agentsUpdated: 0,
+                    agentsDeleted: 0,
+                    agentsUnchanged: 0,
                     triggerBindingsCreated: 0,
                     triggerBindingsUpdated: 0,
                     triggerBindingsDeleted: 0,
@@ -1467,6 +1977,91 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
 
                 applied.tablesUnchanged = plan.changes.unchanged.filter((u) => u.kind === 'table').length
 
+                // Phase 1.5: Agents CREATE / UPDATE (Dependencies: Tables, Connections, and Custom Pieces exist; Dependents: Trigger Bindings, Tasks)
+                const providerMap = new Map<string, string>()
+                if (request.providerMappings) {
+                    for (const pm of request.providerMappings) {
+                        providerMap.set(pm.sourceProvider.toLowerCase(), pm.destProvider)
+                    }
+                }
+
+                const effectiveAgents = (snapshot.agents && snapshot.agents.length > 0)
+                    ? snapshot.agents
+                    : extractAgentsFromFlows(snapshot.flows)
+
+                for (const change of plan.changes.creates.filter((c) => c.kind === 'agent')) {
+                    try {
+                        const srcAgent = effectiveAgents.find((a) => a.externalId === change.externalId)
+                        if (srcAgent) {
+                            const rawProvider = srcAgent.model.provider
+                            const targetProvider = providerMap.get(rawProvider.toLowerCase()) ?? rawProvider
+
+                            const mappedTools = remapAgentTools(srcAgent.tools, resolvedConnections, request.connectionMappings)
+
+                            await agentService.create({
+                                projectId: targetProjectId,
+                                platformId: targetPlatformId,
+                                externalId: srcAgent.externalId,
+                                displayName: srcAgent.displayName,
+                                description: srcAgent.description ?? null,
+                                prompt: srcAgent.prompt,
+                                maxSteps: srcAgent.maxSteps ?? 10,
+                                model: {
+                                    provider: targetProvider,
+                                    model: srcAgent.model.model,
+                                },
+                                tools: mappedTools,
+                                structuredOutput: srcAgent.structuredOutput ?? null,
+                                status: srcAgent.status ?? 'ENABLED',
+                            })
+                            applied.agentsCreated++
+                        }
+                    }
+                    catch (err) {
+                        failed.push({ kind: 'agent', externalId: change.externalId, op: 'CREATE', error: (err as Error).message })
+                    }
+                }
+
+                for (const change of plan.changes.updates.filter((c) => c.kind === 'agent')) {
+                    try {
+                        const srcAgent = effectiveAgents.find((a) => a.externalId === change.externalId)
+                        if (!srcAgent) continue
+
+                        const existing = await agentRepo().findOneBy({ projectId: targetProjectId, externalId: change.externalId })
+                        if (!existing) {
+                            throw new Error(`Destination agent with externalId "${change.externalId}" not found for update`)
+                        }
+
+                        const rawProvider = srcAgent.model.provider
+                        const targetProvider = providerMap.get(rawProvider.toLowerCase()) ?? rawProvider
+
+                        const mappedTools = remapAgentTools(srcAgent.tools, resolvedConnections, request.connectionMappings, existing.tools)
+
+                        await agentService.update({
+                            id: existing.id,
+                            projectId: targetProjectId,
+                            platformId: targetPlatformId,
+                            displayName: srcAgent.displayName,
+                            description: srcAgent.description ?? null,
+                            prompt: srcAgent.prompt,
+                            maxSteps: srcAgent.maxSteps ?? 10,
+                            model: {
+                                provider: targetProvider,
+                                model: srcAgent.model.model,
+                            },
+                            tools: mappedTools,
+                            structuredOutput: srcAgent.structuredOutput ?? null,
+                            status: srcAgent.status ?? 'ENABLED',
+                        })
+                        applied.agentsUpdated++
+                    }
+                    catch (err) {
+                        failed.push({ kind: 'agent', externalId: change.externalId, op: 'UPDATE', error: (err as Error).message })
+                    }
+                }
+
+                applied.agentsUnchanged = plan.changes.unchanged.filter((u) => u.kind === 'agent').length
+
                 // Phase 2: Trigger Bindings CREATE / UPDATE
                 for (const change of plan.changes.creates.filter((c) => c.kind === 'trigger_binding')) {
                     try {
@@ -1682,6 +2277,24 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     }
                     catch (err) {
                         failed.push({ kind: 'trigger_binding', externalId: change.externalId, op: 'DELETE', error: (err as Error).message })
+                    }
+                }
+
+                // Phase 6.5: Agents DELETE (After Trigger Bindings and Tasks are deleted, Before Tables are deleted)
+                for (const change of plan.changes.deletes.filter((c) => c.kind === 'agent')) {
+                    try {
+                        const existing = await agentRepo().findOneBy({ projectId: targetProjectId, externalId: change.externalId })
+                        if (existing) {
+                            await agentService.delete({
+                                id: existing.id,
+                                projectId: targetProjectId,
+                                platformId: targetPlatformId,
+                            })
+                            applied.agentsDeleted++
+                        }
+                    }
+                    catch (err) {
+                        failed.push({ kind: 'agent', externalId: change.externalId, op: 'DELETE', error: (err as Error).message })
                     }
                 }
 

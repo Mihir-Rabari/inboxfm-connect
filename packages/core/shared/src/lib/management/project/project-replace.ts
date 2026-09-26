@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import { AIProviderName } from '@inboxfm-connect/core-utils'
+import { AgentOutputField, AgentTool } from '@inboxfm-connect/core-execution'
 import { AppConnectionType } from '../../automation/app-connection/app-connection'
 import { FieldType } from '../../automation/tables/field'
 import { TableAutomationStatus, TableAutomationTrigger } from '../../automation/tables/table'
@@ -7,6 +9,7 @@ import { TriggerBindingStatus } from '../../execution/trigger-binding'
 
 export const ProjectReplaceResourceKind = z.enum([
     'table',
+    'agent',
     'trigger_binding',
     'scheduled_task',
     'mcp_server',
@@ -61,6 +64,49 @@ export type McpServerSnapshotSchema = z.infer<typeof McpServerSnapshotSchema>
 export const MAX_CUSTOM_PIECE_ARCHIVE_BYTES = 15 * 1024 * 1024 // 15MB cap
 export const MAX_CUSTOM_PIECE_BASE64_LENGTH = Math.ceil((MAX_CUSTOM_PIECE_ARCHIVE_BYTES * 4) / 3) + 4
 
+export const AgentSnapshotSchema = z.object({
+    externalId: z.string(),
+    displayName: z.string(),
+    description: z.string().nullable().optional(),
+    prompt: z.string(),
+    maxSteps: z.number().int().positive().optional().default(10),
+    model: z.object({
+        provider: z.nativeEnum(AIProviderName).or(z.string()),
+        model: z.string(),
+    }),
+    tools: z.array(AgentTool).optional().default([]),
+    structuredOutput: z.array(AgentOutputField).nullable().optional(),
+    status: z.enum(['ENABLED', 'DISABLED']).optional().default('ENABLED'),
+})
+export type AgentSnapshotSchema = z.infer<typeof AgentSnapshotSchema>
+
+export const Agent = z.object({
+    id: z.string(),
+    created: z.string(),
+    updated: z.string(),
+    projectId: z.string(),
+    platformId: z.string(),
+    externalId: z.string(),
+    displayName: z.string(),
+    description: z.string().nullable().optional(),
+    prompt: z.string(),
+    maxSteps: z.number().default(10),
+    model: z.object({
+        provider: z.string(),
+        model: z.string(),
+    }),
+    tools: z.array(AgentTool).default([]),
+    structuredOutput: z.array(AgentOutputField).nullable().optional(),
+    status: z.enum(['ENABLED', 'DISABLED']).default('ENABLED'),
+})
+export type Agent = z.infer<typeof Agent>
+
+export const ProviderMappingSchema = z.object({
+    sourceProvider: z.string(),
+    destProvider: z.string(),
+})
+export type ProviderMappingSchema = z.infer<typeof ProviderMappingSchema>
+
 export const RequiredPieceSchema = z.object({
     name: z.string(),
     version: z.string(),
@@ -82,6 +128,7 @@ export const ProjectStateSnapshot = z.object({
         projectId: z.string().optional(),
     }).optional(),
     tables: z.array(TableSnapshotSchema),
+    agents: z.array(AgentSnapshotSchema).optional().default([]),
     triggerBindings: z.array(TriggerBindingSnapshotSchema),
     scheduledTasks: z.array(ScheduledTaskSnapshotSchema),
     mcp: McpServerSnapshotSchema.nullable().optional(),
@@ -91,6 +138,7 @@ export const ProjectStateSnapshot = z.object({
         externalId: z.string(),
         pieceName: z.string(),
     })),
+    flows: z.array(z.record(z.string(), z.unknown())).optional(),
 })
 export type ProjectStateSnapshot = z.infer<typeof ProjectStateSnapshot>
 
@@ -103,6 +151,8 @@ export const PreflightError = z.object({
         'INCOMPATIBLE_CONNECTION',
         'CHECKSUM_MISMATCH',
         'INCOMPATIBLE_INTEGRATION',
+        'MISSING_AI_PROVIDER',
+        'INCOMPATIBLE_AI_PROVIDER',
         'PERMISSIONS',
         'GENERAL',
     ]),
@@ -222,8 +272,8 @@ export const ProjectReplaceArtifactSchema = z.object({
     snapshot: ProjectStateSnapshot,
     plan: ProjectReplacePlan,
 })
-export type ProjectReplaceArtifact = z.infer<typeof ProjectReplaceArtifactSchema>
 export const ProjectReplaceArtifact = ProjectReplaceArtifactSchema
+export type ProjectReplaceArtifact = z.infer<typeof ProjectReplaceArtifactSchema>
 
 export const ProjectReplaceApplyRequest = z.object({
     plan: ProjectReplacePlan,
@@ -233,6 +283,7 @@ export const ProjectReplaceApplyRequest = z.object({
     deployCustomIntegrations: z.boolean().optional(),
     inspectOnly: z.boolean().optional(),
     connectionMappings: z.array(ConnectionMappingSchema).optional(),
+    providerMappings: z.array(ProviderMappingSchema).optional(),
 })
 export type ProjectReplaceApplyRequest = z.infer<typeof ProjectReplaceApplyRequest>
 
@@ -242,6 +293,10 @@ export const ProjectReplaceApplyResult = z.object({
         tablesUpdated: z.number(),
         tablesDeleted: z.number(),
         tablesUnchanged: z.number(),
+        agentsCreated: z.number(),
+        agentsUpdated: z.number(),
+        agentsDeleted: z.number(),
+        agentsUnchanged: z.number(),
         triggerBindingsCreated: z.number(),
         triggerBindingsUpdated: z.number(),
         triggerBindingsDeleted: z.number(),

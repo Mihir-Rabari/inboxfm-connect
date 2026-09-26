@@ -22,7 +22,7 @@ function usePieceLookup() {
   const { data: pieces } = useIntegrations()
   return useMemo(() => {
     const map = new Map<string, { displayName: string; logoUrl: string }>()
-    for (const piece of pieces ?? []) {
+    for (const piece of pieces?.data ?? []) {
       map.set(piece.name, { displayName: piece.displayName, logoUrl: piece.logoUrl })
     }
     return map

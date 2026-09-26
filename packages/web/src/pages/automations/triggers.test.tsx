@@ -4,7 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import TriggerBindingsPage from './triggers'
 import { createTestQueryClient, mount, waitFor } from '@/test/test-utils'
-import { ALL_SUMMARIES } from '@/test/fixtures/integrations'
+import { ALL_SUMMARIES, seekPage } from '@/test/fixtures/integrations'
 import { automationConnection, githubTriggerBinding } from '@/test/fixtures/automations'
 import { TriggerBinding } from '@/lib/api/types'
 
@@ -84,7 +84,7 @@ function createMockBackend(options: { bindings?: TriggerBinding[]; listStatus?: 
       return binding ? json(binding) : json({ message: 'not found' }, 404)
     }
     if (url.pathname === '/api/v1/integrations') {
-      return json(ALL_SUMMARIES)
+      return json(seekPage(ALL_SUMMARIES))
     }
     if (url.pathname === '/api/v1/connections') {
       return json({ data: [automationConnection()], next: null, previous: null })

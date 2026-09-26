@@ -63,17 +63,14 @@ export const stripeBillingController: FastifyPluginAsyncZod = async (fastify) =>
                     }
                     case 'invoice.paid': {
                         const invoice = webhook.data.object as Stripe.Invoice
-                        const rawSubscription = invoice.subscription
-                        const subscriptionId = typeof rawSubscription === 'string'
-                            ? rawSubscription
-                            : rawSubscription?.id
+                        const subscriptionId = extractSubscriptionIdFromInvoice(invoice)
 
                         if (!isNil(subscriptionId)) {
                             const stripe = stripeHelper(request.log).getStripe()
                             if (!isNil(stripe)) {
                                 const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-                                const platformId = subscription.metadata?.platformId as string
-                                if (!isNil(platformId) && subscription.status === 'active') {
+                                const platformId = subscription.metadata?.platformId
+                                if (typeof platformId === 'string' && subscription.status === 'active') {
                                     await platformPlanService(request.log).update({
                                         platformId,
                                         stripeSubscriptionStatus: ApSubscriptionStatus.ACTIVE,
@@ -92,17 +89,14 @@ export const stripeBillingController: FastifyPluginAsyncZod = async (fastify) =>
                     }
                     case 'invoice.payment_failed': {
                         const invoice = webhook.data.object as Stripe.Invoice
-                        const rawSubscription = invoice.subscription
-                        const subscriptionId = typeof rawSubscription === 'string'
-                            ? rawSubscription
-                            : rawSubscription?.id
+                        const subscriptionId = extractSubscriptionIdFromInvoice(invoice)
 
                         if (!isNil(subscriptionId)) {
                             const stripe = stripeHelper(request.log).getStripe()
                             if (!isNil(stripe)) {
                                 const subscription = await stripe.subscriptions.retrieve(subscriptionId)
-                                const platformId = subscription.metadata?.platformId as string
-                                if (!isNil(platformId)) {
+                                const platformId = subscription.metadata?.platformId
+                                if (typeof platformId === 'string') {
                                     request.log.warn({ platformId, subscriptionId }, 'Stripe subscription invoice payment failed, entering past_due state')
                                     await platformPlanService(request.log).update({
                                         platformId,
@@ -172,9 +166,30 @@ export const stripeBillingController: FastifyPluginAsyncZod = async (fastify) =>
     )
 }
 
+function extractSubscriptionIdFromInvoice(invoice: Stripe.Invoice): string | undefined {
+    const parentSubscription = invoice.parent?.subscription_details?.subscription
+    if (typeof parentSubscription === 'string') {
+        return parentSubscription
+    }
+    if (!isNil(parentSubscription) && typeof parentSubscription === 'object' && 'id' in parentSubscription && typeof parentSubscription.id === 'string') {
+        return parentSubscription.id
+    }
+
+    const lineSubscription = invoice.lines?.data?.[0]?.subscription
+    if (typeof lineSubscription === 'string') {
+        return lineSubscription
+    }
+    if (!isNil(lineSubscription) && typeof lineSubscription === 'object' && 'id' in lineSubscription && typeof lineSubscription.id === 'string') {
+        return lineSubscription.id
+    }
+
+    return undefined
+}
+
 const WebhookRequest = {
     config: {
         security: securityAccess.public(),
         rawBody: true,
     },
 }
+

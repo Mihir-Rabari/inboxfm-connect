@@ -152,6 +152,96 @@ describe('Piece Metadata CE API', () => {
             expect(page2.data.length).toBe(2)
             expect(page2.data[0].name).not.toBe(page1.data[0].name)
         })
+
+        it('should navigate back with the previous cursor', async () => {
+            const testToken = await generateMockToken({
+                type: PrincipalType.UNKNOWN,
+                id: apId(),
+            })
+
+            const page1 = (await app?.inject({
+                method: 'GET',
+                url: '/api/v1/integrations?limit=2',
+                headers: { authorization: `Bearer ${testToken}` },
+            }))?.json()
+            const page2 = (await app?.inject({
+                method: 'GET',
+                url: `/api/v1/integrations?limit=2&cursor=${encodeURIComponent(page1.next)}`,
+                headers: { authorization: `Bearer ${testToken}` },
+            }))?.json()
+            expect(page2.previous).not.toBeNull()
+
+            const backResponse = await app?.inject({
+                method: 'GET',
+                url: `/api/v1/integrations?limit=2&cursor=${encodeURIComponent(page2.previous)}`,
+                headers: { authorization: `Bearer ${testToken}` },
+            })
+            expect(backResponse?.statusCode).toBe(StatusCodes.OK)
+            const back = backResponse?.json()
+            expect(back.data.map((piece: PieceMetadataModelSummary) => piece.name)).toEqual(
+                page1.data.map((piece: PieceMetadataModelSummary) => piece.name),
+            )
+        })
+
+        it('should return an empty page with null cursors when nothing matches', async () => {
+            const testToken = await generateMockToken({
+                type: PrincipalType.UNKNOWN,
+                id: apId(),
+            })
+
+            const response = await app?.inject({
+                method: 'GET',
+                url: '/api/v1/integrations?limit=10&searchQuery=zzz-no-such-piece-qwerty-999',
+                headers: { authorization: `Bearer ${testToken}` },
+            })
+            expect(response?.statusCode).toBe(StatusCodes.OK)
+            const body = response?.json()
+            expect(body.data).toEqual([])
+            expect(body.next).toBeNull()
+            expect(body.previous).toBeNull()
+        })
+
+        it('should fall back to the first page for an invalid cursor', async () => {
+            const testToken = await generateMockToken({
+                type: PrincipalType.UNKNOWN,
+                id: apId(),
+            })
+
+            const page1 = (await app?.inject({
+                method: 'GET',
+                url: '/api/v1/integrations?limit=2',
+                headers: { authorization: `Bearer ${testToken}` },
+            }))?.json()
+
+            const response = await app?.inject({
+                method: 'GET',
+                url: `/api/v1/integrations?limit=2&cursor=${encodeURIComponent('!!!not-a-cursor!!!')}`,
+                headers: { authorization: `Bearer ${testToken}` },
+            })
+            expect(response?.statusCode).toBe(StatusCodes.OK)
+            const body = response?.json()
+            expect(body.data.map((piece: PieceMetadataModelSummary) => piece.name)).toEqual(
+                page1.data.map((piece: PieceMetadataModelSummary) => piece.name),
+            )
+        })
+
+        it('should honor a limit of one', async () => {
+            const testToken = await generateMockToken({
+                type: PrincipalType.UNKNOWN,
+                id: apId(),
+            })
+
+            const response = await app?.inject({
+                method: 'GET',
+                url: '/api/v1/integrations?limit=1',
+                headers: { authorization: `Bearer ${testToken}` },
+            })
+            expect(response?.statusCode).toBe(StatusCodes.OK)
+            const body = response?.json()
+            expect(body.data.length).toBe(1)
+            expect(body.next).not.toBeNull()
+            expect(body.previous).toBeNull()
+        })
     })
 
     describe('GET /v1/integrations/:name', () => {

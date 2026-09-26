@@ -88,6 +88,7 @@ import { pieceSyncService } from './pieces/piece-sync-service'
 import { platformBackgroundJobs } from './platform/platform-jobs'
 import { platformModule } from './platform/platform.module'
 import { projectHooks } from './project/project-hooks'
+import { projectReplaceModule } from './project/replace/project-replace.module'
 import { storeEntryModule } from './store-entry/store-entry.module'
 import { toolSearchReindexJob } from './tool-search/tool-search-reindex.job'
 import { platformUserModule } from './user/platform/platform-user-module'
@@ -226,6 +227,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     // Still absent by design: the `POST /mcp` protocol transport and the MCP OAuth
     // authorize/approve flow were removed with the legacy runtime and are not restored here.
     await app.register(mcpServerModule)
+    await app.register(projectReplaceModule)
     // await app.register(mcpOAuthApproveController)
     // await app.register(agentsModule)
     await app.register(platformUserModule)

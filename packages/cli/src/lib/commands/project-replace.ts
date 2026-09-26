@@ -3,6 +3,7 @@ import fs from 'fs'
 import path from 'path'
 import {
     ConnectionMappingSchema,
+    ProjectReplaceApplyResult,
     ProjectReplaceArtifact,
     ProjectReplaceArtifactSchema,
     ProjectStateSnapshot,
@@ -32,6 +33,7 @@ type ReplaceCliOptions = {
     connectionMap?: string[]
     connectionMappingFile?: string
     connectionBootstrap?: string
+    rotateMcpToken?: boolean
     json?: boolean
 }
 
@@ -155,6 +157,7 @@ export const projectReplaceCommand = new Command('replace')
     .option('--connection-mapping-file <path>', 'Path to file containing connection mappings or bootstrap secrets')
     .option('--connection-bootstrap <json>', 'JSON string of connection bootstrap credentials')
     .option('--force', 'Bypass preflight warnings', false)
+    .option('--rotate-mcp-token', 'Rotate destination MCP server token during apply and output one-time credential', false)
     .option('--json', 'Output machine-readable JSON', false)
     .action(async (options: ReplaceCliOptions) => {
         try {
@@ -393,6 +396,19 @@ export const projectReplaceCommand = new Command('replace')
                             console.log(`  Mapped:     ${cp.mapped.length}`)
                         }
                     }
+                    if (artifact.plan.changes) {
+                        const mcpCreates = artifact.plan.changes.creates.filter(c => c.kind === 'mcp_server').length
+                        const mcpUpdates = artifact.plan.changes.updates.filter(c => c.kind === 'mcp_server').length
+                        const mcpDeletes = artifact.plan.changes.deletes.filter(c => c.kind === 'mcp_server').length
+                        const mcpUnchanged = artifact.plan.changes.unchanged.filter(c => c.kind === 'mcp_server').length
+                        if (mcpCreates + mcpUpdates + mcpDeletes + mcpUnchanged > 0) {
+                            console.log('\nMCP Server Configuration:')
+                            console.log(`  Creates:   ${mcpCreates}`)
+                            console.log(`  Updates:   ${mcpUpdates}`)
+                            console.log(`  Deletes:   ${mcpDeletes}`)
+                            console.log(`  Unchanged: ${mcpUnchanged}`)
+                        }
+                    }
                     const totalChanges = artifact.plan.summary.created + artifact.plan.summary.updated + artifact.plan.summary.deleted
                     process.exit(totalChanges > 0 ? 1 : EXIT_SUCCESS)
                 }
@@ -428,7 +444,7 @@ export const projectReplaceCommand = new Command('replace')
             }
 
             // 3. Apply phase
-            const applyRes = await fetchJson<{ applied: Record<string, number>, failed: Array<{ error: string }> }>(
+            const applyRes = await fetchJson<ProjectReplaceApplyResult>(
                 `${destBase}/api/v1/projects/${options.destProject}/replace/apply`,
                 {
                     method: 'POST',
@@ -443,6 +459,7 @@ export const projectReplaceCommand = new Command('replace')
                         deployCustomIntegrations: options.deployIntegrations,
                         inspectOnly: options.inspectOnly,
                         connectionMappings: connectionMappings.length > 0 ? connectionMappings : undefined,
+                        rotateMcpToken: options.rotateMcpToken,
                     }),
                 },
             )
@@ -468,6 +485,13 @@ export const projectReplaceCommand = new Command('replace')
             else {
                 console.log('Project replacement apply finished:')
                 console.log(JSON.stringify(applyRes.data.applied, null, 2))
+                if (applyRes.data.mcpCredentials?.token) {
+                    console.log('\nDestination MCP Server Credentials [ONE-TIME DISPLAY]:')
+                    console.log(`  Token: ${applyRes.data.mcpCredentials.token}`)
+                    if (applyRes.data.mcpCredentials.serverUrl) {
+                        console.log(`  Server URL: ${applyRes.data.mcpCredentials.serverUrl}`)
+                    }
+                }
                 if (applyRes.data.failed.length > 0) {
                     console.warn(`Warnings: ${applyRes.data.failed.length} items failed to apply.`)
                 }

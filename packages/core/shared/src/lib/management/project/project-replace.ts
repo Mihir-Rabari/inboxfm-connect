@@ -18,7 +18,7 @@ export const ProjectReplaceResourceKind = z.enum([
 ])
 export type ProjectReplaceResourceKind = z.infer<typeof ProjectReplaceResourceKind>
 
-export const ProjectReplaceOp = z.enum(['CREATE', 'UPDATE', 'DELETE'])
+export const ProjectReplaceOp = z.enum(['CREATE', 'UPDATE', 'DELETE', 'ROTATE'])
 export type ProjectReplaceOp = z.infer<typeof ProjectReplaceOp>
 
 export const TableSnapshotSchema = z.object({
@@ -57,6 +57,7 @@ export const ScheduledTaskSnapshotSchema = z.object({
 export type ScheduledTaskSnapshotSchema = z.infer<typeof ScheduledTaskSnapshotSchema>
 
 export const McpServerSnapshotSchema = z.object({
+    externalId: z.string().optional().default('default'),
     disabledTools: z.array(z.string()).nullable().optional(),
 })
 export type McpServerSnapshotSchema = z.infer<typeof McpServerSnapshotSchema>
@@ -284,6 +285,7 @@ export const ProjectReplaceApplyRequest = z.object({
     inspectOnly: z.boolean().optional(),
     connectionMappings: z.array(ConnectionMappingSchema).optional(),
     providerMappings: z.array(ProviderMappingSchema).optional(),
+    rotateMcpToken: z.boolean().optional(),
 })
 export type ProjectReplaceApplyRequest = z.infer<typeof ProjectReplaceApplyRequest>
 
@@ -305,13 +307,20 @@ export const ProjectReplaceApplyResult = z.object({
         scheduledTasksUpdated: z.number(),
         scheduledTasksDeleted: z.number(),
         scheduledTasksUnchanged: z.number(),
+        mcpCreated: z.number().optional().default(0),
         mcpUpdated: z.number(),
+        mcpDeleted: z.number().optional().default(0),
+        mcpUnchanged: z.number().optional().default(0),
         customPiecesInstalled: z.number(),
         customPiecesUnchanged: z.number(),
         connectionsCreated: z.number(),
         connectionsUpdated: z.number(),
         connectionsUnchanged: z.number(),
     }),
+    mcpCredentials: z.object({
+        token: z.string(),
+        serverUrl: z.string().optional(),
+    }).nullable().optional(),
     failed: z.array(z.object({
         kind: ProjectReplaceResourceKind,
         externalId: z.string(),

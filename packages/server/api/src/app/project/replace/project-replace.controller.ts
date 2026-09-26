@@ -125,6 +125,7 @@ export const projectReplaceController: FastifyPluginAsyncZod = async (fastify) =
                 inspectOnly: z.boolean().optional(),
                 connectionMappings: z.array(ConnectionMappingSchema).optional(),
                 providerMappings: z.array(ProviderMappingSchema).optional(),
+                rotateMcpToken: z.boolean().optional(),
             }),
         },
         config: {
@@ -162,6 +163,7 @@ export const projectReplaceController: FastifyPluginAsyncZod = async (fastify) =
                 inspectOnly: request.body.inspectOnly,
                 connectionMappings: request.body.connectionMappings,
                 providerMappings: request.body.providerMappings,
+                rotateMcpToken: request.body.rotateMcpToken,
             },
             snapshot: request.body.snapshot,
         })
@@ -181,6 +183,7 @@ export const projectReplaceController: FastifyPluginAsyncZod = async (fastify) =
                 inspectOnly: z.boolean().optional(),
                 connectionMappings: z.array(ConnectionMappingSchema).optional(),
                 providerMappings: z.array(ProviderMappingSchema).optional(),
+                rotateMcpToken: z.boolean().optional(),
             }),
         },
         config: {
@@ -245,6 +248,7 @@ export const projectReplaceController: FastifyPluginAsyncZod = async (fastify) =
                 inspectOnly: request.body.inspectOnly,
                 connectionMappings: request.body.connectionMappings,
                 providerMappings: request.body.providerMappings,
+                rotateMcpToken: request.body.rotateMcpToken,
             },
             snapshot: request.body.snapshot,
         })

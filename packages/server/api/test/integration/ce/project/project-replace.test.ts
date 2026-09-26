@@ -21,6 +21,7 @@ import { StatusCodes } from 'http-status-codes'
 import { vi } from 'vitest'
 import { agentService } from '../../../../src/app/agents/agent.service'
 import { appConnectionService } from '../../../../src/app/app-connection/app-connection-service/app-connection-service'
+import { mcpServerRepository, mcpServerService } from '../../../../src/app/mcp/mcp-service'
 import { userInteractionWatcher } from '../../../../src/app/helper/user-interaction/user-interaction-watcher'
 import { mockAndSaveAIProvider } from '../../../helpers/mocks'
 import { createTestContext, TestContext } from '../../../helpers/test-context'
@@ -113,7 +114,7 @@ describe('Project Replace API (CE)', () => {
             expect(artifact.plan.planId).toBeDefined()
             expect(artifact.plan.signature).toBeDefined()
             expect(artifact.plan.changes.creates.some((c) => c.kind === 'table' && c.name === 'Inventory')).toBe(true)
-            expect(artifact.plan.changes.updates.some((u) => u.kind === 'mcp_server')).toBe(true)
+            expect(artifact.plan.changes.creates.some((c) => c.kind === 'mcp_server')).toBe(true)
 
             // Verify strictly ZERO writes occurred to destination
             const postExport = await app!.inject({
@@ -328,7 +329,7 @@ describe('Project Replace API (CE)', () => {
             expect(applyRes.statusCode).toBe(StatusCodes.OK)
             const result = applyRes.json()
             expect(result.applied.tablesCreated).toBe(1)
-            expect(result.applied.mcpUpdated).toBe(1)
+            expect(result.applied.mcpCreated).toBe(1)
             expect(result.failed).toHaveLength(0)
 
             // Verify state in destination
@@ -423,8 +424,8 @@ describe('Project Replace API (CE)', () => {
                 },
             })
 
-            expect(applyRes.statusCode).toBe(StatusCodes.BAD_REQUEST)
-            expect(applyRes.json().message).toContain('Cross-project plan replay is forbidden')
+            expect(applyRes.statusCode).toBe(StatusCodes.FORBIDDEN)
+            expect(applyRes.json().message).toContain('Cross-project replacement rejected')
         })
 
         it('should report VERSION_SKEW preflight error for invalid semver string instead of throwing 500', async () => {
@@ -2377,6 +2378,490 @@ describe('Project Replace API (CE)', () => {
             expect(body.plan.preflight.errors.some((e: any) =>
                 e.kind === 'MISSING_CONNECTION' && e.details?.connectionExternalId === 'other-project-conn'
             )).toBe(true)
+        })
+    })
+
+    describe('MCP Server Mirroring (Issue #51)', () => {
+        it('should mirror MCP server configuration and redact secrets/bearer tokens from snapshot', async () => {
+            await mcpServerService(app!.log).update({
+                projectId: ctx.project.id,
+                disabledTools: ['secret_tool_1', 'secret_tool_2'],
+            })
+
+            const exportRes = await app!.inject({
+                method: 'GET',
+                url: `/api/v1/projects/${ctx.project.id}/replace/export`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+            })
+
+            expect(exportRes.statusCode).toBe(StatusCodes.OK)
+            const snapshot: ProjectStateSnapshot = exportRes.json()
+            expect(snapshot.mcp).toBeDefined()
+            expect(snapshot.mcp?.externalId).toBe('default')
+            expect(snapshot.mcp?.disabledTools).toContain('secret_tool_1')
+            expect(snapshot.mcp?.disabledTools).toContain('secret_tool_2')
+            expect((snapshot.mcp as Record<string, unknown>).token).toBeUndefined()
+        })
+
+        it('should update MCP disabledTools and converge idempotently on retry with 0 duplicate MCP servers', async () => {
+            // Seed destination MCP
+            await mcpServerService(app!.log).update({
+                projectId: ctx.project.id,
+                disabledTools: ['old_tool'],
+            })
+
+            const initialSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: {
+                    externalId: 'default',
+                    disabledTools: ['tool_alpha', 'tool_beta'],
+                },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            // Plan 1: expect UPDATE
+            const planRes1 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: initialSnapshot,
+            })
+            expect(planRes1.statusCode).toBe(StatusCodes.OK)
+            const artifact1: ProjectReplaceArtifact = planRes1.json()
+            expect(artifact1.plan.changes.updates.some((u) => u.kind === 'mcp_server')).toBe(true)
+
+            // Apply 1
+            const applyRes1 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: { plan: artifact1.plan, snapshot: initialSnapshot },
+            })
+            expect(applyRes1.statusCode).toBe(StatusCodes.OK)
+            expect(applyRes1.json().applied.mcpUpdated).toBe(1)
+
+            // Verify MCP in destination
+            const destMcp = await mcpServerRepository().findOneBy({ projectId: ctx.project.id })
+            expect(destMcp).toBeDefined()
+            expect(destMcp!.disabledTools).toEqual(['tool_alpha', 'tool_beta'])
+
+            // Plan 2: re-run mirror with the same snapshot -> should be UNCHANGED
+            const planRes2 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: initialSnapshot,
+            })
+            expect(planRes2.statusCode).toBe(StatusCodes.OK)
+            const artifact2: ProjectReplaceArtifact = planRes2.json()
+            expect(artifact2.plan.changes.unchanged.some((u) => u.kind === 'mcp_server')).toBe(true)
+            expect(artifact2.plan.changes.updates.some((u) => u.kind === 'mcp_server')).toBe(false)
+
+            // Apply 2: retry should converge with 0 updates and 1 unchanged
+            const applyRes2 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: { plan: artifact2.plan, snapshot: initialSnapshot },
+            })
+            expect(applyRes2.statusCode).toBe(StatusCodes.OK)
+            expect(applyRes2.json().applied.mcpUpdated).toBe(0)
+            expect(applyRes2.json().applied.mcpUnchanged).toBe(1)
+
+            // Check exactly ONE MCP server exists in DB for this project
+            const mcpCount = await mcpServerRepository().countBy({ projectId: ctx.project.id })
+            expect(mcpCount).toBe(1)
+        })
+
+        it('should delete destination MCP server configuration when snapshot.mcp is null', async () => {
+            // Seed destination MCP
+            await mcpServerService(app!.log).update({
+                projectId: ctx.project.id,
+                disabledTools: ['tool_to_delete'],
+            })
+            expect(await mcpServerRepository().findOneBy({ projectId: ctx.project.id })).toBeDefined()
+
+            const deleteSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: null,
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: deleteSnapshot,
+            })
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+            expect(artifact.plan.changes.deletes.some((d) => d.kind === 'mcp_server')).toBe(true)
+
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: { plan: artifact.plan, snapshot: deleteSnapshot },
+            })
+            expect(applyRes.statusCode).toBe(StatusCodes.OK)
+            expect(applyRes.json().applied.mcpDeleted).toBe(1)
+
+            const deletedMcp = await mcpServerRepository().findOneBy({ projectId: ctx.project.id })
+            expect(deletedMcp).toBeNull()
+        })
+
+        it('should reject cross-project plan application with 403', async () => {
+            const ctx2 = await createTestContext(app!)
+
+            const snapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { externalId: 'default', disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            // Create plan targeting ctx.project.id
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: snapshot,
+            })
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+
+            // Attempt to apply ctx's plan against ctx2.project.id
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx2.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx2.token}` },
+                body: { plan: artifact.plan, snapshot },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.FORBIDDEN)
+        })
+
+        it('should rotate destination MCP token safely and return credential via one-time response channel without leaking to snapshot or plan', async () => {
+            const initialMcp = await mcpServerService(app!.log).getByProjectId(ctx.project.id)
+            const originalToken = initialMcp.token
+
+            const snapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { externalId: 'default', disabledTools: ['rotated_tool'] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: snapshot,
+            })
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+
+            // Apply with rotateMcpToken: true
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot,
+                    rotateMcpToken: true,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.OK)
+            const result = applyRes.json()
+            expect(result.mcpCredentials).toBeDefined()
+            expect(result.mcpCredentials.token).toBeDefined()
+            expect(result.mcpCredentials.token).not.toBe(originalToken)
+
+            // Verify DB has the new token
+            const updatedMcp = await mcpServerRepository().findOneBy({ projectId: ctx.project.id })
+            expect(updatedMcp?.token).toBe(result.mcpCredentials.token)
+
+            // Verify neither plan nor snapshot contained the new token
+            expect(JSON.stringify(artifact)).not.toContain(result.mcpCredentials.token)
+            expect(JSON.stringify(snapshot)).not.toContain(result.mcpCredentials.token)
+
+            // Subsequent apply without rotateMcpToken does NOT return token
+            const plan2 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: snapshot,
+            })
+            const apply2 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: { plan: plan2.json().plan, snapshot },
+            })
+            expect(apply2.json().mcpCredentials).toBeNull()
+        })
+
+        it('should emit CREATE when destination has no MCP server and increment mcpCreated upon apply', async () => {
+            const createSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: {
+                    externalId: 'default',
+                    disabledTools: ['tool_fresh'],
+                },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: createSnapshot,
+            })
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+            expect(artifact.plan.changes.creates.some((c) => c.kind === 'mcp_server')).toBe(true)
+
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: { plan: artifact.plan, snapshot: createSnapshot },
+            })
+            expect(applyRes.statusCode).toBe(StatusCodes.OK)
+            expect(applyRes.json().applied.mcpCreated).toBe(1)
+
+            const createdMcp = await mcpServerRepository().findOneBy({ projectId: ctx.project.id })
+            expect(createdMcp).toBeDefined()
+            expect(createdMcp!.disabledTools).toEqual(['tool_fresh'])
+        })
+
+        it('should reject plan application with empty targetProjectId with 403', async () => {
+            const snapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { externalId: 'default', disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: snapshot,
+            })
+            const artifact: ProjectReplaceArtifact = planRes.json()
+
+            const forgedPlan = {
+                ...artifact.plan,
+                targetProjectId: '',
+            }
+
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: { plan: forgedPlan, snapshot },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.FORBIDDEN)
+        })
+
+        it('should not resurrect MCP server when snapshot.mcp is null and rotateMcpToken is true', async () => {
+            await mcpServerService(app!.log).update({
+                projectId: ctx.project.id,
+                disabledTools: ['tool_to_delete'],
+            })
+            expect(await mcpServerRepository().findOneBy({ projectId: ctx.project.id })).toBeDefined()
+
+            const deleteSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: null,
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: deleteSnapshot,
+            })
+            const artifact: ProjectReplaceArtifact = planRes.json()
+            expect(artifact.plan.changes.deletes.some((d) => d.kind === 'mcp_server')).toBe(true)
+
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: deleteSnapshot,
+                    rotateMcpToken: true,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.OK)
+            const result = applyRes.json()
+            expect(result.applied.mcpDeleted).toBe(1)
+            expect(result.mcpCredentials).toBeNull()
+
+            const finalMcp = await mcpServerRepository().findOneBy({ projectId: ctx.project.id })
+            expect(finalMcp).toBeNull()
+        })
+
+        it('should capture MCP rotation failure into failed array with op ROTATE', async () => {
+            await mcpServerService(app!.log).update({
+                projectId: ctx.project.id,
+                disabledTools: [],
+            })
+
+            const snapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { externalId: 'default', disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: snapshot,
+            })
+            const artifact: ProjectReplaceArtifact = planRes.json()
+
+            const repo = mcpServerRepository()
+            const updateSpy = vi.spyOn(repo, 'update').mockRejectedValueOnce(new Error('KMS encryption key unavailable'))
+
+            try {
+                const applyRes = await app!.inject({
+                    method: 'POST',
+                    url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                    headers: { authorization: `Bearer ${ctx.token}` },
+                    body: {
+                        plan: artifact.plan,
+                        snapshot,
+                        rotateMcpToken: true,
+                    },
+                })
+
+                expect(applyRes.statusCode).toBe(StatusCodes.MULTI_STATUS)
+                const result = applyRes.json()
+                expect(result.mcpCredentials).toBeNull()
+                expect(result.failed.some((f: any) => f.kind === 'mcp_server' && f.op === 'ROTATE' && f.error.includes('KMS encryption key unavailable'))).toBe(true)
+            }
+            finally {
+                updateSpy.mockRestore()
+            }
+        })
+
+        it('should recover from partial failure during MCP delete phase', async () => {
+            await mcpServerService(app!.log).update({
+                projectId: ctx.project.id,
+                disabledTools: ['tool_fail_delete'],
+            })
+
+            const deleteSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: null,
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: deleteSnapshot,
+            })
+            const artifact: ProjectReplaceArtifact = planRes.json()
+
+            const repo = mcpServerRepository()
+            const deleteSpy = vi.spyOn(repo, 'delete').mockRejectedValueOnce(new Error('Lock wait timeout exceeded'))
+
+            const failApply = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: { plan: artifact.plan, snapshot: deleteSnapshot },
+            })
+
+            expect(failApply.statusCode).toBe(StatusCodes.MULTI_STATUS)
+            expect(failApply.json().failed.some((f: any) => f.kind === 'mcp_server' && f.op === 'DELETE')).toBe(true)
+            expect(failApply.json().applied.mcpDeleted).toBe(0)
+            deleteSpy.mockRestore()
+
+            expect(await mcpServerRepository().findOneBy({ projectId: ctx.project.id })).toBeDefined()
+
+            const retryApply = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: { plan: artifact.plan, snapshot: deleteSnapshot },
+            })
+
+            expect(retryApply.statusCode).toBe(StatusCodes.OK)
+            expect(retryApply.json().applied.mcpDeleted).toBe(1)
+            expect(await mcpServerRepository().findOneBy({ projectId: ctx.project.id })).toBeNull()
         })
     })
 })

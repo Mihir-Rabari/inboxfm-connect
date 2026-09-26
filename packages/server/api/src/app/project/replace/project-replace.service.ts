@@ -14,6 +14,7 @@ import {
     Field,
     FieldType,
     McpAuthType,
+    McpServerSnapshotSchema,
     PackageType,
     PieceScope,
     PieceType,
@@ -21,6 +22,7 @@ import {
     ProjectReplaceApplyRequest,
     ProjectReplaceApplyResult,
     ProjectReplaceDiffItem,
+    ProjectReplaceOp,
     ProjectReplacePlan,
     ProjectReplaceResourceKind,
     ProjectStateSnapshot,
@@ -50,7 +52,7 @@ import { fileRepo } from '../../file/file.service'
 import { flagService } from '../../flags/flag.service'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
-import { mcpServerService } from '../../mcp/mcp-service'
+import { mcpServerRepository, mcpServerService } from '../../mcp/mcp-service'
 import { pieceMetadataService } from '../../pieces/metadata/piece-metadata-service'
 import { pieceFilteringHooks } from '../../pieces/metadata/utils/piece-filtering-hooks'
 import { pieceInstallService } from '../../pieces/piece-install-service'
@@ -504,9 +506,10 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             })
         }
 
-        // 5. MCP server (disabledTools only, NO live bearer tokens!)
-        const mcpServer = await mcpServerService(log).getByProjectId(projectId)
-        const mcpSnapshot = {
+        // 5. MCP server (externalId and disabledTools only, NO live bearer tokens!)
+        const mcpServer = await mcpServerRepository().findOneBy({ projectId })
+        const mcpSnapshot: McpServerSnapshotSchema = {
+            externalId: 'default',
             disabledTools: mcpServer?.disabledTools ?? [],
         }
 
@@ -592,7 +595,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
         const agents = await agentRepo().find({ where: { projectId } })
         const triggerBindings = await triggerBindingRepo().find({ where: { projectId } })
         const scheduledTasks = await scheduledTaskRepo().find({ where: { projectId } })
-        const mcpServer = await mcpServerService(log).getByProjectId(projectId)
+        const mcpServer = await mcpServerRepository().findOneBy({ projectId })
         const connections = await connectionRepo().find({
             where: {
                 projectIds: ArrayContains([projectId]),
@@ -631,8 +634,8 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                 cronExpression: st.cronExpression,
                 timezone: st.timezone,
                 status: st.status,
-            })).sort((a, b) => (a.prompt + a.cronExpression).localeCompare(b.prompt + b.cronExpression)),
-            mcp: { disabledTools: [...(mcpServer?.disabledTools ?? [])].sort() },
+            })).sort((a, b) => `${a.prompt}:${a.cronExpression}`.localeCompare(`${b.prompt}:${b.cronExpression}`)),
+            mcp: mcpServer ? { externalId: 'default', disabledTools: [...(mcpServer.disabledTools ?? [])].sort() } : null,
             connections: connections.map((c) => ({
                 externalId: c.externalId,
                 pieceName: c.pieceName,
@@ -1368,13 +1371,38 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
         }
 
         // MCP Diff
-        const destMcp = await mcpServerService(log).getByProjectId(targetProjectId)
+        const destMcp = await mcpServerRepository().findOneBy({ projectId: targetProjectId })
         const sourceDisabledTools = [...(snapshot.mcp?.disabledTools ?? [])].sort()
         const destDisabledTools = [...(destMcp?.disabledTools ?? [])].sort()
-        if (canonicalJson(sourceDisabledTools) !== canonicalJson(destDisabledTools)) {
+        const mcpExternalId = snapshot.mcp?.externalId ?? targetProjectId
+
+        if (snapshot.mcp === null) {
+            if (destMcp) {
+                deletes.push({
+                    kind: 'mcp_server',
+                    externalId: mcpExternalId,
+                    op: 'DELETE',
+                    name: 'mcp_server',
+                    description: 'Delete MCP server configuration on destination',
+                })
+            }
+            else {
+                unchanged.push({ kind: 'mcp_server', externalId: mcpExternalId })
+            }
+        }
+        else if (!destMcp) {
+            creates.push({
+                kind: 'mcp_server',
+                externalId: mcpExternalId,
+                op: 'CREATE',
+                name: 'mcp_server',
+                description: 'Create MCP server configuration on destination',
+            })
+        }
+        else if (canonicalJson(sourceDisabledTools) !== canonicalJson(destDisabledTools)) {
             updates.push({
                 kind: 'mcp_server',
-                externalId: targetProjectId,
+                externalId: mcpExternalId,
                 op: 'UPDATE',
                 name: 'mcp_server',
                 description: 'Update MCP server disabled tools configuration',
@@ -1385,7 +1413,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             })
         }
         else {
-            unchanged.push({ kind: 'mcp_server', externalId: targetProjectId })
+            unchanged.push({ kind: 'mcp_server', externalId: mcpExternalId })
         }
 
         // Dependency Ordering: ensure dependencies are created before dependents, and deletes happen in reverse
@@ -1451,10 +1479,10 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
     }): Promise<ProjectReplaceApplyResult> {
         const plan = request.plan
 
-        // 1. Assert target project matches plan target project (prevent cross-project replay)
+        // 1. Target project ID verification (prevent cross-project replay)
         if (plan.targetProjectId !== targetProjectId) {
-            const err = new Error(`Plan target project "${plan.targetProjectId}" does not match target project "${targetProjectId}". Cross-project plan replay is forbidden.`) as Error & { statusCode: number }
-            err.statusCode = StatusCodes.BAD_REQUEST
+            const err = new Error(`Cross-project replacement rejected. Plan was created for project "${plan.targetProjectId}", cannot apply to "${targetProjectId}".`) as Error & { statusCode: number }
+            err.statusCode = StatusCodes.FORBIDDEN
             throw err
         }
 
@@ -1541,14 +1569,17 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     scheduledTasksUpdated: 0,
                     scheduledTasksDeleted: 0,
                     scheduledTasksUnchanged: 0,
+                    mcpCreated: 0,
                     mcpUpdated: 0,
+                    mcpDeleted: 0,
+                    mcpUnchanged: 0,
                     customPiecesInstalled: 0,
                     customPiecesUnchanged: 0,
                     connectionsCreated: 0,
                     connectionsUpdated: 0,
                     connectionsUnchanged: 0,
                 }
-                const failed: Array<{ kind: ProjectReplaceResourceKind, externalId: string, op: 'CREATE' | 'UPDATE' | 'DELETE', error: string }> = []
+                const failed: Array<{ kind: ProjectReplaceResourceKind, externalId: string, op: ProjectReplaceOp, error: string }> = []
 
                 if (request.dryRun || request.inspectOnly) {
                     return {
@@ -2228,7 +2259,21 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
 
                 applied.scheduledTasksUnchanged = plan.changes.unchanged.filter((u) => u.kind === 'scheduled_task').length
 
-                // Phase 4: MCP UPDATE
+                // Phase 4.5: MCP CREATE & UPDATE
+                const mcpCreate = plan.changes.creates.find((c) => c.kind === 'mcp_server')
+                if (mcpCreate && snapshot.mcp) {
+                    try {
+                        await mcpServerService(log).update({
+                            projectId: targetProjectId,
+                            disabledTools: snapshot.mcp.disabledTools ?? [],
+                        })
+                        applied.mcpCreated++
+                    }
+                    catch (err) {
+                        failed.push({ kind: 'mcp_server', externalId: mcpCreate.externalId, op: 'CREATE', error: (err as Error).message })
+                    }
+                }
+
                 const mcpUpdate = plan.changes.updates.find((c) => c.kind === 'mcp_server')
                 if (mcpUpdate && snapshot.mcp) {
                     try {
@@ -2240,6 +2285,19 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     }
                     catch (err) {
                         failed.push({ kind: 'mcp_server', externalId: mcpUpdate.externalId, op: 'UPDATE', error: (err as Error).message })
+                    }
+                }
+
+                applied.mcpUnchanged = plan.changes.unchanged.filter((u) => u.kind === 'mcp_server').length
+
+                // Phase 4.8: MCP DELETE (mcp_server is first in delete order)
+                for (const change of plan.changes.deletes.filter((c) => c.kind === 'mcp_server')) {
+                    try {
+                        await mcpServerRepository().delete({ projectId: targetProjectId })
+                        applied.mcpDeleted++
+                    }
+                    catch (err) {
+                        failed.push({ kind: 'mcp_server', externalId: change.externalId, op: 'DELETE', error: (err as Error).message })
                     }
                 }
 
@@ -2315,9 +2373,30 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     }
                 }
 
+                // Phase 8: MCP Token Rotation (only if MCP exists and was not deleted)
+                let mcpCredentials: { token: string, serverUrl?: string } | null = null
+                if (request.rotateMcpToken) {
+                    const hasMcpDelete = plan.changes.deletes.some((d) => d.kind === 'mcp_server')
+                    const existingMcp = await mcpServerRepository().findOneBy({ projectId: targetProjectId })
+                    if (existingMcp && !hasMcpDelete) {
+                        try {
+                            const rotated = await mcpServerService(log).rotateToken({ projectId: targetProjectId })
+                            const frontendUrl = system.get(AppSystemProp.FRONTEND_URL)
+                            mcpCredentials = {
+                                token: rotated.token,
+                                serverUrl: frontendUrl ? `${frontendUrl}/mcp` : undefined,
+                            }
+                        }
+                        catch (err) {
+                            failed.push({ kind: 'mcp_server', externalId: targetProjectId, op: 'ROTATE', error: (err as Error).message })
+                        }
+                    }
+                }
+
                 return {
                     applied,
                     failed,
+                    mcpCredentials,
                     durationMs: Date.now() - startTime,
                 }
             },

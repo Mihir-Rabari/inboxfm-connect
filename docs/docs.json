@@ -124,6 +124,13 @@
                   ]
                },
                {
+                  "group": "Connect SDK",
+                  "pages": [
+                     "connect-sdk/overview",
+                     "connect-sdk/reference"
+                  ]
+               },
+               {
                   "group": "About",
                   "pages": [
                      "about/i18n",
@@ -230,6 +237,7 @@
                   "group": "Configure & Operate",
                   "pages": [
                      "install/configure-operate/production-setup",
+                     "install/configure-operate/production-checklist",
                      {
                         "group": "Production Essentials",
                         "icon": "rocket",
@@ -238,7 +246,9 @@
                            "install/configure-operate/sandboxing",
                            "install/configure-operate/enterprise-license",
                            "install/configure-operate/setup-ssl",
-                           "install/configure-operate/setup-s3"
+                           "install/configure-operate/setup-s3",
+                           "install/configure-operate/backup-and-restore",
+                           "install/configure-operate/postgres-connection-budget"
                         ]
                      },
                      {
@@ -611,7 +621,6 @@
                      "handbook/engineering/playbooks/building-for-self-hosting",
                      "handbook/engineering/playbooks/setup-betterstack",
                      "handbook/engineering/playbooks/releases",
-                     "handbook/engineering/playbooks/canary-deployment",
                      "handbook/engineering/playbooks/infrastructure",
                      "handbook/engineering/playbooks/database-migration",
                      "handbook/engineering/playbooks/structured-logging",

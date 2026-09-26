@@ -1,15 +1,13 @@
 import { isNil } from '@inboxfm-connect/core-utils'
-import { McpProperty, McpPropertyType, McpToolDefinition, PopulatedMcpServer, ProjectScopedMcpServer } from '@inboxfm-connect/shared'
+import { McpToolDefinition, PopulatedMcpServer, ProjectScopedMcpServer } from '@inboxfm-connect/shared'
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { FastifyBaseLogger } from 'fastify'
-import { z } from 'zod'
 import { ALLOW_ALL, PermissionChecker, resolvePermissionChecker } from './mcp-permissions'
 import { mcpProjectSelection, ProjectSelectionScope } from './mcp-project-selection'
 import { activepiecesTools, ALL_CONTROLLABLE_TOOL_NAMES, LOCKED_TOOL_NAMES, PLATFORM_LEVEL_TOOL_NAMES } from './tools'
 import { apSetProjectContextTool } from './tools/ap-set-project-context'
 
 const PLATFORM_LEVEL_TOOL_SET = new Set(PLATFORM_LEVEL_TOOL_NAMES)
-const MCP_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
 const MCP_SERVER_INSTRUCTIONS = `## Activepieces MCP Server
 
@@ -63,7 +61,6 @@ export async function buildMcpServer({ mcp, userId, selectionScope, log, resolve
         const permissionChecker = userId
             ? await resolvePermissionChecker({ userId, projectId, log })
             : ALLOW_ALL
-        registerFlowTools({ server, mcp, projectId, permissionChecker, log })
         registerStaticTools({ server, mcp, projectId, userId, permissionChecker, log })
     }
     else if (!isNil(mcp.platformId) && !isNil(userId) && !isNil(resolveProjectMcp)) {
@@ -126,10 +123,6 @@ function registerPlatformTools({ server, mcp, userId, selectionScope, resolvePro
     })
 }
 
-function registerFlowTools({ server, mcp, projectId, permissionChecker, log }: RegisterToolsParams): void {
-    // No-op: Flow-based tools are deprecated in headless platform.
-}
-
 function registerStaticTools({ server, mcp, projectId, userId, permissionChecker, log }: RegisterToolsParams): void {
     const allTools = activepiecesTools({ ...mcp, projectId }, userId, log)
     const disabledToolSet = new Set(mcp.disabledTools ?? [])
@@ -151,28 +144,6 @@ function registerPlaceholderTools(server: McpServer): void {
             content: [{ type: 'text' as const, text: `No project selected. Please select a project from the dropdown in the chat input area before using ${toolName}.` }],
         }))
     })
-}
-
-function mcpPropertyToZod(property: McpProperty): z.ZodTypeAny {
-    const base = (() => {
-        switch (property.type) {
-            case McpPropertyType.TEXT:
-            case McpPropertyType.DATE:
-                return z.string()
-            case McpPropertyType.NUMBER:
-                return z.number()
-            case McpPropertyType.BOOLEAN:
-                return z.boolean()
-            case McpPropertyType.ARRAY:
-                return z.array(z.string())
-            case McpPropertyType.OBJECT:
-                return z.record(z.string(), z.string())
-            default:
-                return z.unknown()
-        }
-    })()
-    const described = property.description ? base.describe(property.description) : base
-    return property.required ? described : described.nullish()
 }
 
 function registerEmptyResourcesAndPrompts(server: McpServer): void {

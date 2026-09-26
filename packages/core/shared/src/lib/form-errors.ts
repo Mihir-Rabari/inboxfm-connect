@@ -6,4 +6,5 @@ export const formErrors = {
     invalidExternalId: 'invalidExternalId',
     invalidFileName: 'invalidFileName',
     messageRequiresContentOrFiles: 'messageRequiresContentOrFiles',
+    apiKeyExpiryMustBeFuture: 'apiKeyExpiryMustBeFuture',
 } as const

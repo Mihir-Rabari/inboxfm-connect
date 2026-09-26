@@ -33,7 +33,7 @@ const instanceUrl = 'https://cloud.activepieces.com';
 
 // The name of the user / organization in your SAAS
 const externalProjectId = 'org_1234';
-const pieceName = '@activepieces/piece-gelato';
+const pieceName = '@inboxfm-connect/piece-gelato';
 // This will depend on what your piece auth type is, can be one of this ['PLATFORM_OAUTH2','SECRET_TEXT','BASIC_AUTH','CUSTOM_AUTH']
 const pieceAuthType = "CUSTOM_AUTH"
 const connectionProps = {
@@ -176,13 +176,13 @@ import {
    ConnectionsManager,
    Property,
    TriggerStrategy
-} from "@activepieces/pieces-framework";
+} from "@inboxfm-connect/pieces-framework";
 import {
    createTrigger
-} from "@activepieces/pieces-framework";
+} from "@inboxfm-connect/pieces-framework";
 import {
    isNil
-} from "@activepieces/shared";
+} from "@inboxfm-connect/shared";
 // Add this import from the index.ts file, where it contains the definition of the auth object.
 import { auth } from '../..';
 

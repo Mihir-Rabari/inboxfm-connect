@@ -83,6 +83,11 @@ The Enterprise Authentication module extends the Community Edition auth layer wi
 
 **Entity**: OTP with identityId, type, value, state (PENDING/CONFIRMED), updated timestamp
 
+**Rate limiting**: `POST /v1/otp` (create/send) and `enterprise-local-authn`'s
+`verify-email`/`reset-password` all use the same IP-scoped abuse tier as
+sign-up/sign-in (`authAbuseRateLimitOptions` in `core/security/rate-limit.ts`,
+default 10 req/min/IP) — see `.agents/features/authentication.md`.
+
 ## Enterprise Local Auth (`enterprise-local-authn/`)
 
 Extends CE auth with:

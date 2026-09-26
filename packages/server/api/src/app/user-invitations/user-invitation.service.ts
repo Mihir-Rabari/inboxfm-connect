@@ -1,14 +1,14 @@
-import { ActivepiecesError, apId, assertEqual, assertNotNullOrUndefined, ErrorCode, isNil, SeekPage, spreadIfDefined } from '@inboxfm-connect/core-utils'
+import { ActivepiecesError, apId, assertEqual, assertNotNullOrUndefined, ErrorCode, isNil, ProjectRole, SeekPage, spreadIfDefined, unique } from '@inboxfm-connect/core-utils'
 import { InvitationStatus, InvitationType, PlatformRole, UserInvitation, UserInvitationWithLink } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { IsNull } from 'typeorm'
+import { In, IsNull } from 'typeorm'
 import { userIdentityService } from '../authentication/user-identity/user-identity-service'
 import { repoFactory } from '../core/db/repo-factory'
-import { smtpEmailSender } from '../ee/helper/email/email-sender/smtp-email-sender'
-import { emailService } from '../ee/helper/email/email-service'
 import { projectMemberService } from '../ee/projects/project-members/project-member.service'
-import { projectRoleService } from '../ee/projects/project-role/project-role.service'
+import { projectRoleRepo, projectRoleService } from '../ee/projects/project-role/project-role.service'
 import { domainHelper } from '../helper/domain-helper'
+import { emailService } from '../helper/email/email.service'
+import { smtpEmailSender } from '../helper/email/smtp-email-sender'
 import { JwtAudience, jwtUtils } from '../helper/jwt-utils'
 import { buildPaginator } from '../helper/pagination/build-paginator'
 import { paginationHelper } from '../helper/pagination/pagination-utils'
@@ -159,15 +159,13 @@ export const userInvitationsService = (log: FastifyBaseLogger) => ({
                 ...spreadIfDefined('type', params.type),
             })
         const { data, cursor } = await paginator.paginate(queryBuilder)
-        const enrichedData = await Promise.all(data.map(async (invitation) => {
-            return {
-                projectRole: !isNil(invitation.projectRoleId) ? await projectRoleService.getOneOrThrowById({
-                    id: invitation.projectRoleId,
-                }) : null,
-                ...invitation,
-            }
+        const projectRoleIds = unique(data.map((invitation) => invitation.projectRoleId).filter((id): id is string => !isNil(id)))
+        const projectRoleById = await getProjectRolesByIds(projectRoleIds)
+        const enrichedData = data.map((invitation) => ({
+            projectRole: !isNil(invitation.projectRoleId) ? projectRoleById.get(invitation.projectRoleId) ?? null : null,
+            ...invitation,
         }))
-        return paginationHelper.createPage<UserInvitation>(await Promise.all(enrichedData), cursor)
+        return paginationHelper.createPage<UserInvitation>(enrichedData, cursor)
     },
     async delete({ id, platformId }: PlatformAndIdParams): Promise<void> {
         const invitation = await this.getOneOrThrow({ id, platformId })
@@ -253,6 +251,14 @@ async function generateInvitationLink(userInvitation: UserInvitation, expireyInS
         path: `invitation?token=${token}&email=${encodeURIComponent(userInvitation.email)}`,
     })
 }
+async function getProjectRolesByIds(ids: string[]): Promise<Map<string, ProjectRole>> {
+    if (ids.length === 0) {
+        return new Map()
+    }
+    const projectRoles = await projectRoleRepo().find({ where: { id: In(ids) } })
+    return new Map(projectRoles.map((projectRole) => [projectRole.id, projectRole]))
+}
+
 const enrichWithInvitationLink = async (userInvitation: UserInvitation, expireyInSeconds: number, log: FastifyBaseLogger) => {
     const invitationLink = await generateInvitationLink(userInvitation, expireyInSeconds)
     if (!smtpEmailSender(log).isSmtpConfigured()) {

@@ -11,7 +11,7 @@ const CORE_ITEMS = [
   'Scheduled Tasks',
   'MCP',
 ]
-const PLATFORM_ITEMS = ['Activity', 'Developers', 'Settings']
+const PLATFORM_ITEMS = ['Activity', 'Developers', 'API Keys', 'Settings']
 const LEGACY_ITEMS = ['Flows', 'Flow Runs', 'Flow Versions', 'Folders']
 
 describe('Sidebar', () => {

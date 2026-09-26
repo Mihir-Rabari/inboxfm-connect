@@ -39,8 +39,8 @@ import {
   createAction,
   Property,
   PieceAuth,
-} from '@activepieces/pieces-framework';
-import { httpClient, HttpMethod } from '@activepieces/pieces-common';
+} from '@inboxfm-connect/pieces-framework';
+import { httpClient, HttpMethod } from '@inboxfm-connect/pieces-common';
 import { gelatoAuth } from '../..';
 
 export const getIcecreamFlavor = createAction({
@@ -78,10 +78,10 @@ You can describe how an action's output is presented in the builder — includin
 
 ## Expose The Definition
 
-To make the action readable by Activepieces, add it to the array of actions in the piece definition.
+To make the action readable by Inboxfm Connect, add it to the array of actions in the piece definition.
 
 ```typescript
-import { createPiece } from '@activepieces/pieces-framework';
+import { createPiece } from '@inboxfm-connect/pieces-framework';
 // Don't forget to add the following import.
 import { getIcecreamFlavor } from './lib/actions/get-icecream-flavor';
 
@@ -105,10 +105,10 @@ For more details, check out the [Piece Development](/build-pieces/building-piece
 Once you edit the environment variable, restart the backend. The piece will be rebuilt. After this process, you'll need to **refresh** the frontend to see the changes.
 
 <Tip>
-If the build fails, try debugging by running `npx turbo run build --filter=@activepieces/piece-gelato`.
+If the build fails, try debugging by running `npx turbo run build --filter=@inboxfm-connect/piece-gelato`.
 It will display any errors in your code.
 </Tip>
 
-To test the action, use the flow builder in Activepieces. It should function as shown in the screenshot.
+To test the action, use it from the Inboxfm Connect UI. It should function as shown in the screenshot.
 
 ![Gelato Action](/resources/screenshots/gelato-action.png)

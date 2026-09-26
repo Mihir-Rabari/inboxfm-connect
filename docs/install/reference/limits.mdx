@@ -1,7 +1,7 @@
 ---
 title: "Limits"
 icon: "ban"
-description: "Limits enforced on Activepieces Cloud, with self-hosted overrides"
+description: "Limits enforced on Inboxfm Connect Cloud, with self-hosted overrides"
 ---
 
 <Note>
@@ -104,7 +104,7 @@ incoming payload can be.
 | Webhook payload inline threshold | 1024 KB | `AP_WEBHOOK_PAYLOAD_INLINE_THRESHOLD_KB` | `512` |
 
 <Tip>
-For synchronous webhook requests (URLs ending in `/sync`), Activepieces will
+For synchronous webhook requests (URLs ending in `/sync`), Inboxfm Connect will
 wait up to the response timeout before returning HTTP 408. Payloads above the
 inline threshold are offloaded from Redis to file storage to protect Redis
 memory; smaller payloads stay inline for the fastest path.

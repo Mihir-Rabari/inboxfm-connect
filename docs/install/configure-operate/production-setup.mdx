@@ -10,7 +10,7 @@ This is the production setup we recommend. It is sized from a single number — 
 
 One flow per worker. A small fleet of those. A thin tier of apps in front. Managed Postgres, Redis, and S3 behind — all in the **same region**.
 
-<img src="/resources/diagrams/activepieces-architecture.png" alt="Activepieces production architecture: client, app, Redis job queue, Postgres, S3, and one-flow-per-worker execution tier" />
+<img src="/resources/diagrams/activepieces-architecture.png" alt="Inboxfm Connect production architecture: client, app, Redis job queue, Postgres, S3, and one-flow-per-worker execution tier" />
 
 | Component | Size each | How many |
 |---|---|---|
@@ -21,6 +21,12 @@ One flow per worker. A small fleet of those. A thin tier of apps in front. Manag
 | **Object storage (S3)** | same region, signed URLs on | required |
 
 S3 is a hard requirement, not a nice-to-have: without it, every flow bundle and piece archive funnels through the app tier and the throughput numbers below no longer hold. (Walkthrough: [S3 Storage](./setup-s3).)
+
+<Note>
+As the app tier grows, budget its Postgres connections too — each app replica opens its own pool,
+and Postgres's `max_connections` is shared across the whole fleet. See
+[Postgres Connection Budget](./postgres-connection-budget).
+</Note>
 
 ## Recommended config
 

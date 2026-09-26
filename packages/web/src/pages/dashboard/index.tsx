@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
+import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAuth } from '@/lib/auth/auth-context'
 import {
@@ -35,13 +36,19 @@ export default function DashboardPage() {
   const { data: connections, isLoading: isConnectionsLoading } = useConnectionsQuery()
   const { data: triggerBindings, isLoading: isTriggersLoading } = useTriggerBindingsQuery()
   const { data: scheduledTasks, isLoading: isSchedulesLoading } = useScheduledTasksQuery()
-  const { data: executionsData, isLoading: isExecutionsLoading } = useExecutionsQuery({ limit: 5 })
+  const {
+    data: executionsData,
+    isLoading: isExecutionsLoading,
+    isError: isExecutionsError,
+    refetch: refetchExecutions,
+  } = useExecutionsQuery({ limit: 5 })
 
   const connectionList = connections?.data || []
   const executions = executionsData?.data || []
+  const integrationList = integrations?.data || []
 
   // Count available tools across integrations
-  const totalToolsCount = integrations?.reduce((acc, piece) => acc + (piece.actions || 0), 0) || 0
+  const totalToolsCount = integrationList.reduce((acc, piece) => acc + (piece.actions || 0), 0) || 0
   const activeConnectionsCount = connectionList.filter((c) => c.status === 'ACTIVE').length
   const activeTriggersCount = triggerBindings?.filter((t) => t.status === 'ENABLED').length || 0
   const activeSchedulesCount = scheduledTasks?.filter((s) => s.status === 'ENABLED').length || 0
@@ -78,11 +85,11 @@ export default function DashboardPage() {
               <Skeleton className="h-7 w-16" />
             ) : (
               <div className="text-2xl font-bold tracking-tight text-foreground">
-                {totalToolsCount > 0 ? totalToolsCount : integrations?.length || 0}
+                {totalToolsCount > 0 ? totalToolsCount : integrationList.length}
               </div>
             )}
             <p className="text-[11px] text-muted-foreground mt-0.5">
-              Across {integrations?.length || 0} integrations
+              Across {integrationList.length} integrations
             </p>
           </div>
         </Card>
@@ -248,6 +255,14 @@ export default function DashboardPage() {
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
               <Skeleton className="h-10 w-full" />
+            </div>
+          ) : isExecutionsError ? (
+            <div className="p-8">
+              <ErrorState
+                title="Unable to load recent executions"
+                description="The execution log could not be reached. Retry shortly."
+                onRetry={() => void refetchExecutions()}
+              />
             </div>
           ) : executions.length === 0 ? (
             <div className="p-8">

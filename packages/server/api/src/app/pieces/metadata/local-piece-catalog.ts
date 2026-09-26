@@ -1,7 +1,9 @@
 import fs from 'fs'
 import path from 'path'
 import { apId, tryCatchSync } from '@inboxfm-connect/core-utils'
-import { PackageType, PieceType } from '@inboxfm-connect/shared'
+import { IntegrationAuthProperty, ToolBase, TriggerBase } from '@inboxfm-connect/pieces-framework'
+import { PackageType, PieceCategory, PieceType } from '@inboxfm-connect/shared'
+import { z } from 'zod'
 import { PieceRegistryEntry } from './piece-cache'
 import { PieceMetadataSchema } from './piece-metadata-entity'
 
@@ -32,21 +34,24 @@ function loadCatalogFromDisk(): PieceMetadataSchema[] {
             name: item.name,
             displayName: item.displayName,
             logoUrl: item.logoUrl,
-            description: item.description ?? null,
+            description: item.description ?? '',
             version: item.version,
             minimumSupportedRelease: item.minimumSupportedRelease ?? '0.0.0',
             maximumSupportedRelease: item.maximumSupportedRelease ?? '999.999.999',
-            categories: item.categories ?? null,
+            categories: validatedOrUndefined({ schema: CategoriesSchema, value: item.categories }),
             authors: item.authors ?? [],
-            auth: item.auth ?? null,
-            actions: item.actions ?? {},
-            triggers: item.triggers ?? {},
+            auth: item.auth,
+            actions: validatedOrUndefined({ schema: ActionsSchema, value: item.actions }) ?? {},
+            triggers: validatedOrUndefined({ schema: TriggersSchema, value: item.triggers }) ?? {},
             pieceType: PieceType.OFFICIAL,
             packageType: PackageType.REGISTRY,
             projectUsage: 0,
-            platformId: null,
-            archiveId: null,
-            i18n: null,
+            // Only the engine knows a piece's context version, and it resolves it from the
+            // installed package at execution time — the catalog snapshot never carries one.
+            contextInfo: undefined,
+            platformId: undefined,
+            archiveId: undefined,
+            i18n: undefined,
             created: item.created ?? now,
             updated: item.updated ?? now,
         }
@@ -104,6 +109,30 @@ function isLocalPiece(name: string): boolean {
     return findLocalPiece({ name }) !== undefined
 }
 
+// JSON.parse yields no type information, so the catalog's structural fields are gated
+// on the framework's own schema at load time. A malformed entry degrades to "absent"
+// rather than poisoning the process-lifetime cache with a half-valid piece.
+//
+// `auth` is deliberately NOT gated: the catalog stores a type-only marker
+// (`{ "type": "CUSTOM_AUTH" }`) rather than a full IntegrationAuthProperty, so checking
+// it against that schema would reject and drop the marker on all 703 pieces that carry
+// one, which is how the UI knows a piece needs a connection at all.
+function validatedOrUndefined<T>({ schema, value }: ValidatedOrUndefinedParams<T>): T | undefined {
+    if (value === undefined) {
+        return undefined
+    }
+    return schema.safeParse(value).success ? value : undefined
+}
+
+const CategoriesSchema = z.array(z.enum(PieceCategory))
+const ActionsSchema = z.record(z.string(), ToolBase)
+const TriggersSchema = z.record(z.string(), TriggerBase)
+
+type ValidatedOrUndefinedParams<T> = {
+    schema: z.ZodType
+    value: T | undefined
+}
+
 type FindLocalPieceParams = {
     name: string
     version?: string
@@ -114,15 +143,15 @@ type RawCatalogItem = {
     name: string
     displayName: string
     logoUrl: string
-    description?: string | null
+    description?: string
     version: string
     minimumSupportedRelease?: string
     maximumSupportedRelease?: string
-    categories?: string[] | null
+    categories?: PieceCategory[]
     authors?: string[]
-    auth?: unknown
-    actions?: Record<string, unknown>
-    triggers?: Record<string, unknown>
+    auth?: IntegrationAuthProperty | IntegrationAuthProperty[]
+    actions?: Record<string, ToolBase>
+    triggers?: Record<string, TriggerBase>
     created?: string
     updated?: string
 }

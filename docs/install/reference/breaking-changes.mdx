@@ -16,7 +16,7 @@ Log fields are now grouped under the entity they belong to, so each thing has on
 "Sign in with Google" can no longer be enabled from the SSO page in the admin panel — that setting has been removed. It is now controlled solely by the `AP_GOOGLE_CLIENT_ID` and `AP_GOOGLE_CLIENT_SECRET` environment variables. The button only appears when both are set (and the platform's Google auth toggle is enabled).
 
 #### Pieces are now self-contained bundles
-Each piece is now built into a single self-contained bundle — its own code, the Activepieces framework, and its third-party dependencies are inlined into one artifact, so the engine provisions a piece by downloading one file instead of installing a dependency tree at runtime. As part of this, the shared libraries (`@activepieces/shared`, `@activepieces/pieces-framework`, `@activepieces/pieces-common`, `@activepieces/core-*`) are no longer published to npm, and pieces import only from `@activepieces/pieces-framework` (which re-exports the foundation symbols that used to come from `@activepieces/shared`). Built-in pieces are unaffected — this only matters for custom pieces.
+Each piece is now built into a single self-contained bundle — its own code, the Inboxfm Connect framework, and its third-party dependencies are inlined into one artifact, so the engine provisions a piece by downloading one file instead of installing a dependency tree at runtime. As part of this, the shared libraries (`@inboxfm-connect/shared`, `@inboxfm-connect/pieces-framework`, `@inboxfm-connect/pieces-common`, `@inboxfm-connect/core-*`) are no longer published to npm, and pieces import only from `@inboxfm-connect/pieces-framework` (which re-exports the foundation symbols that used to come from `@inboxfm-connect/shared`). Built-in pieces are unaffected — this only matters for custom pieces.
 
 #### `AP_PRE_WARM_CACHE` removed
 The `AP_PRE_WARM_CACHE` environment variable no longer exists. It used to make a worker install pieces into its cache on startup. The worker is now its own sandbox and fills its cache lazily on first use, so the flag has no effect and setting it does nothing. Cache warmth now comes from running long-lived worker replicas rather than an up-front install step.
@@ -25,8 +25,8 @@ The up-front install is no longer needed because piece installs are now fast: ea
 
 ### Do you need to take action?
 - Only if you set up Google SSO from the admin panel. Move your Google OAuth2 credentials into the `AP_GOOGLE_CLIENT_ID` and `AP_GOOGLE_CLIENT_SECRET` environment variables.
-- Only if you build dashboards or alerts on Activepieces logs. Update them to the new grouped names, e.g. `runId` → `flowRun.id` and `err` → `error`.
-- Only if you maintain **custom pieces** (in a fork or built outside the repo). Migrate each one to the bundle model — run `npm run cli -- pieces migrate <piece-name>` (or `--all`), or follow the [migration guide](/build-pieces/misc/migrate-pieces-to-bundles). Pieces that still import `@activepieces/shared` or depend on the now-unpublished libraries will fail to build.
+- Only if you build dashboards or alerts on Inboxfm Connect logs. Update them to the new grouped names, e.g. `runId` → `flowRun.id` and `err` → `error`.
+- Only if you maintain **custom pieces** (in a fork or built outside the repo). Migrate each one to the bundle model — run `npm run cli -- pieces migrate <piece-name>` (or `--all`), or follow the [migration guide](/build-pieces/misc/migrate-pieces-to-bundles). Pieces that still import `@inboxfm-connect/shared` or depend on the now-unpublished libraries will fail to build.
 - Only if your deployment sets `AP_PRE_WARM_CACHE`. Remove it from your environment — it is no longer read. Nothing else is required.
 
 ## 0.85.4
@@ -39,7 +39,7 @@ Logging moved from pino + OpenTelemetry to [evlog](https://evlog.dev). Logs are 
 
 New optional env vars: `AP_LOG_SAMPLE_RATE_INFO` (percent of info logs to keep, default `100`) and `AP_LOG_KEEP_SLOW_MS` (always keep requests slower than this, default `2000`). Drain settings (`AP_AXIOM_*`, `AP_BETTERSTACK_*`, `AP_LOKI_*`, `AP_HYPERDX_TOKEN`) are unchanged.
 
-**Action:** only if you ingest Activepieces telemetry — update log dashboards to the new shape, and move any trace- or metric-based monitoring to logs.
+**Action:** only if you ingest Inboxfm Connect telemetry — update log dashboards to the new shape, and move any trace- or metric-based monitoring to logs.
 
 #### Referencing step outputs
 Previously if you had a step called step_1 you would had to reference it "step_1['the_property_you_want']" but now you must reference it as "step_1['output']['the_property_you_want']", there is already a migration that will take care of this for you, but if you must abide by this new syntax if you are writing/editing step references manually not through the builder.
@@ -152,7 +152,7 @@ When creating a project now, the platform owner email doesn't automatically get 
 ### Do you need to take action?
 
 - If you are on the embed plan, update your implementation to redirect users to the `/templates` page.
-- Review the new endpoints documentation: [Templates API Schema](https://www.activepieces.com/docs/endpoints/templates/schema).
+- Review the new endpoints documentation: [Templates API Schema](/endpoints/templates/schema).
 - If you use a custom value for `AP_MAX_FILE_SIZE_MB`, be sure to also set `AP_MAX_FLOW_RUN_LOG_SIZE_MB` accordingly.
 
 ## 0.75.0
@@ -183,7 +183,7 @@ When creating a project now, the platform owner email doesn't automatically get 
 
 ### What has changed?
 - Major change to MCP: [Read the announcement.](https://community.activepieces.com/t/mcp-update-easier-faster-and-more-secure/11177)
-- If you have SMTP configured in the platform admin, it's no longer supported—you need to use AP_SMTP_ [environment variables.](https://www.activepieces.com/docs/install/reference/environment-variables#email-smtp)
+- If you have SMTP configured in the platform admin, it's no longer supported—you need to use AP_SMTP_ [environment variables.](/install/reference/environment-variables#email-smtp)
 
 ### Do you need to take action?
 - If you are currently using MCP, review the linked announcement for important migration details and upgrade guidance.
@@ -267,7 +267,7 @@ When creating a project now, the platform owner email doesn't automatically get 
 
 ### When is action necessary?
 
-- If `AP_CONTAINER_TYPE` is set to `WORKER` on the worker machine, and `AP_SCHEDULED_WORKER_CONCURRENCY` or `AP_FLOW_WORKER_CONCURRENCY` are set to zero on the app server, workers will stop processing the queues. To fix this, check the [Separate Worker from App](https://www.activepieces.com/docs/install/configure-operate/separate-workers) documentation and set the `AP_CONTAINER_TYPE` to fetch the necessary values from the app server. If no container type is set on the worker machine, this is not a breaking change.
+- If `AP_CONTAINER_TYPE` is set to `WORKER` on the worker machine, and `AP_SCHEDULED_WORKER_CONCURRENCY` or `AP_FLOW_WORKER_CONCURRENCY` are set to zero on the app server, workers will stop processing the queues. To fix this, check the [Separate Worker from App](/install/configure-operate/separate-workers) documentation and set the `AP_CONTAINER_TYPE` to fetch the necessary values from the app server. If no container type is set on the worker machine, this is not a breaking change.
 
 ## 0.35.1
 

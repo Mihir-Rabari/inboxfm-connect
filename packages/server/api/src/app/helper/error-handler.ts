@@ -14,6 +14,10 @@ export const errorHandler = async (
     if (error instanceof ActivepiecesError) {
         const statusCode = statusCodeMap[error.error.code] ?? StatusCodes.BAD_REQUEST
 
+        if (error.error.code === ErrorCode.PROJECT_EXECUTION_CONCURRENCY_LIMIT_EXCEEDED) {
+            void reply.header('Retry-After', String(error.error.params.retryAfterSeconds))
+        }
+
         await reply.status(statusCode).send({
             code: error.error.code,
             params: error.error.params,
@@ -111,6 +115,11 @@ const statusCodeMap: Partial<Record<ErrorCode, StatusCodes>> = {
     [ErrorCode.FLOW_RUN_RETRY_OUTSIDE_RETENTION]: StatusCodes.GONE,
     [ErrorCode.SANDBOX_CAPACITY_EXCEEDED]: StatusCodes.TOO_MANY_REQUESTS,
     [ErrorCode.CHAT_CONTEXT_LIMIT_EXCEEDED]: StatusCodes.BAD_REQUEST,
+    [ErrorCode.PROJECT_RATE_LIMIT_EXCEEDED]: StatusCodes.TOO_MANY_REQUESTS,
+    [ErrorCode.SIGN_IN_ATTEMPTS_EXCEEDED]: StatusCodes.TOO_MANY_REQUESTS,
+    [ErrorCode.CAPTCHA_VERIFICATION_FAILED]: StatusCodes.BAD_REQUEST,
+    [ErrorCode.API_KEY_RATE_LIMIT_EXCEEDED]: StatusCodes.TOO_MANY_REQUESTS,
+    [ErrorCode.PROJECT_EXECUTION_CONCURRENCY_LIMIT_EXCEEDED]: StatusCodes.TOO_MANY_REQUESTS,
 }
 
 type WideErrorFields = {

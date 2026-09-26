@@ -1,9 +1,9 @@
 ---
 title: 'Helm'
-description: 'Deploy Activepieces on Kubernetes using Helm'
+description: 'Deploy Inboxfm Connect on Kubernetes using Helm'
 ---
 
-This guide walks you through deploying Activepieces on Kubernetes using the official Helm chart.
+This guide walks you through deploying Inboxfm Connect on Kubernetes using the official Helm chart.
 
 ## Prerequisites
 
@@ -98,7 +98,7 @@ redis:
 ### 1. Clone the Repository
 
 ```bash
-git clone https://github.com/activepieces/activepieces.git
+git clone https://github.com/Mihir-Rabari/inboxfm-connect.git
 cd activepieces
 ```
 
@@ -110,11 +110,11 @@ helm dependency update
 
 ### 3. Create a Values File
 
-Create a `my-values.yaml` file with your configuration. You can use the [example values file](https://github.com/activepieces/activepieces/blob/main/deploy/activepieces-helm/values.yaml) as a reference.
+Create a `my-values.yaml` file with your configuration. You can use the [example values file](https://github.com/Mihir-Rabari/inboxfm-connect/blob/main/deploy/activepieces-helm/values.yaml) as a reference.
 The Helm chart has sensible defaults for required values while leaving the optional ones empty, but you should customize these core values for production
 
 
-### 4. Install Activepieces
+### 4. Install Inboxfm Connect
 
 ```bash
 helm install activepieces deploy/activepieces-helm -f my-values.yaml
@@ -177,11 +177,11 @@ kubectl get all --namespace default
 
 ## Editions
 
-Activepieces supports three editions:
+Inboxfm Connect supports three editions:
 
 - **`ce` (Community Edition)**: Open-source version with all core features (default)
 - **`ee` (Enterprise Edition)**: Self-hosted edition with advanced features like SSO, RBAC, and audit logs
-- **`cloud`**: For Activepieces Cloud deployments
+- **`cloud`**: For Inboxfm Connect Cloud deployments
 
 Set the edition in your values file:
 
@@ -190,7 +190,7 @@ activepieces:
   edition: "ce"  # or "ee" for Enterprise Edition
 ```
 
-For Enterprise Edition features and licensing, visit [activepieces.com](https://www.activepieces.com/docs/admin-console/overview).
+For Enterprise Edition features and licensing, visit the [Platform Admin overview](/admin-guide/overview).
 
 ## Environment Variables
 

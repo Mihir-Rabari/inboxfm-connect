@@ -7,6 +7,8 @@ import { AppSystemProp } from '../helper/system/system-props'
 import { commonProperties } from './database-connection'
 import { Migration } from './migration'
 import { InitialSchema1700000000000 } from './migration/postgres/1700000000000-InitialSchema'
+import { AddApiKeyExpiry1790152916876 } from './migration/postgres/1790152916876-AddApiKeyExpiry'
+import { AddPositionToField1790153790769 } from './migration/postgres/1790153790769-AddPositionToField'
 
 const getSslConfig = (): boolean | TlsOptions => {
     const useSsl = system.get(AppSystemProp.POSTGRES_USE_SSL)
@@ -16,6 +18,21 @@ const getSslConfig = (): boolean | TlsOptions => {
         }
     }
     return false
+}
+
+/**
+ * pg-pool only emits `'error'` for background client errors (e.g. an idle connection dropped by
+ * the server) — without this handler those errors are unhandled and crash the process. It does
+ * NOT fire for pool-checkout timeouts (`connectTimeoutMS`); those reject the specific query the
+ * caller is awaiting instead. See `postgres-pool-metrics.ts` for the periodic saturation snapshot
+ * that covers checkout-side pressure.
+ */
+const poolErrorHandler = (error: unknown): void => {
+    system.globalLogger().error({
+        pool: {
+            poolError: error,
+        },
+    }, '[postgres-connection] Postgres pool raised a background client error')
 }
 
 /**
@@ -30,6 +47,8 @@ const getSslConfig = (): boolean | TlsOptions => {
 export const getMigrations = (): (new () => Migration)[] => {
     const migrations = [
         InitialSchema1700000000000,
+        AddApiKeyExpiry1790152916876,
+        AddPositionToField1790153790769,
     ]
     return migrations
 }
@@ -43,6 +62,8 @@ export const createPostgresDataSource = (): DataSource => {
         synchronize: false,
     }
 
+    const connectTimeoutMS = system.getNumberOrThrow(AppSystemProp.POSTGRES_CONNECTION_TIMEOUT_MS)
+
     const url = system.get(AppSystemProp.POSTGRES_URL)
 
     if (!isNil(url)) {
@@ -50,6 +71,8 @@ export const createPostgresDataSource = (): DataSource => {
             type: 'postgres',
             url,
             ssl: getSslConfig(),
+            connectTimeoutMS,
+            poolErrorHandler,
             ...spreadIfDefined('poolSize', system.get(AppSystemProp.POSTGRES_POOL_SIZE)),
             ...migrationConfig,
             ...commonProperties,
@@ -72,6 +95,8 @@ export const createPostgresDataSource = (): DataSource => {
         password,
         database,
         ssl: getSslConfig(),
+        connectTimeoutMS,
+        poolErrorHandler,
         ...spreadIfDefined('poolSize', system.get(AppSystemProp.POSTGRES_POOL_SIZE)),
         ...commonProperties,
         ...migrationConfig,

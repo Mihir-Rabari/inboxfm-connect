@@ -1,7 +1,7 @@
 import { BookOpen, Check, Code2, Copy, Key, Terminal } from 'lucide-react'
 import { useState } from 'react'
+import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ApiKeysManager } from '@/components/developers/api-keys-manager'
 import { PageHeader } from '@/components/layout/page-header'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -111,8 +111,17 @@ console.log(result);`
                 Manage service keys for headless programmatic execution.
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <ApiKeysManager />
+            <CardContent className="space-y-3">
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Project and platform API keys have a dedicated page with masked values, creation dates, last-used
+                activity, and revoke controls.
+              </p>
+              <Button size="sm" variant="outline" className="gap-1.5 text-xs" asChild>
+                <Link to="/api-keys">
+                  <Key className="h-3.5 w-3.5" />
+                  <span>Manage API Keys</span>
+                </Link>
+              </Button>
             </CardContent>
           </Card>
         </div>

@@ -54,6 +54,8 @@ export const ListPiecesRequestQuery = z.object({
     categories: OptionalArrayFromQuery(z.nativeEnum(PieceCategory)),
     suggestionType: z.nativeEnum(SuggestionType).optional(),
     locale: z.string().optional(),
+    cursor: z.string().optional(),
+    limit: z.coerce.number().optional(),
 })
 
 export type ListPiecesRequestQuery = z.infer<typeof ListPiecesRequestQuery>

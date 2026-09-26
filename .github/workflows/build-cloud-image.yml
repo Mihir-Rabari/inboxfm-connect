@@ -35,6 +35,13 @@ jobs:
           push: true
           tags: |
             ghcr.io/activepieces/activepieces-cloud:${{ env.RELEASE }}.${{ github.sha }}.beta
+          build-args: |
+            SENTRY_ORG=${{ vars.SENTRY_ORG }}
+            SENTRY_PROJECT=${{ vars.SENTRY_PROJECT }}
+            SENTRY_RELEASE=${{ env.RELEASE }}.${{ github.sha }}
+            SENTRY_ENVIRONMENT=cloud-beta
+          secrets: |
+            sentry_auth_token=${{ secrets.SENTRY_AUTH_TOKEN }}
 
       - uses: ./.github/actions/sbom
         with:

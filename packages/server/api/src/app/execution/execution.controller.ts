@@ -1,5 +1,6 @@
-import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
+import { ActivepiecesError, ErrorCode, isNil } from '@inboxfm-connect/core-utils'
 import { CreateExecutionRequestBody, Execution, ExecutionEvent, ListExecutionsRequestQuery, Permission, PrincipalType, ToolCall } from '@inboxfm-connect/shared'
+import { FastifyReply } from 'fastify'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
@@ -54,17 +55,24 @@ export const executionController: FastifyPluginAsyncZod = async (fastify) => {
             projectId: request.projectId,
         })
 
+        // Native EventSource auto-reconnect sends this header with the last `id:` frame
+        // it received; a manual/fetch-based SSE client can't set headers on the browser's
+        // own reconnect, so the query param is the fallback for those callers.
+        const lastEventId = firstHeaderValue(request.headers['last-event-id']) ?? request.query.lastEventId ?? null
+
         reply.raw.writeHead(StatusCodes.OK, {
             'Content-Type': 'text/event-stream',
             'Cache-Control': 'no-cache',
             'Connection': 'keep-alive',
         })
 
-        const listener = (event: ExecutionEvent) => {
-            reply.raw.write(`data: ${JSON.stringify(event)}\n\n`)
-        }
+        const { replayedCount } = await streamResumableExecutionEvents({ executionId, lastEventId, reply })
 
-        await executionEventService.subscribe({ executionId, listener })
+        request.log.info({
+            execution: { id: executionId },
+            lastEventId,
+            replayedCount,
+        }, '[executionController] SSE client (re)connected')
 
         request.raw.on('close', () => {
             executionEventService.unsubscribe({ executionId }).catch(() => {})
@@ -80,6 +88,76 @@ export const executionController: FastifyPluginAsyncZod = async (fastify) => {
             limit: request.query.limit,
         })
     })
+}
+
+/**
+ * Resumable SSE replay for churn (app restart/scale-down mid-stream, client-side network
+ * blip). `subscribe()` is registered before the history read so nothing published in that
+ * async gap is lost; live events are buffered (not written) until history replay finishes,
+ * then flushed in order. `writeEvent`'s monotonic sequence guard makes the whole thing
+ * idempotent against the unavoidable overlap between "already in history" and "arrived live
+ * during replay" — every event still reaches the client exactly once, in order.
+ */
+async function streamResumableExecutionEvents({
+    executionId,
+    lastEventId,
+    reply,
+}: {
+    executionId: string
+    lastEventId: string | null
+    reply: FastifyReply
+}): Promise<{ replayedCount: number }> {
+    let highWaterSeq = executionEventService.parseSequenceFromId({ eventId: lastEventId }) ?? 0
+    let isReplayingHistory = true
+    const bufferedLiveEvents: ExecutionEvent[] = []
+
+    const writeEvent = (event: ExecutionEvent): void => {
+        if (reply.raw.writableEnded || reply.raw.destroyed) {
+            return
+        }
+        const seq = executionEventService.parseSequenceFromId({ eventId: event.id })
+        if (isNil(seq) || seq <= highWaterSeq) {
+            return
+        }
+        highWaterSeq = seq
+        reply.raw.write(`id: ${event.id}\n`)
+        reply.raw.write(`data: ${JSON.stringify(event)}\n\n`)
+    }
+
+    await executionEventService.subscribe({
+        executionId,
+        listener: (event) => {
+            if (isReplayingHistory) {
+                bufferedLiveEvents.push(event)
+                return
+            }
+            writeEvent(event)
+        },
+    })
+
+    const history = await executionEventService.getEventsSince({ executionId, lastEventId })
+    for (const event of history) {
+        writeEvent(event)
+    }
+
+    isReplayingHistory = false
+    const orderedBufferedEvents = [...bufferedLiveEvents].sort((a, b) => {
+        const seqA = executionEventService.parseSequenceFromId({ eventId: a.id }) ?? 0
+        const seqB = executionEventService.parseSequenceFromId({ eventId: b.id }) ?? 0
+        return seqA - seqB
+    })
+    for (const event of orderedBufferedEvents) {
+        writeEvent(event)
+    }
+
+    return { replayedCount: history.length }
+}
+
+function firstHeaderValue(value: string | string[] | undefined): string | null {
+    if (isNil(value)) {
+        return null
+    }
+    return Array.isArray(value) ? (value[0] ?? null) : value
 }
 
 const GetExecutionParams = z.object({
@@ -161,6 +239,9 @@ const GetExecutionEventsOptions = {
     schema: {
         tags: ['executions'],
         params: GetExecutionParams,
+        querystring: z.object({
+            lastEventId: z.string().optional(),
+        }),
     },
 }
 

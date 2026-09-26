@@ -2,8 +2,8 @@ import { ActivepiecesError, apId, ApId, ErrorCode, isNil, PlatformId, ProjectRol
 import { CreateProjectRoleRequestBody } from '@inboxfm-connect/shared'
 import { Brackets, Equal } from 'typeorm'
 import { repoFactory } from '../../../core/db/repo-factory'
+import { ProjectRoleEntity } from '../../../project/project-role/project-role.entity'
 import { ProjectMemberEntity } from '../project-members/project-member.entity'
-import { ProjectRoleEntity } from './project-role.entity'
 
 
 export const projectRoleRepo = repoFactory(ProjectRoleEntity)
@@ -53,15 +53,15 @@ export const projectRoleService = {
             },
         })
 
+        const userCountByRoleId = await getUserCountByProjectRoleId({
+            platformId,
+            projectRoleIds: projectRoles.map((projectRole) => projectRole.id),
+        })
+
         return {
-            data: await Promise.all(projectRoles.map(async (projectRole) => {
-                return {
-                    ...projectRole,
-                    userCount: await projectMemberRepo().countBy({
-                        platformId,
-                        projectRoleId: projectRole.id,
-                    }),
-                }
+            data: projectRoles.map((projectRole) => ({
+                ...projectRole,
+                userCount: userCountByRoleId.get(projectRole.id) ?? 0,
             })),
             next: null,
             previous: null,
@@ -101,6 +101,26 @@ export const projectRoleService = {
     async delete({ name, platformId }: DeleteParams): Promise<void> {
         await projectRoleRepo().delete({ name, platformId })
     },
+}
+
+async function getUserCountByProjectRoleId({ platformId, projectRoleIds }: GetUserCountByProjectRoleIdParams): Promise<Map<ApId, number>> {
+    if (projectRoleIds.length === 0) {
+        return new Map()
+    }
+    const rows = await projectMemberRepo()
+        .createQueryBuilder('project_member')
+        .select('project_member.projectRoleId', 'projectRoleId')
+        .addSelect('COUNT(*)', 'count')
+        .where('project_member.platformId = :platformId', { platformId })
+        .andWhere('project_member.projectRoleId IN (:...projectRoleIds)', { projectRoleIds })
+        .groupBy('project_member.projectRoleId')
+        .getRawMany<{ projectRoleId: ApId, count: string }>()
+    return new Map(rows.map((row) => [row.projectRoleId, Number(row.count)]))
+}
+
+type GetUserCountByProjectRoleIdParams = {
+    platformId: PlatformId
+    projectRoleIds: ApId[]
 }
 
 type UpdateParams = {

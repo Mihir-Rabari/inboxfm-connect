@@ -15,7 +15,7 @@ import { appConnectionsRepo } from './app-connection-service'
 import { oauth2Handler } from './oauth2'
 import { oauth2Util } from './oauth2/oauth2-util'
 
-export const appConnectionHandler = (log: FastifyBaseLogger) => ({
+export const appConnectionHandler = (_log: FastifyBaseLogger) => ({
 
     async refresh(connection: AppConnection, projectId: ProjectId, log: FastifyBaseLogger): Promise<AppConnection> {
         switch (connection.value.type) {
@@ -52,7 +52,7 @@ export const appConnectionHandler = (log: FastifyBaseLogger) => ({
                 const engineResponse = await userInteractionWatcher.submitAndWaitForResponse<EngineResponse<ExecuteRefreshTokenAuthResponse>>({
                     piece,
                     platformId: connection.platformId,
-                    connectionValue: connection.value,
+                    auth: connection.value,
                     jobType: WorkerJobType.EXECUTE_TOKEN_REFRESH,
                 }, log)
                 if (engineResponse.status === EngineResponseStatus.TIMEOUT) {

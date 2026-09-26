@@ -1,0 +1,132 @@
+---
+title: "Postgres Connection Budget"
+description: "Why AP_POSTGRES_POOL_SIZE is a per-replica setting, how to budget it against Postgres max_connections as the app tier scales, and how to use PgBouncer safely"
+icon: "database"
+---
+
+Each replica running the `APP` role (`AP_CONTAINER_TYPE=APP` or the default `WORKER_AND_APP`) opens
+its own Postgres connection pool, sized by `AP_POSTGRES_POOL_SIZE`. Postgres's own `max_connections`
+(default **100**) is shared across the *whole* fleet — so a pool size chosen for one replica can
+starve the database once you scale out, at a replica count nobody deliberately chose. The
+[benchmark](../architecture/benchmark#test-environment) that documents this fork's production shape
+runs Postgres with `max_connections=2000` specifically because the default of 100 would cap the app
+tier at roughly 10 replicas.
+
+<Note>
+Only `APP` / `WORKER_AND_APP` replicas count here. A pure `WORKER` replica (`AP_CONTAINER_TYPE=WORKER`)
+never registers any DB-touching module — see [Workers](../architecture/workers) — and talks to the app
+tier over HTTP callbacks instead of a direct Postgres connection. Size this page's numbers off your
+**app replica count**, not your total fleet size.
+</Note>
+
+## The budget formula
+
+```
+reservable = max_connections − 3 (superuser_reserved_connections) − 1 (migration lock holder)
+budget     = floor(reservable × (1 − 0.20))   // 20% operational headroom
+required   = AP_POSTGRES_POOL_SIZE × app replica count
+```
+
+- **3 reserved connections** mirrors Postgres's own default `superuser_reserved_connections`, so
+  an operator can always get a `psql` session in even when the app tier is at capacity.
+- **1 migration connection** covers the single replica that briefly holds the
+  [Redis-backed migration lock](#pgbouncer--managed-proxies) on boot, while its own app pool is
+  also warming up.
+- **20% headroom** absorbs monitoring/`psql` sessions, PgBouncer's own stats connections, and the
+  brief overlap of old + new replicas during a rolling deploy.
+
+If `required > budget`, the app **fails fast at startup** with an error naming the exact numbers and
+what to change. If `required` is above 80% of `budget`, it **logs a warning** (`pool: {...}` fields —
+see [Metrics](#metrics)) instead of failing, so you get advance notice before the next scale-out trips
+the hard check.
+
+## Zero-config default
+
+This check is **entirely opt-in**. Self-hosters who never set `AP_POSTGRES_MAX_CONNECTIONS` keep
+booting exactly as before — there is nothing to configure and no existing deployment can start
+failing because of it:
+
+| You set... | What happens |
+|---|---|
+| Nothing | Check skipped entirely. No `AP_POSTGRES_MAX_CONNECTIONS` means Inboxfm Connect doesn't know your database's capacity, so it doesn't guess. |
+| `AP_POSTGRES_MAX_CONNECTIONS` only | `AP_POSTGRES_EXPECTED_APP_REPLICAS` defaults to `1` — the common single-replica / `docker-compose` shape — so the check runs and (for any sane pool size) passes. |
+| Both `AP_POSTGRES_MAX_CONNECTIONS` and `AP_POSTGRES_EXPECTED_APP_REPLICAS` | The full budget check runs against your declared fleet shape. |
+
+The check also only runs for `AP_DB_TYPE=POSTGRES` — it's a no-op for the embedded PGlite database,
+which has no `max_connections` concept.
+
+## Worked examples
+
+Using the default Postgres `max_connections=100` → `budget = floor((100 − 3 − 1) × 0.8) = 76`:
+
+| `AP_POSTGRES_POOL_SIZE` | App replicas | Required | vs. budget (76) | Result |
+|---|---|---|---|---|
+| 10 (default) | 5 | 50 | 66% | OK |
+| 10 | 7 | 70 | 92% | Boots, logs a warning |
+| 10 | 8 | 80 | 105% | **Fails fast at boot** |
+| 5 | 15 | 75 | 99% | Boots, logs a warning |
+
+Following [Production Setup](./production-setup)'s `apps = ceil(workers / 10)` sizing at the default
+pool size of 10: a 50-worker fleet needs 5 apps (50 required connections, comfortably under 76), but
+a 160-worker fleet needs 16 apps (160 required connections) — **well past what `max_connections=100`
+can fund**, even before counting `AP_WORKERS` and migrations. At that scale, either raise Postgres's
+`max_connections` (and `AP_POSTGRES_MAX_CONNECTIONS` to match), lower `AP_POSTGRES_POOL_SIZE`, or put
+[PgBouncer](#pgbouncer--managed-proxies) in front.
+
+Managed Postgres often caps `max_connections` well below the self-hosted default — check your
+provider's instance-size table before trusting the default budget math.
+
+## PgBouncer / managed proxies
+
+Putting PgBouncer (or a managed provider's built-in pooler, e.g. RDS Proxy, Supabase's Supavisor) in
+front of Postgres multiplies how many app replicas a given `max_connections` can fund, because the
+proxy multiplexes many client connections onto a smaller number of real server connections. Point
+`AP_POSTGRES_HOST` / `AP_POSTGRES_PORT` (or `AP_POSTGRES_URL`) at the proxy, and set
+`AP_POSTGRES_MAX_CONNECTIONS` to whichever is the real constraint — the proxy's own max client
+connections, or the upstream server's `max_connections`, whichever is smaller.
+
+**Transaction-mode pooling is safe for this fork specifically** — session-level Postgres features
+(`SET`, named prepared statements, `pg_advisory_lock`) are exactly what transaction-mode pooling
+breaks, and this fork doesn't depend on any of them for cross-replica coordination:
+
+- **Migration locking is Redis, not Postgres.** The `database-migration-lock` that serializes
+  migrations across replicas (`main.ts`) is a Redis `redlock`
+  (`app/database/redis/distributed-lock-factory.ts`), not `pg_advisory_lock`. The same goes for every
+  other multi-server coordination point in this codebase — they all go through the same Redis
+  `distributedLock`, never a Postgres session-level lock.
+- **Migrations run one transaction per file** (`migrationsTransactionMode: 'each'`), which is exactly
+  the unit of work transaction-mode pooling supports natively — the proxy hands the migration a real
+  connection for the duration of that one transaction and reclaims it after `COMMIT`.
+- **No app code sets session-level state.** There's no `SET search_path`, no named prepared
+  statements, and no other session-pinned Postgres feature in the query path.
+
+If you fork this further and add a feature that *does* need session-level state (a raw
+`pg_advisory_lock`, a `SET` outside a transaction), that feature will need session-mode pooling —
+document the constraint next to the new code, don't assume the blanket "transaction-mode is safe"
+guidance above still holds.
+
+## Bounded connection acquisition
+
+`AP_POSTGRES_CONNECTION_TIMEOUT_MS` (default `10000`) bounds how long a query waits to acquire a
+connection — both for opening a brand-new physical connection and for queuing behind an exhausted
+pool. Previously this was unbounded (the `pg` driver's own default is "wait forever"), so an
+exhausted pool meant requests hung indefinitely instead of failing with an actionable error.
+
+## Metrics
+
+All connection-budget and pool observability goes through the `pool` [evlog](https://www.evlog.dev)
+field group (see `packages/server/AGENTS.md`'s field-schema convention):
+
+- **Startup budget computation** — `pool: { maxConnections, budget, poolSize, expectedAppReplicas, requiredConnections }` at `info` (or `warn` above 80% of budget).
+- **Background pool errors** — `pool: { poolError }` at `error`, from the underlying `pg.Pool`'s `'error'` event (e.g. an idle connection dropped by the server).
+- **Periodic saturation snapshot** (every 60s, app-role replicas only) — `pool: { totalCount, activeCount, idleCount, serverMaxConnections, utilizationRatio, expectedAppReplicas, declaredMaxConnections }`, sourced from `pg_stat_activity` rather than driver internals, so it reflects real fleet-wide usage against the server's actual `max_connections` — not just one replica's local pool. Logs at `warn` once `utilizationRatio` crosses 80%.
+
+## Scale testing
+
+`packages/server/api/test/integration/ce/database/postgres-connection-saturation.test.ts` exercises
+pool exhaustion against a real Postgres instance with a deliberately undersized pool: it holds both
+slots of a 2-connection pool with long-running queries, asserts a third acquisition rejects within
+`AP_POSTGRES_CONNECTION_TIMEOUT_MS` (not indefinitely), and asserts the pool recovers once the held
+queries complete. This is a bounded-pool starvation simulation on a single real Postgres instance, not
+a literal multi-replica cluster test — reproducing the benchmark's real GKE fleet numbers requires the
+rig in [`benchmark/`](https://github.com/Mihir-Rabari/inboxfm-connect/tree/main/benchmark).

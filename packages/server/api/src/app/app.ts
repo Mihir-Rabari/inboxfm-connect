@@ -1,4 +1,3 @@
-import replyFrom from '@fastify/reply-from'
 import swagger from '@fastify/swagger'
 import { isNil, spreadIfDefined } from '@inboxfm-connect/core-utils'
 import { PieceMetadata } from '@inboxfm-connect/pieces-framework'
@@ -19,11 +18,12 @@ import { authenticationModule } from './authentication/authentication.module'
 import { connectApiKeyModule } from './connect-api-keys/connect-api-key.module'
 import { connectOAuthAppModule } from './connect-oauth-apps/connect-oauth-app.module'
 import { connectSessionModule } from './connect-sessions/connect-session.module'
-import { canaryRoutingMiddleware } from './core/canary/canary-routing.middleware'
 import { oidcModule } from './core/security/oidc/oidc.module'
 import { rateLimitModule } from './core/security/rate-limit'
 import { authenticationMiddleware } from './core/security/v2/authn/authentication-middleware'
+import { apiKeyRateLimitMiddleware } from './core/security/v2/authz/api-key-rate-limit-middleware'
 import { authorizationMiddleware } from './core/security/v2/authz/authorization-middleware'
+import { projectRateLimitMiddleware } from './core/security/v2/authz/project-rate-limit-middleware'
 import { distributedLock, redisConnections } from './database/redis-connections'
 import { apiKeyModule } from './ee/api-keys/api-key-module'
 import { platformOAuth2Service } from './ee/app-connections/platform-oauth2-service'
@@ -42,8 +42,10 @@ import { globalConnectionModule } from './ee/global-connections/global-connectio
 import { licenseKeysModule } from './ee/license-keys/license-keys-module'
 import { managedAuthnModule } from './ee/managed-authn/managed-authn-module'
 import { oauthAppModule } from './ee/oauth-apps/oauth-app.module'
+import { enterpriseFilteringUtils } from './ee/pieces/filters/piece-filtering-utils'
 import { platformPieceModule } from './ee/pieces/platform-piece-module'
 import { adminPlatformModule } from './ee/platform/admin/admin-platform.controller'
+import { concurrencyPoolExecutionHooks } from './ee/platform/concurrency-pool/concurrency-pool-execution-hooks'
 import { platformAiCreditsService } from './ee/platform/platform-plan/platform-ai-credits.service'
 import { platformPlanModule } from './ee/platform/platform-plan/platform-plan.module'
 import { platformWebhooksModule } from './ee/platform-webhooks/platform-webhooks.module'
@@ -57,6 +59,7 @@ import { secretManagersModule } from './ee/secret-managers/secret-managers.modul
 import { signingKeyModule } from './ee/signing-key/signing-key-module'
 import { userModule } from './ee/users/user.module'
 import { executeModule } from './execute/execute.module'
+import { projectExecutionConcurrencyHooks } from './execution/concurrency/project-execution-concurrency-hooks'
 import { executionModule } from './execution/execution.module'
 import { fileModule } from './file/file.module'
 import { flagModule } from './flags/flag.module'
@@ -80,6 +83,7 @@ import { communityPiecesModule } from './pieces/community-piece-module'
 import { startDevPieceWatcher } from './pieces/dev-piece-watcher'
 import { pieceModule } from './pieces/metadata/piece-metadata-controller'
 import { pieceMetadataService } from './pieces/metadata/piece-metadata-service'
+import { pieceFilteringHooks } from './pieces/metadata/utils/piece-filtering-hooks'
 import { pieceSyncService } from './pieces/piece-sync-service'
 import { platformBackgroundJobs } from './platform/platform-jobs'
 import { platformModule } from './platform/platform.module'
@@ -177,13 +181,9 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     })
 
     app.addHook('preHandler', authorizationMiddleware)
+    app.addHook('preHandler', projectRateLimitMiddleware)
+    app.addHook('preHandler', apiKeyRateLimitMiddleware)
     app.addHook('preHandler', rbacMiddleware)
-
-    const canaryAppUrl = system.get(AppSystemProp.CANARY_APP_URL)
-    if (!isNil(canaryAppUrl)) {
-        await app.register(replyFrom, { base: canaryAppUrl })
-        app.addHook('preHandler', canaryRoutingMiddleware)
-    }
 
     await systemJobsSchedule(app.log).init()
     await app.register(fileModule)
@@ -306,6 +306,8 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             setPlatformOAuthService(platformOAuth2Service(app.log))
             projectHooks.set(projectEnterpriseHooks)
             flagHooks.set(enterpriseFlagsHooks)
+            pieceFilteringHooks.set(enterpriseFilteringUtils)
+            projectExecutionConcurrencyHooks.set(concurrencyPoolExecutionHooks)
             exceptionHandler.initializeSentry(system.get(AppSystemProp.SENTRY_DSN))
             systemJobHandlers.registerJobHandler(SystemJobName.HARD_DELETE_PLATFORM, (data) => platformBackgroundJobs(app.log).hardDeletePlatformHandler(data))
             break
@@ -334,6 +336,8 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             setPlatformOAuthService(platformOAuth2Service(app.log))
             projectHooks.set(projectEnterpriseHooks)
             flagHooks.set(enterpriseFlagsHooks)
+            pieceFilteringHooks.set(enterpriseFilteringUtils)
+            projectExecutionConcurrencyHooks.set(concurrencyPoolExecutionHooks)
             break
         case ApEdition.COMMUNITY:
             await app.register(platformProjectModule)
@@ -341,13 +345,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
             break
     }
 
-    const isCanaryApp = system.getBoolean(AppSystemProp.IS_CANARY_APP) ?? false
-    if (isCanaryApp) {
-        app.log.info('[setupApp] Skipping system jobs worker on canary app instance')
-    }
-    else {
-        await systemJobsSchedule(app.log).startWorker()
-    }
+    await systemJobsSchedule(app.log).startWorker()
 
     app.addHook('onClose', async () => {
         app.log.info('Shutting down')

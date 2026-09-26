@@ -2,6 +2,7 @@ import { apVersionUtil } from '@inboxfm-connect/server-utils'
 import { apId, chunk, isNil, tryCatch } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { databaseConnection } from '../database/database-connection'
+import { pieceListCache } from '../pieces/metadata/piece-list-cache'
 import { PieceMetadataSchema } from '../pieces/metadata/piece-metadata-entity'
 import { fetchLatestCompatiblePiecesFromDB } from '../pieces/metadata/piece-metadata-service'
 import { ToolSearchEmbedder } from './embedder'
@@ -46,6 +47,11 @@ export const toolSearchReindexService = (log: FastifyBaseLogger) => ({
         }
 
         const currentRelease = apVersionUtil.getCurrentRelease()
+        // fetchLatestCompatiblePiecesFromDB serves a 10-minute Redis cache meant for the hot read path
+        // (piece list endpoints). A reconcile job exists specifically to catch catalog changes, so it
+        // must never read a stale copy of the thing it is reconciling against — invalidate first to
+        // force a fresh DB read; the call below repopulates the cache for those other readers anyway.
+        await pieceListCache.invalidate(currentRelease)
         const pieces = await fetchLatestCompatiblePiecesFromDB(currentRelease)
         const desired = pieces
             .flatMap((piece) => explodePiece(piece, embedder.modelVersion))

@@ -10,7 +10,7 @@ import { system } from '../../../helper/system/system'
 import { AppSystemProp } from '../../../helper/system/system-props'
 import { pieceMetadataService } from '../../../pieces/metadata/piece-metadata-service'
 
-import { CANARY_WORKER_GROUP_ID, workerGroupService } from '../platform-plan/worker-group.service'
+import { workerGroupService } from '../platform-plan/worker-group.service'
 import { adminPlatformService } from './admin-platform.service'
 
 const API_KEY_HEADER = 'api-key'
@@ -64,14 +64,6 @@ const adminPlatformController: FastifyPluginAsyncZod = async (
         return res.status(StatusCodes.OK).send()
     })
 
-    app.post('/platforms/canary', UpdateCanaryRequest, async (req, res) => {
-        const { platformId, canary } = req.body
-        await workerGroupService(req.log).moveJobsToTargetQueue({ platformId, workerGroupId: canary ? CANARY_WORKER_GROUP_ID : null })
-        await workerGroupService(req.log).updateCanary({ platformId, canary })
-        return res.status(StatusCodes.OK).send()
-    })
-
-
 }
 
 
@@ -86,19 +78,6 @@ const UpdateWorkerGroupRequest = {
         security: securityAccess.public(),
     },
 }
-
-const UpdateCanaryRequest = {
-    schema: {
-        body: z.object({
-            platformId: z.string(),
-            canary: z.boolean(),
-        }),
-    },
-    config: {
-        security: securityAccess.public(),
-    },
-}
-
 
 const ApplyLicenseKeyByEmailRequest = {
     schema: {

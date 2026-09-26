@@ -4,9 +4,8 @@ import dayjs from 'dayjs'
 import { FastifyBaseLogger } from 'fastify'
 import { nanoid } from 'nanoid'
 import { In, IsNull } from 'typeorm'
-import { userIdentityRepository, userIdentityService } from '../authentication/user-identity/user-identity-service'
+import { userIdentityRepository } from '../authentication/user-identity/user-identity-service'
 import { repoFactory } from '../core/db/repo-factory'
-import { platformProjectService } from '../ee/projects/platform-project-service'
 import { projectMemberRepo } from '../ee/projects/project-role/project-role.service'
 import { buildPaginator } from '../helper/pagination/build-paginator'
 import { paginationHelper } from '../helper/pagination/pagination-utils'
@@ -104,12 +103,14 @@ export const userService = (log: FastifyBaseLogger) => ({
                 beforeCursor: decodedCursor.previousCursor,
             },
         })
-        const { data, cursor } = await paginator.paginate(userRepo().createQueryBuilder('user').where({
-            platformId,
-            ...spreadIfDefined('externalId', externalId),
-        }))
+        const { data, cursor } = await paginator.paginate(userRepo().createQueryBuilder('user')
+            .leftJoinAndSelect('user.identity', 'identity')
+            .where({
+                platformId,
+                ...spreadIfDefined('externalId', externalId),
+            }))
 
-        const usersWithMetaInformation = await Promise.all(data.map(this.getMetaInformation))
+        const usersWithMetaInformation = data.map(toUserWithMetaInformation)
         return paginationHelper.createPage<UserWithMetaInformation>(usersWithMetaInformation, cursor)
     },
     async getByIdentityId({ identityId }: GetByIdentityId): Promise<UserSchema[]> {
@@ -146,7 +147,7 @@ export const userService = (log: FastifyBaseLogger) => ({
     },
     async delete({ id, platformId }: DeleteParams): Promise<void> {
         await assertNotPlatformOwner({ id, platformId, log })
-        await platformProjectService(log).deletePersonalProjectForUser({
+        await projectService(log).deletePersonalProjectForUser({
             userId: id,
             platformId,
         })
@@ -158,7 +159,7 @@ export const userService = (log: FastifyBaseLogger) => ({
     async removeFromPlatform({ id, platformId }: DeleteParams): Promise<void> {
         await assertNotPlatformOwner({ id, platformId, log })
         const user = await this.getOneOrFail({ id })
-        await platformProjectService(log).deletePersonalProjectForUser({
+        await projectService(log).deletePersonalProjectForUser({
             userId: id,
             platformId,
         })
@@ -184,8 +185,8 @@ export const userService = (log: FastifyBaseLogger) => ({
     },
     async listProjectUsers({ platformId, projectId }: ListUsersForProjectParams): Promise<UserWithMetaInformation[]> {
         const users = await getUsersForProject(platformId, projectId)
-        const usersWithMetaInformation = await userRepo().find({ where: { platformId, id: In(users) }, relations: { identity: true } }).then((users) => users.map(this.getMetaInformation))
-        return Promise.all(usersWithMetaInformation)
+        const usersWithIdentity = await userRepo().find({ where: { platformId, id: In(users) }, relations: { identity: true } })
+        return usersWithIdentity.map(toUserWithMetaInformation)
     },
     async getByPlatformAndExternalId({
         platformId,
@@ -197,22 +198,15 @@ export const userService = (log: FastifyBaseLogger) => ({
         })
     },
     async getMetaInformation({ id }: IdParams): Promise<UserWithMetaInformation> {
-        const user = await userRepo().findOneByOrFail({ id })
-        const identity = await userIdentityService(log).getBasicInformation(user.identityId)
-        return {
-            id: user.id,
-            email: identity.email,
-            firstName: identity.firstName,
-            lastName: identity.lastName,
-            platformId: user.platformId,
-            platformRole: user.platformRole,
-            status: user.status,
-            externalId: user.externalId,
-            created: user.created,
-            updated: user.updated,
-            lastActiveDate: user.lastActiveDate,
-            imageUrl: identity.imageUrl,
+        const user = await userRepo().findOneOrFail({ where: { id }, relations: { identity: true } })
+        return toUserWithMetaInformation(user)
+    },
+    async getMetaInformationBatch({ ids }: GetMetaInformationBatchParams): Promise<Map<UserId, UserWithMetaInformation>> {
+        if (ids.length === 0) {
+            return new Map()
         }
+        const users = await userRepo().find({ where: { id: In(ids) }, relations: { identity: true } })
+        return new Map(users.map((user) => [user.id, toUserWithMetaInformation(user)]))
     },
 
     async addOwnerToPlatform({
@@ -244,6 +238,23 @@ async function assertNotPlatformOwner({ id, platformId, log }: DeleteParams & { 
     }
 }
 
+function toUserWithMetaInformation(user: UserSchema): UserWithMetaInformation {
+    return {
+        id: user.id,
+        email: user.identity.email,
+        firstName: user.identity.firstName,
+        lastName: user.identity.lastName,
+        platformId: user.platformId,
+        platformRole: user.platformRole,
+        status: user.status,
+        externalId: user.externalId,
+        created: user.created,
+        updated: user.updated,
+        lastActiveDate: user.lastActiveDate,
+        imageUrl: user.identity.imageUrl,
+    }
+}
+
 async function getUsersForProject(platformId: PlatformId, projectId: string): Promise<UserId[]> {
     const platformAdmins = await userRepo().find({ where: { platformId, platformRole: PlatformRole.ADMIN } }).then((users) => users.map((user) => user.id))
     const edition = system.getEdition()
@@ -265,6 +276,10 @@ type GetOneByIdAndPlatformIdParams = {
 type ListUsersForProjectParams = {
     projectId: ProjectId
     platformId: PlatformId
+}
+
+type GetMetaInformationBatchParams = {
+    ids: UserId[]
 }
 
 type DeleteParams = {

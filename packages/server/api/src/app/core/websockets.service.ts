@@ -1,10 +1,12 @@
 import { ActivepiecesError, ErrorCode, isNil } from '@inboxfm-connect/core-utils'
-import { ApiToWorkerContract, createNotifyClient, Principal, PrincipalForType, PrincipalType, WebsocketServerEvent } from '@inboxfm-connect/shared'
+import { ApEdition, ApiToWorkerContract, createNotifyClient, Principal, PrincipalForType, PrincipalType, WebsocketServerEvent } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { Socket } from 'socket.io'
 import { accessTokenManager } from '../authentication/lib/access-token-manager'
+import { communityProjectAccess } from '../core/security/v2/authz/project-access'
 import { projectMemberService } from '../ee/projects/project-members/project-member.service'
 import { rejectedPromiseHandler } from '../helper/promise-handler'
+import { system } from '../helper/system/system'
 import { app } from '../server'
 
 export type WebsocketListener<T, PR extends PrincipalType.USER | PrincipalType.WORKER> = (socket: Socket) => (data: T, principal: PrincipalForType<PR>, projectId: PR extends PrincipalType.USER ? string : null, callback?: (data: unknown) => void) => Promise<void>
@@ -100,10 +102,9 @@ const validateProjectId = async ({ userId, projectId, log }: ValidateProjectIdAr
             },
         })
     }
-    const role = await projectMemberService(log).getRole({
-        projectId,
-        userId,
-    })
+    const role = system.getEdition() === ApEdition.COMMUNITY
+        ? await communityProjectAccess.getRoleForUser({ userId, projectId, log })
+        : await projectMemberService(log).getRole({ projectId, userId })
 
     if (isNil(role)) {
         throw new ActivepiecesError({

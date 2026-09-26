@@ -1,12 +1,12 @@
 ---
 title: "Testing Strategy"
-description: "Canonical 4-layer testing taxonomy for Activepieces"
+description: "Canonical 4-layer testing taxonomy for Inboxfm Connect"
 icon: "shield-check"
 ---
 
 ## Overview
 
-Activepieces tests live in four distinct layers. Each layer owns a different failure mode — picking the wrong layer produces slow, redundant, or silently ineffective tests.
+Inboxfm Connect tests live in four distinct layers. Each layer owns a different failure mode — picking the wrong layer produces slow, redundant, or silently ineffective tests.
 
 ## The Four Layers
 
@@ -28,12 +28,20 @@ Minimal post-deploy liveness checks against a real running environment. Implemen
 
 ## Which package owns which layer
 
+`packages/server/worker` no longer exists — it was folded into `packages/server/sandbox` ("worker is the sandbox now", #13909). References to `packages/server/worker/test/` below mean `packages/server/sandbox/test/`.
+
 | Layer | Lives in |
 |---|---|
-| Unit | `packages/server/api/test/unit/`, most of `packages/server/worker/test/lib/`, engine `test/variables/` + `test/helper/` + `test/utils.test.ts` + `test/network/ssrf-guard.test.ts` |
-| Integration | `packages/server/api/test/integration/{ce,ee,cloud}/`, engine `test/handler/` + `test/core/code/` + `test/piece-context/` + `test/operations/` |
+| Unit | `packages/server/api/test/unit/`; `packages/server/sandbox/test/unit/`; engine `test/variables/`, `test/helper/`, `test/piece-context/`, `test/operations/`, `test/tools/`, `test/utils.test.ts`, `test/engine-file-api.test.ts`, `test/network/ssrf-guard.test.ts` |
+| Integration | `packages/server/api/test/integration/{ce,ee,cloud}/`; `packages/server/sandbox/test/integration/` (real child-process fork, real socket.io listener); engine `test/integration/core/code/` (real V8 isolate via `isolated-vm`) |
 | E2E | `packages/tests-e2e/` |
 | Smoke | `smoke-test/` |
+
+`engine test/piece-context/` and `test/operations/` mock `global.fetch` (`vi.spyOn`) rather than making real network calls, so they are unit-tier despite touching HTTP-shaped code — see "Common pitfalls" below for the same reasoning applied to the SSRF guard. `packages/server/sandbox/test/unit/` covers real-tmpdir filesystem I/O and fully-mocked `child_process`/network boundaries (per the "Picking the right layer" test below, tmpdir I/O alone doesn't require the integration tier); `test/integration/` covers the two suites that start a real subprocess (`sandbox/fork.test.ts`) or a real local socket.io server (`sandbox/sandbox.test.ts`).
+
+Engine and sandbox each ship both tiers behind one `test` script (`vitest run`, no unit/integration CI split) — small enough packages that a second CI shard isn't worth the added complexity, and neither the V8 isolate nor the sandbox subprocess/socket tests need network/DB/Redis, only heavier in-process runtime setup. Use `npm run test-unit` / `npm run test-integration` inside either package for a scoped local run; `npm test` (== `vitest run`, what CI invokes via `turbo run test`) runs both.
+
+`packages/server/sandbox` is wired into the live API: `packages/server/api/src/app/helper/user-interaction/user-interaction-watcher.ts` imports `createSandboxRuntime` from `@inboxfm-connect/sandbox` to run property/validation execution in-process, and the sandbox package spawns the built `@inboxfm-connect/engine` bundle as its execution runtime (`getEnginePath`, `packages/server/sandbox/src/lib/cache/cache-paths.ts`). Both packages are real, exercised code — not vestigial architecture — even though `packages/server/sandbox/test` is not currently wired into any CI job (see "Classification debt" below).
 
 ## Picking the right layer
 
@@ -67,21 +75,25 @@ If you are tempted to mock a database, a queue, or a kernel primitive, and your 
 
 ## Classification debt
 
-- **`packages/server/api/test/unit/app/core/canary/canary-proxy.integration.test.ts`** — already carries an `.integration.` suffix but lives under `test/unit/`. Spins up two real Fastify instances listening on real TCP ports. Target: move to `packages/server/api/test/integration/ce/core/canary/`.
-- **`packages/server/api/test/integration/ce/authentication/password-hasher.test.ts`** — pure bcrypt/scrypt logic, no `setupTestEnvironment`, no DB, no Fastify. Target: move to `packages/server/api/test/unit/app/authentication/`.
-- **`packages/server/engine/test/handler/*.test.ts`** (13 files) — load real `@activepieces/piece-http`, `@activepieces/piece-data-mapper`, etc. and make real outbound HTTP calls from the executor. Target: relabel as integration (either move to a new `test/integration/` subtree, or document in the engine test README that the flat folder mixes unit and integration).
-- **`packages/server/engine/test/core/code/v8-isolate-code-sandbox.test.ts`** — runs a real V8 isolate. Target: same as above (integration).
-- **`packages/server/worker/test/piece-installer.test.ts`** — does real filesystem work against temp dirs; borderline integration. Target: decide on a threshold (temp-dir I/O alone = unit, vs. temp-dir I/O + subprocess = integration) and relabel accordingly.
-- **Duplication: `api/test/integration/ce/flows/flow/flow.test.ts` vs `api/test/integration/cloud/flow/flow.test.ts`** — both assert identical "Create flow" shapes; only role-permission checks differ. Target: extract the shared CRUD assertions into CE and keep only the cloud-specific role permutations under `cloud/`.
+Resolved (issue #58):
 
-This list is a backlog, not a to-do list for this playbook. Tackle items opportunistically as you touch the adjacent code.
+- **Canary proxy suite** — `packages/server/api/test/unit/app/core/canary/canary-proxy.integration.test.ts` no longer exists. It was deleted together with `canary-routing.middleware.ts` itself when canary routing was removed from this fork (`6328afe6`, "remove canary routing and decouple ai-provider-service from ee", fixes #16) — before this playbook's backlog item was ever acted on. There is nothing left to move; `worker-group.service.test.ts` (a distinct, still-live service used for dedicated/per-project workers, not canary routing) remains correctly classified as unit under the same `core/canary/` folder.
+- **Password hasher** — `password-hasher.test.ts` moved from `test/integration/ce/authentication/` to `test/unit/app/authentication/`. Pure bcrypt/legacy-scrypt logic; no DB, Fastify app, or `setupTestEnvironment`.
+- **`api`'s unit tier was never wired into CI** — moving `password-hasher.test.ts` into `test/unit/` would have silently dropped it from `ci.yml` (it previously ran as part of `test-ce`, which is in CI) without this fix: `api`'s own `test-unit` script (`vitest run test/unit`, 29 files / 202 tests) existed in `packages/server/api/package.json` but was never referenced by any turbo task or workflow — `ci.yml`'s test step only ran `test-ce test-ee test-cloud check-migrations` for `api`, and root `package.json`'s `test-unit` script only covered `engine`/`shared`/`sdk`. Fixed by adding a `test-unit` turbo task (`turbo.json`), adding it to `ci.yml`'s parallel test step, and adding `api` to root `package.json`'s `test-unit` script. This is exactly the coverage-loss failure mode issue #58's acceptance criteria warns against, so it's called out rather than left implicit.
+- **Engine `test/handler/`** — this directory (`conditions-evaluate`, `flow-branching`, `router-branching`, etc. — 15 files, ~2,900 lines) no longer exists; it was deleted in `6e0083efb5` ("checkpoint before PR4D database removal"), unrelated to this issue. Nothing to reclassify.
+- **Engine V8 isolate** — `v8-isolate-code-sandbox.test.ts` moved to `test/integration/core/code/` (real `isolated-vm` isolate + real tmpdir file I/O; the taxonomy above already names "V8 isolate" as integration-grade infra).
+- **Engine `test/piece-context/` and `test/operations/`** — re-audited, not moved. Despite `http://localhost` URLs in fixtures, every one of these files mocks `global.fetch` with `vi.spyOn`/`vi.stubGlobal`; no real network call is made. They stay unit.
+- **`packages/server/worker/test/piece-installer.test.ts`** — this path is stale; the file is `packages/server/sandbox/test/lib/cache/piece-installer.test.ts` post-rename (`49bd4c91e4`, "worker is the sandbox now"). Applying the threshold this playbook proposed (tmpdir I/O alone = unit, + subprocess = integration): `piece-installer.test.ts` does real tmpdir I/O but mocks `fetch` and never forks a process, so it's unit. The same threshold was applied across the rest of `packages/server/sandbox/test/`, newly split into `test/unit/` (tmpdir-only or fully-mocked `child_process`/network) and `test/integration/` (`sandbox/fork.test.ts` forks a real child process; `sandbox/sandbox.test.ts` starts a real local socket.io server) — see the table above.
+- **CE/cloud flow CRUD duplication** — `api/test/integration/ce/flows/flow/flow.test.ts` and `api/test/integration/cloud/flow/flow.test.ts` do not exist. This fork has no `flow`/`flow_version` entity, controller, or CRUD endpoint at all — replaced by the headless `execute`/`execution` model (`ExecutionEntity`, `TriggerBindingEntity`); a migration (`1807000000000-DropWorkflowTablesSqlite`) drops the old workflow tables. Both target files, and the `createMockFlow`/`createMockFlowVersion` mock builders this backlog item implicitly depended on, were already removed (`5772459756`, `1e848c3073`). There is no CRUD duplication left to deduplicate.
+
+New, out of scope for this issue: `packages/server/sandbox/test` is real (see above — the package is wired into the live API) but is not run by any CI job (`ci.yml`'s test step filters `engine`, `shared`, `sdk` for the unit tier and `api` for integration; `sandbox` is in neither). Wiring it into CI is a coverage change, not a classification fix, so it's tracked separately rather than folded into this taxonomy cleanup.
 
 ## What is NOT duplication (defense-in-depth)
 
-- Flow execution is tested at engine (pure logic), API integration (queue + worker dispatch), and smoke (post-deploy liveness). Each owns different failure modes.
-- Sandbox isolation is tested at engine (V8 code sandbox) and worker (process orchestration). Distinct concerns.
+- Execution is tested at engine (pure logic + V8 isolate sandbox), API integration (`test/integration/ce/execution/` — the headless `execute`/`execution` HTTP surface, authorization boundary, trigger-binding ingress), and smoke (post-deploy liveness). Each owns different failure modes.
+- Sandbox process isolation is tested at engine (V8 code sandbox, in-process) and `packages/server/sandbox` (real subprocess fork + isolate-executable orchestration). Distinct concerns.
 
 ## Related documentation
 
 - [E2E Tests playbook](/handbook/engineering/playbooks/e2e-tests) — full-stack browser E2E deep dive
-- Per-package READMEs live at `packages/server/api/test/README.md`, `packages/server/engine/test/README.md`, `packages/server/worker/test/README.md`, `packages/tests-e2e/README.md`, and `smoke-test/README.md`.
+- `packages/server/api/test/README.md` is the only per-package test README that currently exists; engine, sandbox, `tests-e2e`, and `smoke-test` have no dedicated test README yet — this playbook is the canonical source for those until one is added.

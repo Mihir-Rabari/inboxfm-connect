@@ -1,7 +1,7 @@
-import { ActivepiecesError, ErrorCode } from '@inboxfm-connect/core-utils'
+import { ActivepiecesError, ErrorCode, PlatformId } from '@inboxfm-connect/core-utils'
 import { createSandboxRuntime } from '@inboxfm-connect/sandbox'
-import { EngineOperationType, PiecePackage, WorkerJobType } from '@inboxfm-connect/shared'
-import { FastifyBaseLogger } from 'fastify'
+import { ApLogger } from '@inboxfm-connect/server-utils'
+import { EngineOperation, EngineOperationType, NetworkMode, PiecePackage, WorkerJobType } from '@inboxfm-connect/shared'
 import { domainHelper } from '../domain-helper'
 import { system } from '../system/system'
 import { AppSystemProp } from '../system/system-props'
@@ -15,19 +15,21 @@ const sandboxRuntime = createSandboxRuntime({
         FLOW_TIMEOUT_SECONDS: Number(system.get(AppSystemProp.FLOW_TIMEOUT_SECONDS) ?? '60'),
         MAX_FLOW_RUN_LOG_SIZE_MB: Number(system.get(AppSystemProp.MAX_FLOW_RUN_LOG_SIZE_MB) ?? '1'),
         MAX_FILE_SIZE_MB: Number(system.get(AppSystemProp.MAX_FILE_SIZE_MB) ?? '10'),
-        NETWORK_MODE: (system.get(AppSystemProp.NETWORK_MODE) ?? 'STRICT') as any,
+        NETWORK_MODE: system.get(AppSystemProp.NETWORK_MODE) === NetworkMode.UNRESTRICTED ? NetworkMode.UNRESTRICTED : NetworkMode.STRICT,
         DEV_PIECES: (system.get(AppSystemProp.DEV_PIECES) ?? '').split(',').map(s => s.trim()).filter(Boolean),
         SSRF_ALLOW_LIST: [],
         SANDBOX_PROPAGATED_ENV_VARS: [],
+        ENVIRONMENT: system.get(AppSystemProp.ENVIRONMENT) ?? '',
+        REUSE_SANDBOX: undefined,
         WORKER_GROUP_ID: 'headless',
         PROJECT_WORKER: false,
-    } as any),
+    }),
 })
 
 let nextWorkerIndex = 0
 
 const userInteractionWatcherImpl = {
-    submitAndWaitForResponse: async <T>(request: any, log: FastifyBaseLogger): Promise<T> => {
+    submitAndWaitForResponse: async <T>(request: UserInteractionRequest, log: ApLogger): Promise<T> => {
         let operationType: EngineOperationType
         switch (request.jobType) {
             case WorkerJobType.EXECUTE_PROPERTY:
@@ -60,17 +62,22 @@ const userInteractionWatcherImpl = {
         const internalApiUrl = rawInternalApiUrl.endsWith('/') ? rawInternalApiUrl : `${rawInternalApiUrl}/`
         const engineToken = 'headless'
 
+        // operationType decides the variant, and the engine re-narrows the operation on
+        // receipt (operations/index.ts). This is the single point where the per-job-type
+        // payload meets the statically-typed union.
+        const operation = {
+            ...request,
+            publicApiUrl,
+            internalApiUrl,
+            engineToken,
+            timeoutInSeconds: 60,
+        } as unknown as EngineOperation
+
         const result = await sandboxRuntime.execute({
             workerIndex: selectedWorkerIndex,
-            log: log as any,
+            log,
             operationType,
-            operation: {
-                ...request,
-                publicApiUrl,
-                internalApiUrl,
-                engineToken,
-                timeoutInSeconds: 60,
-            },
+            operation,
             timeoutInSeconds: 60,
             provision: {
                 platformId: request.platformId,
@@ -93,3 +100,15 @@ const userInteractionWatcherImpl = {
 }
 
 export const userInteractionWatcher = userInteractionWatcherImpl
+
+// Callers supply the operation-specific payload; the watcher resolves the engine
+// context (urls, token, timeout) itself. The payload's remaining shape varies per job
+// type — EXTRACT_PIECE_METADATA's operation is the piece package itself, while the
+// others nest it under `piece` — so it is not one EngineOperation variant until the
+// operationType is resolved below.
+type UserInteractionRequest = {
+    jobType: WorkerJobType
+    piece: PiecePackage
+    platformId: PlatformId
+    [key: string]: unknown
+}

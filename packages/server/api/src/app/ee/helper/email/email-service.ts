@@ -227,15 +227,3 @@ type SendChatNotificationArgs = {
     senderName: string
     senderEmail: string
 }
-
-type IssueCreatedArgs = {
-    projectId: string
-    projectName: string
-    flowName: string
-    platformId: string
-    runUrl: string
-    createdAt: string
-    failedStepDisplayName: string
-    failedStepNumber?: number
-    failedStepMessage?: string
-}

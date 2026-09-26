@@ -1,13 +1,21 @@
 import { apId } from '@inboxfm-connect/core-utils'
 import {
+    AppConnectionScope,
+    AppConnectionType,
+    ConnectionMappingSchema,
     FieldType,
     PackageType,
     PieceType,
     ProjectReplaceArtifact,
     ProjectStateSnapshot,
+    TableAutomationStatus,
+    TableAutomationTrigger,
 } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
+import { vi } from 'vitest'
+import { appConnectionService } from '../../../../src/app/app-connection/app-connection-service/app-connection-service'
+import { userInteractionWatcher } from '../../../../src/app/helper/user-interaction/user-interaction-watcher'
 import { createTestContext, TestContext } from '../../../helpers/test-context'
 import { setupTestEnvironment, teardownTestEnvironment } from '../../../helpers/test-setup'
 
@@ -788,6 +796,815 @@ describe('Project Replace API (CE)', () => {
             const { repoFactory } = await import('../../../../src/app/core/db/repo-factory')
             const created = await repoFactory(TableEntity)().findOneBy({ projectId: ctx.project.id, externalId: 'ext-inspect-ep' })
             expect(created).toBeNull()
+        })
+    })
+
+    describe('Connection Mapping, Bootstrap & Security (Issue #53)', () => {
+        it('should report MISSING_CONNECTION with actionable preflight details and report', async () => {
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [
+                    {
+                        externalId: 'tb-slack-unmatched',
+                        pieceName: '@inboxfm-connect/piece-slack',
+                        pieceVersion: '1.0.0',
+                        triggerName: 'new_message',
+                        promptTemplate: 'Handle message',
+                        connectionExternalId: 'slack-unmatched-source',
+                        settings: {},
+                        propertySettings: null,
+                        status: 'ENABLED',
+                    },
+                ],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [
+                    {
+                        externalId: 'slack-unmatched-source',
+                        pieceName: '@inboxfm-connect/piece-slack',
+                    },
+                ],
+            }
+
+            const res = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+
+            expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            const artifact: ProjectReplaceArtifact = res.json()
+            expect(artifact.plan.preflight.passed).toBe(false)
+            expect(artifact.plan.preflight.errors.some((e) => e.kind === 'MISSING_CONNECTION')).toBe(true)
+
+            const connPreflight = artifact.plan.preflight.connections
+            expect(connPreflight).toBeDefined()
+            expect(connPreflight?.required).toHaveLength(1)
+            expect(connPreflight?.required[0].externalId).toBe('slack-unmatched-source')
+            expect(connPreflight?.missing).toHaveLength(1)
+            expect(connPreflight?.missing[0].externalId).toBe('slack-unmatched-source')
+            expect(connPreflight?.missing[0].actionableHelp).toBeDefined()
+            expect(connPreflight?.matched).toHaveLength(0)
+            expect(connPreflight?.mapped).toHaveLength(0)
+        })
+
+        it('should report INCOMPATIBLE_CONNECTION in preflight when piece mismatch occurs', async () => {
+            // Create a Square connection on destination
+            await appConnectionService(app!.log).upsert({
+                projectIds: [ctx.project.id],
+                platformId: ctx.platform.id,
+                externalId: 'conn-incompatible-check',
+                displayName: 'Square Connection',
+                pieceName: '@inboxfm-connect/piece-square',
+                pieceVersion: '1.0.0',
+                type: AppConnectionType.SECRET_TEXT,
+                value: {
+                    type: AppConnectionType.SECRET_TEXT,
+                    secret_text: 'square-key-123',
+                },
+                scope: AppConnectionScope.PROJECT,
+                ownerId: null,
+            })
+
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [
+                    {
+                        externalId: 'conn-incompatible-check',
+                        pieceName: '@inboxfm-connect/piece-slack', // Source expects Slack, destination has Square
+                    },
+                ],
+            }
+
+            const res = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+
+            expect(res.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            const artifact: ProjectReplaceArtifact = res.json()
+            expect(artifact.plan.preflight.passed).toBe(false)
+            expect(artifact.plan.preflight.errors.some((e) => e.kind === 'INCOMPATIBLE_CONNECTION')).toBe(true)
+        })
+
+        it('should remap source connection to existing destination connection', async () => {
+            // Create target connection on destination
+            await appConnectionService(app!.log).upsert({
+                projectIds: [ctx.project.id],
+                platformId: ctx.platform.id,
+                externalId: 'dest-slack-existing',
+                displayName: 'Production Slack',
+                pieceName: '@inboxfm-connect/piece-slack',
+                pieceVersion: '1.0.0',
+                type: AppConnectionType.SECRET_TEXT,
+                value: {
+                    type: AppConnectionType.SECRET_TEXT,
+                    secret_text: 'xoxb-prod-token',
+                },
+                scope: AppConnectionScope.PROJECT,
+                ownerId: null,
+            })
+
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [
+                    {
+                        externalId: 'tb-remapped-1',
+                        pieceName: '@inboxfm-connect/piece-slack',
+                        pieceVersion: '1.0.0',
+                        triggerName: 'new_message',
+                        promptTemplate: 'Handle Slack message',
+                        connectionExternalId: 'staging-slack-conn',
+                        settings: {},
+                        propertySettings: null,
+                        status: 'ENABLED',
+                    },
+                ],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [
+                    {
+                        externalId: 'staging-slack-conn',
+                        pieceName: '@inboxfm-connect/piece-slack',
+                    },
+                ],
+            }
+
+            const connectionMappings: ConnectionMappingSchema[] = [
+                {
+                    sourceExternalId: 'staging-slack-conn',
+                    destExternalId: 'dest-slack-existing',
+                },
+            ]
+
+            // 1. Plan with connection mapping
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    snapshot: sourceSnapshot,
+                    connectionMappings,
+                },
+            })
+
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+            expect(artifact.plan.preflight.passed).toBe(true)
+
+            const connPreflight = artifact.plan.preflight.connections
+            expect(connPreflight?.matched).toHaveLength(1)
+            expect(connPreflight?.matched[0].destExternalId).toBe('dest-slack-existing')
+            expect(connPreflight?.mapped).toHaveLength(1)
+            expect(connPreflight?.mapped[0].mappingType).toBe('REMAP')
+
+            // 2. Apply with connection mapping
+            vi.spyOn(userInteractionWatcher, 'submitAndWaitForResponse').mockResolvedValue({ output: [] } as never)
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                    connectionMappings,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.OK)
+            const applyResult = applyRes.json()
+            expect(applyResult.applied.triggerBindingsCreated).toBe(1)
+            expect(applyResult.applied.connectionsUnchanged).toBe(1)
+            expect(applyResult.failed).toHaveLength(0)
+
+            // Verify trigger binding was bound to dest-slack-existing
+            const exportRes = await app!.inject({
+                method: 'GET',
+                url: `/api/v1/projects/${ctx.project.id}/replace/export`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+            })
+            const exp = exportRes.json()
+            const tb = exp.triggerBindings.find((b: { pieceName: string, triggerName: string }) => b.pieceName === '@inboxfm-connect/piece-slack' && b.triggerName === 'new_message')
+            expect(tb).toBeDefined()
+            expect(tb.connectionExternalId).toBe('dest-slack-existing')
+        })
+
+        it('should bootstrap new destination connection with credentials and bind to triggers', async () => {
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [
+                    {
+                        externalId: 'tb-bootstrap-1',
+                        pieceName: '@inboxfm-connect/piece-slack',
+                        pieceVersion: '1.0.0',
+                        triggerName: 'new_message',
+                        promptTemplate: 'Handle message',
+                        connectionExternalId: 'source-slack-to-bootstrap',
+                        settings: {},
+                        propertySettings: null,
+                        status: 'ENABLED',
+                    },
+                ],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [
+                    {
+                        externalId: 'source-slack-to-bootstrap',
+                        pieceName: '@inboxfm-connect/piece-slack',
+                    },
+                ],
+            }
+
+            const connectionMappings: ConnectionMappingSchema[] = [
+                {
+                    sourceExternalId: 'source-slack-to-bootstrap',
+                    destExternalId: 'dest-bootstrapped-slack',
+                    pieceName: '@inboxfm-connect/piece-slack',
+                    type: AppConnectionType.SECRET_TEXT,
+                    value: {
+                        secret_text: 'xoxb-ci-bootstrapped-token-456',
+                    },
+                    displayName: 'CI Bootstrapped Slack',
+                },
+            ]
+
+            // 1. Plan with bootstrap mapping
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    snapshot: sourceSnapshot,
+                    connectionMappings,
+                },
+            })
+
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+            expect(artifact.plan.preflight.passed).toBe(true)
+
+            const connPreflight = artifact.plan.preflight.connections
+            expect(connPreflight?.mapped).toHaveLength(1)
+            expect(connPreflight?.mapped[0].mappingType).toBe('BOOTSTRAP')
+            expect(artifact.plan.changes.creates.some((c: any) => c.kind === 'connection' && c.externalId === 'dest-bootstrapped-slack')).toBe(true)
+
+            // 2. Apply with bootstrap credentials
+            vi.spyOn(userInteractionWatcher, 'submitAndWaitForResponse').mockResolvedValue({ output: [] } as never)
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                    connectionMappings,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.OK)
+            const applyResult = applyRes.json()
+            expect(applyResult.applied.connectionsCreated).toBe(1)
+            expect(applyResult.applied.triggerBindingsCreated).toBe(1)
+            expect(applyResult.failed).toHaveLength(0)
+
+            // 3. Verify convergence / idempotency on re-run
+            const rerunPlanRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    snapshot: sourceSnapshot,
+                    connectionMappings,
+                },
+            })
+            expect(rerunPlanRes.statusCode).toBe(StatusCodes.OK)
+
+            const rerunApplyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: rerunPlanRes.json().plan,
+                    snapshot: rerunPlanRes.json().snapshot,
+                    connectionMappings,
+                },
+            })
+
+            expect(rerunApplyRes.statusCode).toBe(StatusCodes.OK)
+            const rerunResult = rerunApplyRes.json()
+            expect(rerunResult.applied.connectionsCreated).toBe(0)
+            expect(rerunResult.applied.connectionsUpdated).toBe(1)
+            expect(rerunResult.applied.triggerBindingsUnchanged).toBe(1)
+        })
+
+        it('should safely gate trigger bindings when required connection fails to resolve', async () => {
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [
+                    {
+                        externalId: 'tb-gated-1',
+                        pieceName: '@inboxfm-connect/piece-slack',
+                        pieceVersion: '1.0.0',
+                        triggerName: 'new_message',
+                        promptTemplate: 'Handle message',
+                        connectionExternalId: 'nonexistent-conn-1',
+                        settings: {},
+                        propertySettings: null,
+                        status: 'ENABLED',
+                    },
+                ],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [
+                    {
+                        externalId: 'nonexistent-conn-1',
+                        pieceName: '@inboxfm-connect/piece-slack',
+                    },
+                ],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+            const artifact: ProjectReplaceArtifact = planRes.json()
+
+            // Forced apply with unresolvable connection
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                    force: true,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.MULTI_STATUS)
+            const applyResult = applyRes.json()
+            expect(applyResult.failed.some((f: { kind: string, error: string }) => f.kind === 'trigger_binding' && f.error.includes('Activation blocked'))).toBe(true)
+            expect(applyResult.applied.triggerBindingsCreated).toBe(0)
+        })
+
+        it('should reject apply when connection mappings have been tampered or substituted (Finding 1)', async () => {
+            await appConnectionService(app!.log).upsert({
+                projectIds: [ctx.project.id],
+                platformId: ctx.platform.id,
+                externalId: 'dest-slack-approved',
+                displayName: 'Approved Slack',
+                pieceName: '@inboxfm-connect/piece-slack',
+                pieceVersion: '1.0.0',
+                type: AppConnectionType.SECRET_TEXT,
+                value: {
+                    type: AppConnectionType.SECRET_TEXT,
+                    secret_text: 'token-1',
+                },
+                scope: AppConnectionScope.PROJECT,
+                ownerId: null,
+            })
+
+            await appConnectionService(app!.log).upsert({
+                projectIds: [ctx.project.id],
+                platformId: ctx.platform.id,
+                externalId: 'dest-slack-substituted',
+                displayName: 'Substituted Slack',
+                pieceName: '@inboxfm-connect/piece-slack',
+                pieceVersion: '1.0.0',
+                type: AppConnectionType.SECRET_TEXT,
+                value: {
+                    type: AppConnectionType.SECRET_TEXT,
+                    secret_text: 'token-2',
+                },
+                scope: AppConnectionScope.PROJECT,
+                ownerId: null,
+            })
+
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [{
+                    externalId: 'source-slack-audit',
+                    pieceName: '@inboxfm-connect/piece-slack',
+                }],
+            }
+
+            const approvedMappings: ConnectionMappingSchema[] = [{
+                sourceExternalId: 'source-slack-audit',
+                destExternalId: 'dest-slack-approved',
+            }]
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    snapshot: sourceSnapshot,
+                    connectionMappings: approvedMappings,
+                },
+            })
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+
+            // Attempt apply with swapped mapping
+            const swappedMappings: ConnectionMappingSchema[] = [{
+                sourceExternalId: 'source-slack-audit',
+                destExternalId: 'dest-slack-substituted',
+            }]
+
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                    connectionMappings: swappedMappings,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            expect(applyRes.json().message).toContain('Connection mappings supplied at apply time do not match the signed plan')
+        })
+
+        it('should revalidate direct connection matches for piece compatibility during apply and gate bindings even under --force (Finding 2)', async () => {
+            // Destination connection has Square piece
+            await appConnectionService(app!.log).upsert({
+                projectIds: [ctx.project.id],
+                platformId: ctx.platform.id,
+                externalId: 'conn-direct-wrong-piece',
+                displayName: 'Square Conn',
+                pieceName: '@inboxfm-connect/piece-square',
+                pieceVersion: '1.0.0',
+                type: AppConnectionType.SECRET_TEXT,
+                value: {
+                    type: AppConnectionType.SECRET_TEXT,
+                    secret_text: 'square-key',
+                },
+                scope: AppConnectionScope.PROJECT,
+                ownerId: null,
+            })
+
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [{
+                    externalId: 'tb-slack-with-square-conn',
+                    pieceName: '@inboxfm-connect/piece-slack',
+                    pieceVersion: '1.0.0',
+                    triggerName: 'new_message',
+                    promptTemplate: 'handle',
+                    connectionExternalId: 'conn-direct-wrong-piece',
+                    settings: {},
+                    status: 'ENABLED',
+                }],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [{
+                    externalId: 'conn-direct-wrong-piece',
+                    pieceName: '@inboxfm-connect/piece-slack', // Source requires Slack!
+                }],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+            expect(planRes.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+
+            // Applying with force: true MUST still revalidate piece compatibility at apply time!
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                    force: true,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.MULTI_STATUS)
+            const result = applyRes.json()
+            expect(result.applied.triggerBindingsCreated).toBe(0)
+
+            const connFailure = result.failed.find((f: any) => f.kind === 'connection' && f.externalId === 'conn-direct-wrong-piece')
+            expect(connFailure).toBeDefined()
+            expect(connFailure.error).toContain('Incompatible connection')
+
+            const tbFailure = result.failed.find((f: any) => f.kind === 'trigger_binding' && f.externalId === 'tb-slack-with-square-conn')
+            expect(tbFailure).toBeDefined()
+            expect(tbFailure.error).toContain('Activation blocked')
+        })
+
+        it('should strictly scope connection lookups to target project and reject cross-project connection access (Finding 3)', async () => {
+            // Create a completely separate project on the same platform
+            const { createMockProject } = await import('../../../helpers/mocks')
+            const { databaseConnection } = await import('../../../../src/app/database/database-connection')
+            const otherProject = createMockProject({
+                ownerId: ctx.user.id,
+                platformId: ctx.platform.id,
+            })
+            await databaseConnection().getRepository('project').save(otherProject)
+
+            await appConnectionService(app!.log).upsert({
+                projectIds: [otherProject.id], // Belongs to other project only!
+                platformId: ctx.platform.id,
+                externalId: 'conn-in-other-project',
+                displayName: 'Other Project Slack',
+                pieceName: '@inboxfm-connect/piece-slack',
+                pieceVersion: '1.0.0',
+                type: AppConnectionType.SECRET_TEXT,
+                value: {
+                    type: AppConnectionType.SECRET_TEXT,
+                    secret_text: 'other-token',
+                },
+                scope: AppConnectionScope.PROJECT,
+                ownerId: null,
+            })
+
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [{
+                    externalId: 'conn-in-other-project',
+                    pieceName: '@inboxfm-connect/piece-slack',
+                }],
+            }
+
+            // Plan against ctx.project.id MUST report MISSING_CONNECTION because conn-in-other-project is not in ctx.project.id!
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+
+            expect(planRes.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+            expect(artifact.plan.preflight.errors.some((e) => e.kind === 'MISSING_CONNECTION')).toBe(true)
+            expect(artifact.plan.preflight.connections?.missing.some((m) => m.externalId === 'conn-in-other-project')).toBe(true)
+        })
+
+        it('should clear table status and trigger columns when source snapshot explicitly sets null (Finding 4)', async () => {
+            const { TableEntity } = await import('../../../../src/app/tables/table/table.entity')
+            const { repoFactory } = await import('../../../../src/app/core/db/repo-factory')
+            const tableRepo = repoFactory(TableEntity)
+
+            // Seed destination table with ENABLED status and ON_NEW_RECORD trigger
+            const seededTable = await tableRepo().save({
+                id: apId(),
+                projectId: ctx.project.id,
+                name: 'TableWithNullSync',
+                externalId: 'ext-table-null-sync',
+                status: TableAutomationStatus.ENABLED,
+                trigger: TableAutomationTrigger.ON_NEW_RECORD,
+            })
+            expect(seededTable.status).toBe(TableAutomationStatus.ENABLED)
+            expect(seededTable.trigger).toBe(TableAutomationTrigger.ON_NEW_RECORD)
+
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [{
+                    name: 'TableWithNullSync',
+                    externalId: 'ext-table-null-sync',
+                    status: null,
+                    trigger: null,
+                    fields: [],
+                }],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+            expect(artifact.plan.changes.updates.some((u: any) => u.kind === 'table' && u.externalId === 'ext-table-null-sync')).toBe(true)
+
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                },
+            })
+            expect(applyRes.statusCode).toBe(StatusCodes.OK)
+
+            // Re-fetch from DB and assert status and trigger were cleared to NULL
+            const updatedTable = await tableRepo().findOneBy({ projectId: ctx.project.id, externalId: 'ext-table-null-sync' })
+            expect(updatedTable).toBeDefined()
+            expect(updatedTable?.status).toBeNull()
+            expect(updatedTable?.trigger).toBeNull()
+        })
+
+        it('should reject tampered artifact signatures when using /inspect endpoint (Finding 5)', async () => {
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+            const artifact: ProjectReplaceArtifact = planRes.json()
+
+            // Tamper with the plan signature
+            const tamperedPlan = {
+                ...artifact.plan,
+                signature: 'deadbeef' + artifact.plan.signature.slice(8),
+            }
+
+            const inspectRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/inspect`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: tamperedPlan,
+                    snapshot: artifact.snapshot,
+                },
+            })
+
+            expect(inspectRes.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            expect(inspectRes.json().message).toContain('Plan signature verification failed')
+        })
+
+        it('should allow /inspect on a plan with failing preflight without throwing 400', async () => {
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [{
+                    externalId: 'conn-nonexistent',
+                    pieceName: '@inboxfm-connect/piece-slack',
+                }],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+            expect(planRes.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+            expect(artifact.plan.preflight.passed).toBe(false)
+
+            const inspectRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/inspect`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                },
+            })
+
+            expect(inspectRes.statusCode).toBe(StatusCodes.OK)
+            const inspectResult = inspectRes.json()
+            expect(inspectResult.applied.tablesCreated).toBe(0)
+            expect(inspectResult.failed.length).toBe(0)
+        })
+
+        it('should reject non-platform-admin applying plan with deployCustomIntegrations', async () => {
+            const { createMockProjectMember, createMockProjectRole, mockBasicUser } = await import('../../../helpers/mocks')
+            const { Permission, PlatformRole, DefaultProjectRole, RoleType, PrincipalType } = await import('@inboxfm-connect/shared')
+            const { databaseConnection } = await import('../../../../src/app/database/database-connection')
+
+            // Create a non-admin member on ctx.platform.id
+            const { mockUser: nonAdminUser } = await mockBasicUser({
+                user: { platformId: ctx.platform.id, platformRole: PlatformRole.MEMBER, externalId: 'ext-non-admin' },
+            })
+            await databaseConnection().getRepository('user').save(nonAdminUser)
+
+            const role = createMockProjectRole({
+                platformId: ctx.platform.id,
+                type: RoleType.DEFAULT,
+                name: DefaultProjectRole.ADMIN,
+                permissions: [Permission.WRITE_PROJECT, Permission.READ_PROJECT],
+            })
+            await databaseConnection().getRepository('project_role').save(role)
+
+            const membership = createMockProjectMember({
+                platformId: ctx.platform.id,
+                projectId: ctx.project.id,
+                userId: nonAdminUser.id,
+                projectRoleId: role.id,
+            })
+            await databaseConnection().getRepository('project_member').save(membership)
+
+            const { generateMockToken } = await import('../../../helpers/auth')
+            const nonAdminToken = await generateMockToken({
+                id: nonAdminUser.id,
+                type: PrincipalType.USER,
+                projectId: ctx.project.id,
+                platform: { id: ctx.platform.id },
+            })
+
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+            const artifact: ProjectReplaceArtifact = planRes.json()
+
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${nonAdminToken}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                    deployCustomIntegrations: true,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.FORBIDDEN)
         })
     })
 })

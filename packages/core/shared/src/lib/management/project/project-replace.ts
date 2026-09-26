@@ -1,10 +1,18 @@
 import { z } from 'zod'
+import { AppConnectionType } from '../../automation/app-connection/app-connection'
 import { FieldType } from '../../automation/tables/field'
 import { TableAutomationStatus, TableAutomationTrigger } from '../../automation/tables/table'
 import { ScheduledTaskStatus } from '../../execution/scheduled-task'
 import { TriggerBindingStatus } from '../../execution/trigger-binding'
 
-export const ProjectReplaceResourceKind = z.enum(['table', 'trigger_binding', 'scheduled_task', 'mcp_server', 'custom_piece'])
+export const ProjectReplaceResourceKind = z.enum([
+    'table',
+    'trigger_binding',
+    'scheduled_task',
+    'mcp_server',
+    'custom_piece',
+    'connection',
+])
 export type ProjectReplaceResourceKind = z.infer<typeof ProjectReplaceResourceKind>
 
 export const ProjectReplaceOp = z.enum(['CREATE', 'UPDATE', 'DELETE'])
@@ -92,6 +100,7 @@ export const PreflightError = z.object({
         'MISSING_PIECE',
         'MISSING_CUSTOM_PIECE',
         'MISSING_CONNECTION',
+        'INCOMPATIBLE_CONNECTION',
         'CHECKSUM_MISMATCH',
         'INCOMPATIBLE_INTEGRATION',
         'PERMISSIONS',
@@ -101,6 +110,59 @@ export const PreflightError = z.object({
     details: z.record(z.string(), z.unknown()).optional(),
 })
 export type PreflightError = z.infer<typeof PreflightError>
+
+export const ConnectionMappingType = z.enum(['EXISTING_MATCH', 'REMAP', 'BOOTSTRAP'])
+export type ConnectionMappingType = z.infer<typeof ConnectionMappingType>
+
+export const ConnectionMappingSchema = z.object({
+    sourceExternalId: z.string(),
+    destExternalId: z.string().optional(),
+    destConnectionId: z.string().optional(),
+    pieceName: z.string().optional(),
+    type: z.nativeEnum(AppConnectionType).optional(),
+    value: z.record(z.string(), z.unknown()).optional(),
+    displayName: z.string().optional(),
+})
+export type ConnectionMappingSchema = z.infer<typeof ConnectionMappingSchema>
+
+export const ConnectionPreflightItemSchema = z.object({
+    externalId: z.string(),
+    pieceName: z.string(),
+})
+export type ConnectionPreflightItemSchema = z.infer<typeof ConnectionPreflightItemSchema>
+
+export const ConnectionMatchItemSchema = z.object({
+    sourceExternalId: z.string(),
+    destExternalId: z.string(),
+    destConnectionId: z.string(),
+    pieceName: z.string(),
+    status: z.string(),
+})
+export type ConnectionMatchItemSchema = z.infer<typeof ConnectionMatchItemSchema>
+
+export const ConnectionMissingItemSchema = z.object({
+    externalId: z.string(),
+    pieceName: z.string(),
+    actionableHelp: z.string(),
+})
+export type ConnectionMissingItemSchema = z.infer<typeof ConnectionMissingItemSchema>
+
+export const ConnectionMappedItemSchema = z.object({
+    sourceExternalId: z.string(),
+    destExternalId: z.string().optional(),
+    destConnectionId: z.string().optional(),
+    pieceName: z.string().optional(),
+    mappingType: ConnectionMappingType,
+})
+export type ConnectionMappedItemSchema = z.infer<typeof ConnectionMappedItemSchema>
+
+export const ConnectionPreflightReportSchema = z.object({
+    required: z.array(ConnectionPreflightItemSchema),
+    matched: z.array(ConnectionMatchItemSchema),
+    missing: z.array(ConnectionMissingItemSchema),
+    mapped: z.array(ConnectionMappedItemSchema),
+})
+export type ConnectionPreflightReportSchema = z.infer<typeof ConnectionPreflightReportSchema>
 
 export const ProjectReplaceDiffItem = z.object({
     kind: ProjectReplaceResourceKind,
@@ -132,7 +194,9 @@ export const ProjectReplacePlan = z.object({
             deployable: z.array(RequiredPieceSchema),
             compatible: z.array(RequiredPieceSchema),
         }).optional(),
+        connections: ConnectionPreflightReportSchema.optional(),
     }),
+    connectionMappings: z.array(ConnectionMappingSchema).optional(),
     changes: z.object({
         creates: z.array(ProjectReplaceDiffItem),
         updates: z.array(ProjectReplaceDiffItem),
@@ -151,14 +215,15 @@ export const ProjectReplacePlan = z.object({
 })
 export type ProjectReplacePlan = z.infer<typeof ProjectReplacePlan>
 
-export const ProjectReplaceArtifact = z.object({
+export const ProjectReplaceArtifactSchema = z.object({
     artifactVersion: z.literal(1),
     toolVersion: z.string(),
     createdAt: z.string(),
     snapshot: ProjectStateSnapshot,
     plan: ProjectReplacePlan,
 })
-export type ProjectReplaceArtifact = z.infer<typeof ProjectReplaceArtifact>
+export type ProjectReplaceArtifact = z.infer<typeof ProjectReplaceArtifactSchema>
+export const ProjectReplaceArtifact = ProjectReplaceArtifactSchema
 
 export const ProjectReplaceApplyRequest = z.object({
     plan: ProjectReplacePlan,
@@ -167,6 +232,7 @@ export const ProjectReplaceApplyRequest = z.object({
     force: z.boolean().optional(),
     deployCustomIntegrations: z.boolean().optional(),
     inspectOnly: z.boolean().optional(),
+    connectionMappings: z.array(ConnectionMappingSchema).optional(),
 })
 export type ProjectReplaceApplyRequest = z.infer<typeof ProjectReplaceApplyRequest>
 
@@ -187,6 +253,9 @@ export const ProjectReplaceApplyResult = z.object({
         mcpUpdated: z.number(),
         customPiecesInstalled: z.number(),
         customPiecesUnchanged: z.number(),
+        connectionsCreated: z.number(),
+        connectionsUpdated: z.number(),
+        connectionsUnchanged: z.number(),
     }),
     failed: z.array(z.object({
         kind: ProjectReplaceResourceKind,

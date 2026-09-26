@@ -20,11 +20,18 @@ import {
     PieceScope,
     PieceType,
     RequiredPieceSchema,
+    AppConnectionScope,
+    AppConnectionType,
+    AppConnectionValue,
+    ConnectionMappingSchema,
+    ConnectionPreflightReportSchema,
 } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import semver from 'semver'
+import { ArrayContains } from 'typeorm'
 import { ConnectionEntity } from '../../app-connection/app-connection.entity'
+import { appConnectionService } from '../../app-connection/app-connection-service/app-connection-service'
 import { repoFactory } from '../../core/db/repo-factory'
 import { ScheduledTaskEntity } from '../../execution/scheduled-task/scheduled-task-entity'
 import { scheduledTaskService } from '../../execution/scheduled-task/scheduled-task.service'
@@ -35,6 +42,7 @@ import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 import { mcpServerService } from '../../mcp/mcp-service'
 import { pieceMetadataService } from '../../pieces/metadata/piece-metadata-service'
+import { pieceFilteringHooks } from '../../pieces/metadata/utils/piece-filtering-hooks'
 import { pieceInstallService } from '../../pieces/piece-install-service'
 import { fieldService } from '../../tables/field/field.service'
 import { TableEntity } from '../../tables/table/table.entity'
@@ -80,6 +88,17 @@ function computeSha256(content: string): string {
     return crypto.createHash('sha256').update(content, 'utf8').digest('hex')
 }
 
+function sanitizeMappingForPlan(m: ConnectionMappingSchema): Omit<ConnectionMappingSchema, 'value'> {
+    return {
+        sourceExternalId: m.sourceExternalId,
+        destExternalId: m.destExternalId,
+        destConnectionId: m.destConnectionId,
+        pieceName: m.pieceName,
+        type: m.type,
+        displayName: m.displayName,
+    }
+}
+
 function computePlanSignature(plan: Omit<ProjectReplacePlan, 'signature'>): string {
     const secret = getSigningSecret()
     const canonicalPayload = canonicalJson({
@@ -92,6 +111,7 @@ function computePlanSignature(plan: Omit<ProjectReplacePlan, 'signature'>): stri
         checksum: plan.checksum,
         destinationStateHash: plan.destinationStateHash,
         preflight: plan.preflight,
+        connectionMappings: (plan.connectionMappings ?? []).map(sanitizeMappingForPlan),
         changes: plan.changes,
         summary: plan.summary,
     })
@@ -130,7 +150,13 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             requiredPiecesMap.set(`${tb.pieceName}::${tb.pieceVersion}`, tb.pieceVersion)
             let connExternalId: string | null = null
             if (tb.connectionId) {
-                const conn = await connectionRepo().findOneBy({ id: tb.connectionId, platformId })
+                const conn = await connectionRepo().findOne({
+                    where: {
+                        id: tb.connectionId,
+                        platformId,
+                        projectIds: ArrayContains([projectId]),
+                    },
+                })
                 if (conn && conn.externalId) {
                     connExternalId = conn.externalId
                     requiredConnectionsMap.set(conn.externalId, conn.pieceName)
@@ -230,7 +256,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
         }
     },
 
-    async computeDestinationStateHash(projectId: string): Promise<string> {
+    async computeDestinationStateHash(projectId: string, platformId?: string): Promise<string> {
         const tables = await tableRepo().find({ where: { projectId } })
         const tablesWithFields = []
         for (const t of tables) {
@@ -247,6 +273,12 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
         const triggerBindings = await triggerBindingRepo().find({ where: { projectId } })
         const scheduledTasks = await scheduledTaskRepo().find({ where: { projectId } })
         const mcpServer = await mcpServerService(log).getByProjectId(projectId)
+        const connections = await connectionRepo().find({
+            where: {
+                projectIds: ArrayContains([projectId]),
+                ...(platformId ? { platformId } : {}),
+            },
+        })
 
         const normalized = {
             tables: tablesWithFields.sort((a, b) => (a.externalId || '').localeCompare(b.externalId || '')),
@@ -267,6 +299,12 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                 status: st.status,
             })).sort((a, b) => (a.prompt + a.cronExpression).localeCompare(b.prompt + b.cronExpression)),
             mcp: { disabledTools: [...(mcpServer?.disabledTools ?? [])].sort() },
+            connections: connections.map((c) => ({
+                externalId: c.externalId,
+                pieceName: c.pieceName,
+                type: c.type,
+                status: c.status,
+            })).sort((a, b) => (a.externalId || '').localeCompare(b.externalId || '')),
         }
 
         return computeSha256(canonicalJson(normalized))
@@ -276,10 +314,12 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
         targetProjectId,
         targetPlatformId,
         snapshot,
+        connectionMappings,
     }: {
         targetProjectId: string
         targetPlatformId: string
         snapshot: ProjectStateSnapshot
+        connectionMappings?: ConnectionMappingSchema[]
     }): Promise<ProjectReplacePlan> {
         const currentVersion = apVersionUtil.getCurrentRelease()
         const preflightErrors: PreflightError[] = []
@@ -439,24 +479,221 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             }
         }
 
-        // 3. Preflight: Required connections
+        // 3. Preflight: Required connections & connection mapping workflow
+        const connectionsReport: ConnectionPreflightReportSchema = {
+            required: [],
+            matched: [],
+            missing: [],
+            mapped: [],
+        }
+
+        const mappingsMap = new Map<string, ConnectionMappingSchema>()
+        if (connectionMappings) {
+            for (const cm of connectionMappings) {
+                mappingsMap.set(cm.sourceExternalId, cm)
+            }
+        }
+
         for (const reqConn of snapshot.requiredConnections) {
-            const destConn = await connectionRepo().findOneBy({
+            connectionsReport.required.push({
                 externalId: reqConn.externalId,
                 pieceName: reqConn.pieceName,
-                platformId: targetPlatformId,
             })
-            if (!destConn) {
-                preflightErrors.push({
-                    kind: 'MISSING_CONNECTION',
-                    message: `Required connection with externalId "${reqConn.externalId}" (${reqConn.pieceName}) does not exist on destination.`,
-                    details: { externalId: reqConn.externalId, pieceName: reqConn.pieceName },
+
+            const mapping = mappingsMap.get(reqConn.externalId)
+            if (mapping) {
+                if (mapping.value) {
+                    // Bootstrap mapping with credentials
+                    const destExtId = mapping.destExternalId ?? reqConn.externalId
+                    const mappedPieceName = mapping.pieceName ?? reqConn.pieceName
+                    if (mappedPieceName !== reqConn.pieceName) {
+                        preflightErrors.push({
+                            kind: 'INCOMPATIBLE_CONNECTION',
+                            message: `Connection mapping for source "${reqConn.externalId}" specifies piece "${mappedPieceName}", but source requires "${reqConn.pieceName}".`,
+                            details: {
+                                sourceExternalId: reqConn.externalId,
+                                expectedPiece: reqConn.pieceName,
+                                actualPiece: mappedPieceName,
+                            },
+                        })
+                    }
+                    else {
+                        // Check if already exists on destination platform scoped to targetProjectId
+                        const existingConn = await connectionRepo().findOne({
+                            where: {
+                                externalId: destExtId,
+                                platformId: targetPlatformId,
+                                projectIds: ArrayContains([targetProjectId]),
+                            },
+                        })
+                        if (existingConn) {
+                            if (existingConn.pieceName !== reqConn.pieceName) {
+                                preflightErrors.push({
+                                    kind: 'INCOMPATIBLE_CONNECTION',
+                                    message: `Destination connection "${destExtId}" already exists for piece "${existingConn.pieceName}", but source requires "${reqConn.pieceName}".`,
+                                    details: {
+                                        externalId: destExtId,
+                                        existingPiece: existingConn.pieceName,
+                                        requiredPiece: reqConn.pieceName,
+                                    },
+                                })
+                            }
+                            else {
+                                connectionsReport.matched.push({
+                                    sourceExternalId: reqConn.externalId,
+                                    destExternalId: destExtId,
+                                    destConnectionId: existingConn.id,
+                                    pieceName: existingConn.pieceName,
+                                    status: existingConn.status,
+                                })
+                                unchanged.push({ kind: 'connection', externalId: destExtId })
+                            }
+                        }
+                        else {
+                            creates.push({
+                                kind: 'connection',
+                                externalId: destExtId,
+                                op: 'CREATE',
+                                name: mapping.displayName ?? destExtId,
+                                description: `Bootstrap destination connection for ${reqConn.pieceName} (${destExtId})`,
+                            })
+                        }
+
+                        connectionsReport.mapped.push({
+                            sourceExternalId: reqConn.externalId,
+                            destExternalId: destExtId,
+                            pieceName: mappedPieceName,
+                            mappingType: 'BOOTSTRAP',
+                        })
+                    }
+                }
+                else {
+                    // Remap mapping to existing destination connection
+                    const targetLookup = mapping.destExternalId
+                        ? await connectionRepo().findOne({
+                            where: {
+                                externalId: mapping.destExternalId,
+                                platformId: targetPlatformId,
+                                projectIds: ArrayContains([targetProjectId]),
+                            },
+                        })
+                        : mapping.destConnectionId
+                            ? await connectionRepo().findOne({
+                                where: {
+                                    id: mapping.destConnectionId,
+                                    platformId: targetPlatformId,
+                                    projectIds: ArrayContains([targetProjectId]),
+                                },
+                            })
+                            : null
+
+                    const targetRef = mapping.destExternalId ?? mapping.destConnectionId ?? 'unknown'
+                    if (!targetLookup) {
+                        preflightErrors.push({
+                            kind: 'MISSING_CONNECTION',
+                            message: `Mapped destination connection "${targetRef}" for source "${reqConn.externalId}" does not exist on destination.`,
+                            details: {
+                                sourceExternalId: reqConn.externalId,
+                                mappedDestinationRef: targetRef,
+                                pieceName: reqConn.pieceName,
+                                actionableHelp: 'Create the destination connection or provide bootstrap credentials in connectionMappings.',
+                            },
+                        })
+                        connectionsReport.missing.push({
+                            externalId: reqConn.externalId,
+                            pieceName: reqConn.pieceName,
+                            actionableHelp: `Create destination connection "${targetRef}" or supply credentials via --connection-bootstrap.`,
+                        })
+                    }
+                    else if (targetLookup.pieceName !== reqConn.pieceName) {
+                        preflightErrors.push({
+                            kind: 'INCOMPATIBLE_CONNECTION',
+                            message: `Mapped destination connection "${targetLookup.externalId}" has piece "${targetLookup.pieceName}", but source requires "${reqConn.pieceName}".`,
+                            details: {
+                                sourceExternalId: reqConn.externalId,
+                                mappedExternalId: targetLookup.externalId,
+                                expectedPiece: reqConn.pieceName,
+                                actualPiece: targetLookup.pieceName,
+                            },
+                        })
+                    }
+                    else {
+                        connectionsReport.matched.push({
+                            sourceExternalId: reqConn.externalId,
+                            destExternalId: targetLookup.externalId,
+                            destConnectionId: targetLookup.id,
+                            pieceName: targetLookup.pieceName,
+                            status: targetLookup.status,
+                        })
+                        connectionsReport.mapped.push({
+                            sourceExternalId: reqConn.externalId,
+                            destExternalId: targetLookup.externalId,
+                            destConnectionId: targetLookup.id,
+                            pieceName: targetLookup.pieceName,
+                            mappingType: 'REMAP',
+                        })
+                        unchanged.push({ kind: 'connection', externalId: targetLookup.externalId })
+                    }
+                }
+            }
+            else {
+                // No explicit mapping provided: check 1:1 match by externalId scoped to targetProjectId
+                const destConn = await connectionRepo().findOne({
+                    where: {
+                        externalId: reqConn.externalId,
+                        platformId: targetPlatformId,
+                        projectIds: ArrayContains([targetProjectId]),
+                    },
                 })
+                if (!destConn) {
+                    preflightErrors.push({
+                        kind: 'MISSING_CONNECTION',
+                        message: `Required connection with externalId "${reqConn.externalId}" (${reqConn.pieceName}) does not exist on destination.`,
+                        details: {
+                            externalId: reqConn.externalId,
+                            pieceName: reqConn.pieceName,
+                            actionableHelp: `Supply connection mapping via --connection-map ${reqConn.externalId}=<destExternalId> or bootstrap credentials via CI secret store.`,
+                        },
+                    })
+                    connectionsReport.missing.push({
+                        externalId: reqConn.externalId,
+                        pieceName: reqConn.pieceName,
+                        actionableHelp: `Supply connection mapping or bootstrap credentials for "${reqConn.externalId}".`,
+                    })
+                }
+                else if (destConn.pieceName !== reqConn.pieceName) {
+                    preflightErrors.push({
+                        kind: 'INCOMPATIBLE_CONNECTION',
+                        message: `Destination connection "${reqConn.externalId}" is for piece "${destConn.pieceName}", but source requires "${reqConn.pieceName}".`,
+                        details: {
+                            externalId: reqConn.externalId,
+                            existingPiece: destConn.pieceName,
+                            requiredPiece: reqConn.pieceName,
+                        },
+                    })
+                }
+                else {
+                    connectionsReport.matched.push({
+                        sourceExternalId: reqConn.externalId,
+                        destExternalId: destConn.externalId,
+                        destConnectionId: destConn.id,
+                        pieceName: destConn.pieceName,
+                        status: destConn.status,
+                    })
+                    connectionsReport.mapped.push({
+                        sourceExternalId: reqConn.externalId,
+                        destExternalId: destConn.externalId,
+                        destConnectionId: destConn.id,
+                        pieceName: destConn.pieceName,
+                        mappingType: 'EXISTING_MATCH',
+                    })
+                    unchanged.push({ kind: 'connection', externalId: destConn.externalId })
+                }
             }
         }
 
         // 4. Current destination state & state hash
-        const destinationStateHash = await this.computeDestinationStateHash(targetProjectId)
+        const destinationStateHash = await this.computeDestinationStateHash(targetProjectId, targetPlatformId)
 
         // Tables Diff
         const destTables = await tableRepo().find({ where: { projectId: targetProjectId } })
@@ -670,7 +907,9 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                 passed: preflightErrors.length === 0,
                 errors: preflightErrors,
                 customIntegrations,
+                connections: connectionsReport,
             },
+            connectionMappings: (connectionMappings ?? []).map(sanitizeMappingForPlan),
             changes: {
                 creates,
                 updates,
@@ -733,6 +972,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             checksum: plan.checksum,
             destinationStateHash: plan.destinationStateHash,
             preflight: plan.preflight,
+            connectionMappings: plan.connectionMappings,
             changes: plan.changes,
             summary: plan.summary,
         }
@@ -746,8 +986,18 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             throw err
         }
 
-        // 4. Preflight verification (--force only waives preflight warnings, NEVER drift)
-        if (!plan.preflight.passed && !request.force) {
+        // 3.5 Assert connection mappings binding to signed plan
+        const sanitizedPlanMappings = (plan.connectionMappings ?? []).map(sanitizeMappingForPlan).sort((a, b) => a.sourceExternalId.localeCompare(b.sourceExternalId))
+        const sanitizedReqMappings = (request.connectionMappings ?? []).map(sanitizeMappingForPlan).sort((a, b) => a.sourceExternalId.localeCompare(b.sourceExternalId))
+
+        if (canonicalJson(sanitizedPlanMappings) !== canonicalJson(sanitizedReqMappings)) {
+            const err = new Error('Connection mappings supplied at apply time do not match the signed plan. Mapping substitution or tampering detected.') as Error & { statusCode: number }
+            err.statusCode = StatusCodes.BAD_REQUEST
+            throw err
+        }
+
+        // 4. Preflight verification (--force only waives preflight warnings, NEVER drift; inspectOnly exempt)
+        if (!plan.preflight.passed && !request.force && !request.inspectOnly) {
             const err = new Error(`Preflight checks failed: ${plan.preflight.errors.map((e) => e.message).join('; ')}`) as Error & { statusCode: number }
             err.statusCode = StatusCodes.BAD_REQUEST
             throw err
@@ -761,7 +1011,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                 const startTime = Date.now()
 
                 // Destination Drift Detection (strictly enforced; --force does not waive drift)
-                const currentDestinationHash = await this.computeDestinationStateHash(targetProjectId)
+                const currentDestinationHash = await this.computeDestinationStateHash(targetProjectId, targetPlatformId)
                 if (currentDestinationHash !== plan.destinationStateHash) {
                     const err = new Error('Destination project state has drifted since the plan was created. Re-run plan or recreate plan artifact.') as Error & { statusCode: number }
                     err.statusCode = StatusCodes.CONFLICT
@@ -784,6 +1034,9 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     mcpUpdated: 0,
                     customPiecesInstalled: 0,
                     customPiecesUnchanged: 0,
+                    connectionsCreated: 0,
+                    connectionsUpdated: 0,
+                    connectionsUnchanged: 0,
                 }
                 const failed: Array<{ kind: ProjectReplaceResourceKind, externalId: string, op: 'CREATE' | 'UPDATE' | 'DELETE', error: string }> = []
 
@@ -851,6 +1104,16 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                             const safePieceFileName = pieceName.replace(/[@/\\:]/g, '-')
                             const safeVersion = pieceVersion.replace(/[/\\:]/g, '-')
 
+                            // Verify platform piece safety gate before installation
+                            const isBlocked = await pieceFilteringHooks.get(log).isFiltered({
+                                piece: { name: pieceName, version: pieceVersion } as any,
+                                projectId: targetProjectId,
+                                platformId: targetPlatformId,
+                            })
+                            if (isBlocked) {
+                                throw new Error(`Custom piece "${pieceName}" is blocked by platform safety policy`)
+                            }
+
                             // Install scoped strictly to targetPlatformId (tenant isolation)
                             await pieceInstallService(log).installPiece(targetPlatformId, {
                                 packageType: PackageType.ARCHIVE,
@@ -882,6 +1145,215 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     for (const change of plan.changes.creates.filter((c) => c.kind === 'custom_piece')) {
                         const [pieceName] = change.externalId.split('::')
                         failedCustomPieceNames.add(pieceName)
+                    }
+                }
+
+                // Phase 0.5: Connection Bootstrap & Resolution (BEFORE Table & Trigger Mutations!)
+                const resolvedConnections = new Map<string, string>() // sourceExternalId -> destConnectionId
+                const failedConnectionExternalIds = new Set<string>()
+
+                // 1. Process connectionMappings if provided
+                const effectiveMappings = request.connectionMappings ?? plan.connectionMappings ?? []
+                for (const mapping of effectiveMappings) {
+                    if (mapping.value) {
+                        // Bootstrap credentials
+                        const destExtId = mapping.destExternalId ?? mapping.sourceExternalId
+                        const pieceName = mapping.pieceName
+                            ?? snapshot.requiredConnections.find((c) => c.externalId === mapping.sourceExternalId)?.pieceName
+
+                        if (!pieceName) {
+                            failed.push({
+                                kind: 'connection',
+                                externalId: destExtId,
+                                op: 'CREATE',
+                                error: `Missing pieceName for connection bootstrap (${destExtId})`,
+                            })
+                            failedConnectionExternalIds.add(mapping.sourceExternalId)
+                            continue
+                        }
+
+                        try {
+                            const existing = await connectionRepo().findOne({
+                                where: {
+                                    externalId: destExtId,
+                                    platformId: targetPlatformId,
+                                    projectIds: ArrayContains([targetProjectId]),
+                                },
+                            })
+                            if (existing && existing.pieceName !== pieceName) {
+                                throw new Error(`Incompatible connection: existing "${destExtId}" has piece "${existing.pieceName}", cannot bootstrap as "${pieceName}"`)
+                            }
+
+                            let pieceVersion = '0.0.1'
+                            try {
+                                const meta = await pieceMetadataService(log).get({
+                                    name: pieceName,
+                                    platformId: targetPlatformId,
+                                })
+                                if (meta?.version) {
+                                    pieceVersion = meta.version
+                                }
+                            }
+                            catch {
+                                // default fallback
+                            }
+
+                            const connType = mapping.type
+                                ?? (mapping.value.type as AppConnectionType)
+                                ?? AppConnectionType.SECRET_TEXT
+
+                            let connValue: AppConnectionValue
+                            if (connType === AppConnectionType.SECRET_TEXT) {
+                                const secretText = mapping.value.secret_text ?? mapping.value.apiKey ?? mapping.value.token ?? mapping.value.secret
+                                if (!secretText) {
+                                    throw new Error(`Missing secret text for connection bootstrap "${destExtId}"`)
+                                }
+                                connValue = {
+                                    type: AppConnectionType.SECRET_TEXT,
+                                    secret_text: String(secretText),
+                                }
+                            }
+                            else if (connType === AppConnectionType.CUSTOM_AUTH) {
+                                const props = mapping.value.props ?? mapping.value
+                                if (!props || typeof props !== 'object') {
+                                    throw new Error(`Invalid custom auth properties for connection bootstrap "${destExtId}"`)
+                                }
+                                connValue = {
+                                    type: AppConnectionType.CUSTOM_AUTH,
+                                    props: props as Record<string, unknown>,
+                                }
+                            }
+                            else if (connType === AppConnectionType.BASIC_AUTH) {
+                                if (!mapping.value.username || !mapping.value.password) {
+                                    throw new Error(`Missing username or password for basic auth connection bootstrap "${destExtId}"`)
+                                }
+                                connValue = {
+                                    type: AppConnectionType.BASIC_AUTH,
+                                    username: String(mapping.value.username),
+                                    password: String(mapping.value.password),
+                                }
+                            }
+                            else {
+                                connValue = {
+                                    type: connType,
+                                    ...mapping.value,
+                                } as unknown as AppConnectionValue
+                            }
+
+                            const created = await appConnectionService(log).upsert({
+                                projectIds: [targetProjectId],
+                                platformId: targetPlatformId,
+                                externalId: destExtId,
+                                displayName: mapping.displayName ?? existing?.displayName ?? destExtId,
+                                pieceName,
+                                pieceVersion,
+                                type: connType,
+                                value: connValue as Parameters<ReturnType<typeof appConnectionService>['upsert']>[0]['value'],
+                                scope: AppConnectionScope.PROJECT,
+                                ownerId: null,
+                            })
+                            if (existing) {
+                                applied.connectionsUpdated++
+                            }
+                            else {
+                                applied.connectionsCreated++
+                            }
+                            resolvedConnections.set(mapping.sourceExternalId, created.id)
+                        }
+                        catch (err) {
+                            failed.push({
+                                kind: 'connection',
+                                externalId: destExtId,
+                                op: 'CREATE',
+                                error: (err as Error).message,
+                            })
+                            failedConnectionExternalIds.add(mapping.sourceExternalId)
+                        }
+                    }
+                    else {
+                        // Remap to existing destination connection
+                        try {
+                            const targetRef = mapping.destExternalId ?? mapping.destConnectionId ?? 'unknown'
+                            const targetLookup = mapping.destExternalId
+                                ? await connectionRepo().findOne({
+                                    where: {
+                                        externalId: mapping.destExternalId,
+                                        platformId: targetPlatformId,
+                                        projectIds: ArrayContains([targetProjectId]),
+                                    },
+                                })
+                                : mapping.destConnectionId
+                                    ? await connectionRepo().findOne({
+                                        where: {
+                                            id: mapping.destConnectionId,
+                                            platformId: targetPlatformId,
+                                            projectIds: ArrayContains([targetProjectId]),
+                                        },
+                                    })
+                                    : null
+
+                            if (!targetLookup) {
+                                failed.push({
+                                    kind: 'connection',
+                                    externalId: mapping.sourceExternalId,
+                                    op: 'UPDATE',
+                                    error: `Mapped destination connection "${targetRef}" not found`,
+                                })
+                                failedConnectionExternalIds.add(mapping.sourceExternalId)
+                            }
+                            else {
+                                const expectedPiece = mapping.pieceName ?? snapshot.requiredConnections.find((c) => c.externalId === mapping.sourceExternalId)?.pieceName
+                                if (expectedPiece && targetLookup.pieceName !== expectedPiece) {
+                                    throw new Error(`Incompatible connection: mapped destination "${targetRef}" belongs to piece "${targetLookup.pieceName}", but binding requires "${expectedPiece}"`)
+                                }
+                                resolvedConnections.set(mapping.sourceExternalId, targetLookup.id)
+                                applied.connectionsUnchanged++
+                            }
+                        }
+                        catch (err) {
+                            failed.push({
+                                kind: 'connection',
+                                externalId: mapping.sourceExternalId,
+                                op: 'UPDATE',
+                                error: (err as Error).message,
+                            })
+                            failedConnectionExternalIds.add(mapping.sourceExternalId)
+                        }
+                    }
+                }
+
+                // 2. Resolve any remaining required connections directly on destination
+                for (const reqConn of snapshot.requiredConnections) {
+                    if (!resolvedConnections.has(reqConn.externalId) && !failedConnectionExternalIds.has(reqConn.externalId)) {
+                        const destConn = await connectionRepo().findOne({
+                            where: {
+                                externalId: reqConn.externalId,
+                                platformId: targetPlatformId,
+                                projectIds: ArrayContains([targetProjectId]),
+                            },
+                        })
+                        if (!destConn) {
+                            failed.push({
+                                kind: 'connection',
+                                externalId: reqConn.externalId,
+                                op: 'UPDATE',
+                                error: `Required connection "${reqConn.externalId}" (${reqConn.pieceName}) not found on destination`,
+                            })
+                            failedConnectionExternalIds.add(reqConn.externalId)
+                        }
+                        else if (destConn.pieceName !== reqConn.pieceName) {
+                            failed.push({
+                                kind: 'connection',
+                                externalId: reqConn.externalId,
+                                op: 'UPDATE',
+                                error: `Incompatible connection: destination connection "${reqConn.externalId}" has piece "${destConn.pieceName}", expected "${reqConn.pieceName}"`,
+                            })
+                            failedConnectionExternalIds.add(reqConn.externalId)
+                        }
+                        else {
+                            resolvedConnections.set(reqConn.externalId, destConn.id)
+                            applied.connectionsUnchanged++
+                        }
                     }
                 }
 
@@ -922,14 +1394,25 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                         const srcTable = snapshot.tables.find((t) => t.externalId === change.externalId)
                         if (srcTable) {
                             const destTable = await tableRepo().findOneBy({ projectId: targetProjectId, externalId: change.externalId })
-                            await tableRepo().update({ projectId: targetProjectId, externalId: change.externalId }, {
-                                name: srcTable.name,
-                                status: (srcTable.status ?? null) as TableAutomationStatus,
-                                trigger: (srcTable.trigger ?? null) as TableAutomationTrigger,
-                            })
+                            if (!destTable) {
+                                failed.push({ kind: 'table', externalId: change.externalId, op: 'UPDATE', error: `Table ${change.externalId} not found on destination` })
+                                continue
+                            }
 
-                            if (destTable && srcTable.fields) {
+                            const updatePayload: Record<string, any> = {
+                                name: srcTable.name,
+                            }
+                            if ('status' in srcTable) {
+                                updatePayload.status = srcTable.status ?? null
+                            }
+                            if ('trigger' in srcTable) {
+                                updatePayload.trigger = srcTable.trigger ?? null
+                            }
+                            await tableRepo().update({ id: destTable.id }, updatePayload)
+
+                            if (srcTable.fields) {
                                 const currentFields: Field[] = await fieldService.getAll({ projectId: targetProjectId, tableId: destTable.id })
+                                const matchedFieldIds = new Set<string>()
                                 for (const sf of srcTable.fields) {
                                     const matchField = currentFields.find((cf) => (sf.externalId && cf.externalId === sf.externalId) || cf.name === sf.name)
                                     if (!matchField) {
@@ -942,6 +1425,35 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                                                 externalId: sf.externalId,
                                             } as any,
                                         })
+                                    }
+                                    else {
+                                        matchedFieldIds.add(matchField.id)
+                                        if (matchField.type !== sf.type) {
+                                            await fieldService.delete({ id: matchField.id, projectId: targetProjectId })
+                                            await fieldService.create({
+                                                projectId: targetProjectId,
+                                                request: {
+                                                    tableId: destTable.id,
+                                                    name: sf.name,
+                                                    type: sf.type as FieldType,
+                                                    externalId: sf.externalId,
+                                                } as any,
+                                            })
+                                        }
+                                        else if (matchField.name !== sf.name) {
+                                            await fieldService.update({
+                                                id: matchField.id,
+                                                projectId: targetProjectId,
+                                                request: {
+                                                    name: sf.name,
+                                                },
+                                            })
+                                        }
+                                    }
+                                }
+                                for (const cf of currentFields) {
+                                    if (!matchedFieldIds.has(cf.id)) {
+                                        await fieldService.delete({ id: cf.id, projectId: targetProjectId })
                                     }
                                 }
                             }
@@ -971,13 +1483,24 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                         if (srcTb) {
                             let connectionId: string | undefined = undefined
                             if (srcTb.connectionExternalId) {
-                                const conn = await connectionRepo().findOneBy({
-                                    externalId: srcTb.connectionExternalId,
-                                    pieceName: srcTb.pieceName,
-                                    platformId: targetPlatformId,
-                                })
-                                if (conn) {
-                                    connectionId = conn.id
+                                if (failedConnectionExternalIds.has(srcTb.connectionExternalId)) {
+                                    failed.push({
+                                        kind: 'trigger_binding',
+                                        externalId: change.externalId,
+                                        op: 'CREATE',
+                                        error: `Activation blocked: required connection "${srcTb.connectionExternalId}" failed to resolve or bootstrap`,
+                                    })
+                                    continue
+                                }
+                                connectionId = resolvedConnections.get(srcTb.connectionExternalId)
+                                if (!connectionId) {
+                                    failed.push({
+                                        kind: 'trigger_binding',
+                                        externalId: change.externalId,
+                                        op: 'CREATE',
+                                        error: `Activation blocked: required connection "${srcTb.connectionExternalId}" is not available`,
+                                    })
+                                    continue
                                 }
                             }
 
@@ -1019,13 +1542,24 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                         if (srcTb && targetTb) {
                             let connectionId: string | undefined = targetTb.connectionId ?? undefined
                             if (srcTb.connectionExternalId) {
-                                const conn = await connectionRepo().findOneBy({
-                                    externalId: srcTb.connectionExternalId,
-                                    pieceName: srcTb.pieceName,
-                                    platformId: targetPlatformId,
-                                })
-                                if (conn) {
-                                    connectionId = conn.id
+                                if (failedConnectionExternalIds.has(srcTb.connectionExternalId)) {
+                                    failed.push({
+                                        kind: 'trigger_binding',
+                                        externalId: change.externalId,
+                                        op: 'UPDATE',
+                                        error: `Activation blocked: required connection "${srcTb.connectionExternalId}" failed to resolve or bootstrap`,
+                                    })
+                                    continue
+                                }
+                                connectionId = resolvedConnections.get(srcTb.connectionExternalId)
+                                if (!connectionId) {
+                                    failed.push({
+                                        kind: 'trigger_binding',
+                                        externalId: change.externalId,
+                                        op: 'UPDATE',
+                                        error: `Activation blocked: required connection "${srcTb.connectionExternalId}" is not available`,
+                                    })
+                                    continue
                                 }
                             }
                             await triggerBindingService.update({

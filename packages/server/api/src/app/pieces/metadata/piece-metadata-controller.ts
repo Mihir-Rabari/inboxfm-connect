@@ -1,4 +1,4 @@
-import { ActivepiecesError, ErrorCode, isNil, LocalesEnum } from '@inboxfm-connect/core-utils'
+import { ActivepiecesError, ErrorCode, isNil, LocalesEnum, SeekPage } from '@inboxfm-connect/core-utils'
 import { PieceMetadataModel, PieceMetadataModelSummary } from '@inboxfm-connect/pieces-framework'
 import { ALL_PRINCIPAL_TYPES, EngineResponse, GetPieceRequestParams, GetPieceRequestQuery, GetPieceRequestWithScopeParams, ListPiecesRequestQuery, PieceCategory, PieceOptionRequest, Principal, PrincipalType, RegistryPiecesRequestQuery, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
@@ -6,6 +6,8 @@ import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { ProjectResourceType } from '../../core/security/authorization/common'
 import { securityAccess } from '../../core/security/authorization/fastify-security'
+import { paginationHelper } from '../../helper/pagination/pagination-utils'
+import { CursorResult } from '../../helper/pagination/paginator'
 import { userInteractionWatcher } from '../../helper/user-interaction/user-interaction-watcher'
 import { pieceSyncService } from '../piece-sync-service'
 import { getPiecePackageWithoutArchive, pieceMetadataService } from './piece-metadata-service'
@@ -24,7 +26,7 @@ const basePiecesController: FastifyPluginAsyncZod = async (app) => {
         },
     )
 
-    app.get('/', ListPiecesRequest, async (req): Promise<PieceMetadataModelSummary[]> => {
+    app.get('/', ListPiecesRequest, async (req): Promise<SeekPage<PieceMetadataModelSummary>> => {
         const query = req.query
 
         const oldSyncCall = !isNil(query.release)
@@ -52,12 +54,39 @@ const basePiecesController: FastifyPluginAsyncZod = async (app) => {
             suggestionType: query.suggestionType,
             locale: query.locale as LocalesEnum | undefined,
         })
-        return pieceMetadataSummary.map((piece) => {
+        const cleanPieces = pieceMetadataSummary.map((piece) => {
             return {
                 ...piece,
                 i18n: undefined,
             }
         })
+
+        const limit = query.limit ?? (isNil(query.cursor) ? cleanPieces.length : 20)
+        let startIndex = 0
+        if (!isNil(query.cursor)) {
+            const decoded = paginationHelper.decodeCursor(query.cursor)
+            if (!isNil(decoded.nextCursor)) {
+                startIndex = parseInt(decoded.nextCursor, 10)
+                if (Number.isNaN(startIndex) || startIndex < 0) {
+                    startIndex = 0
+                }
+            }
+            else if (!isNil(decoded.previousCursor)) {
+                const prev = parseInt(decoded.previousCursor, 10)
+                startIndex = Number.isNaN(prev) ? 0 : Math.max(0, prev - limit)
+            }
+        }
+
+        const data = cleanPieces.slice(startIndex, startIndex + limit)
+        const hasNext = startIndex + limit < cleanPieces.length
+        const hasPrev = startIndex > 0
+
+        const cursorResult: CursorResult = {
+            afterCursor: hasNext ? String(startIndex + limit) : null,
+            beforeCursor: hasPrev ? String(startIndex) : null,
+        }
+
+        return paginationHelper.createPage(data, cursorResult)
     })
 
     app.get(

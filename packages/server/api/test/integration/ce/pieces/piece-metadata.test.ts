@@ -81,10 +81,10 @@ describe('Piece Metadata CE API', () => {
 
             expect(response?.statusCode).toBe(StatusCodes.OK)
             const body = response?.json()
-            expect(Array.isArray(body)).toBe(true)
+            expect(Array.isArray(body.data)).toBe(true)
             // The endpoint merges the shipped local catalog with the DB (fetchLatestPieces),
             // so the seeded piece is listed alongside the catalog rather than alone.
-            expect(body.map((piece: PieceMetadataModelSummary) => piece.name)).toContain('ce-list-test-piece')
+            expect(body.data.map((piece: PieceMetadataModelSummary) => piece.name)).toContain('ce-list-test-piece')
         })
 
         it('should filter pieces by searchQuery', async () => {
@@ -121,9 +121,36 @@ describe('Piece Metadata CE API', () => {
             // The endpoint merges the shipped local catalog with the DB (fetchLatestPieces), so a
             // loose token match against the ~700 real pieces can't be ruled out — assert the search
             // surfaced the target and excluded the unrelated mock, not an exact result count.
-            const names = body.map((piece: PieceMetadataModelSummary) => piece.name)
+            const names = body.data.map((piece: PieceMetadataModelSummary) => piece.name)
             expect(names).toContain('searchable-unique-piece')
             expect(names).not.toContain('other-piece-xyz')
+        })
+
+        it('should paginate pieces with limit and cursor', async () => {
+            const testToken = await generateMockToken({
+                type: PrincipalType.UNKNOWN,
+                id: apId(),
+            })
+
+            const page1Response = await app?.inject({
+                method: 'GET',
+                url: '/api/v1/integrations?limit=2',
+                headers: { authorization: `Bearer ${testToken}` },
+            })
+            expect(page1Response?.statusCode).toBe(StatusCodes.OK)
+            const page1 = page1Response?.json()
+            expect(page1.data.length).toBe(2)
+            expect(page1.next).not.toBeNull()
+
+            const page2Response = await app?.inject({
+                method: 'GET',
+                url: `/api/v1/integrations?limit=2&cursor=${encodeURIComponent(page1.next)}`,
+                headers: { authorization: `Bearer ${testToken}` },
+            })
+            expect(page2Response?.statusCode).toBe(StatusCodes.OK)
+            const page2 = page2Response?.json()
+            expect(page2.data.length).toBe(2)
+            expect(page2.data[0].name).not.toBe(page1.data[0].name)
         })
     })
 
@@ -268,7 +295,7 @@ describe('Piece Metadata CE API', () => {
             })
 
             expect(response?.statusCode).toBe(StatusCodes.OK)
-            const entry = response?.json().find((p: { name: string }) => p.name === 'list-release-test-piece')
+            const entry = response?.json().data.find((p: { name: string }) => p.name === 'list-release-test-piece')
             expect(entry).toBeDefined()
             expect(entry.version).toBe('0.1.32')
         })

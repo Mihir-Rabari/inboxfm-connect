@@ -5,7 +5,7 @@ import { ApiClientError } from '../api/client'
 export const queryClient = new QueryClient({
   queryCache: new QueryCache({
     onError: (error, query) => {
-      if (query.meta?.showErrorToast) {
+      if (query.meta?.showErrorToast || query.meta?.showErrorDialog) {
         const message =
           error instanceof ApiClientError
             ? error.message

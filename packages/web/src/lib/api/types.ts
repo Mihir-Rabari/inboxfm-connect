@@ -466,6 +466,8 @@ export type IntegrationsListParams = {
   sortBy?: IntegrationsSortBy
   orderBy?: IntegrationsOrderBy
   suggestionType?: 'ACTION' | 'TRIGGER'
+  cursor?: string
+  limit?: number
 }
 
 export type ConnectionsListParams = {

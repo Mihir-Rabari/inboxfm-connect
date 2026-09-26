@@ -47,7 +47,7 @@ function successRoutes(): StubRoute[] {
       match: (url) => url.pathname === '/api/v1/integrations',
       respond: () => ({
         status: 200,
-        body: [githubSummary(), slackSummary()],
+        body: seekPage([githubSummary(), slackSummary()]),
       }),
     },
   ]

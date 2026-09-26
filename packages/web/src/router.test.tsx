@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { AuthProvider } from '@/lib/auth/auth-context'
+import { apiClient } from '@/lib/api/client'
 import { queryClient } from '@/lib/query/query-client'
 import { ThemeProvider } from '@/lib/theme/theme-provider'
 import { router } from '@/router'
@@ -12,8 +13,8 @@ function stubBackend() {
   const stubFetch = async (input: RequestInfo | URL): Promise<Response> => {
     const url = String(input)
     const isArrayResponse =
-      url.includes('/integrations') || url.includes('/trigger-bindings') || url.includes('/scheduled-tasks')
-    const body = isArrayResponse ? [] : { data: [] }
+      url.includes('/trigger-bindings') || url.includes('/scheduled-tasks')
+    const body = isArrayResponse ? [] : { data: [], next: null, previous: null }
     return new Response(JSON.stringify(body), {
       status: 200,
       headers: { 'content-type': 'application/json' },
@@ -49,6 +50,8 @@ describe('router', () => {
   beforeEach(() => {
     localStorage.clear()
     document.body.innerHTML = ''
+    apiClient.setToken('test-token')
+    apiClient.setProjectId('proj_default')
     stubBackend()
   })
 

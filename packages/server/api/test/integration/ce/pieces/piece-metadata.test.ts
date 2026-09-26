@@ -81,10 +81,10 @@ describe('Piece Metadata CE API', () => {
 
             expect(response?.statusCode).toBe(StatusCodes.OK)
             const body = response?.json()
-            expect(Array.isArray(body)).toBe(true)
+            expect(Array.isArray(body.data)).toBe(true)
             // The endpoint merges the shipped local catalog with the DB (fetchLatestPieces),
             // so the seeded piece is listed alongside the catalog rather than alone.
-            expect(body.map((piece: PieceMetadataModelSummary) => piece.name)).toContain('ce-list-test-piece')
+            expect(body.data.map((piece: PieceMetadataModelSummary) => piece.name)).toContain('ce-list-test-piece')
         })
 
         it('should filter pieces by searchQuery', async () => {
@@ -121,7 +121,7 @@ describe('Piece Metadata CE API', () => {
             // The endpoint merges the shipped local catalog with the DB (fetchLatestPieces), so a
             // loose token match against the ~700 real pieces can't be ruled out — assert the search
             // surfaced the target and excluded the unrelated mock, not an exact result count.
-            const names = body.map((piece: PieceMetadataModelSummary) => piece.name)
+            const names = body.data.map((piece: PieceMetadataModelSummary) => piece.name)
             expect(names).toContain('searchable-unique-piece')
             expect(names).not.toContain('other-piece-xyz')
         })
@@ -268,7 +268,7 @@ describe('Piece Metadata CE API', () => {
             })
 
             expect(response?.statusCode).toBe(StatusCodes.OK)
-            const entry = response?.json().find((p: { name: string }) => p.name === 'list-release-test-piece')
+            const entry = response?.json().data.find((p: { name: string }) => p.name === 'list-release-test-piece')
             expect(entry).toBeDefined()
             expect(entry.version).toBe('0.1.32')
         })

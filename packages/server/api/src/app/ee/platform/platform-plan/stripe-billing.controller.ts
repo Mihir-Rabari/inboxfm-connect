@@ -62,15 +62,54 @@ export const stripeBillingController: FastifyPluginAsyncZod = async (fastify) =>
                         break
                     }
                     case 'invoice.paid': {
-                        const invoice = webhook.data.object
-                        if (isNil(invoice.metadata)) {
-                            break
+                        const invoice = webhook.data.object as Stripe.Invoice
+                        const rawSubscription = invoice.subscription
+                        const subscriptionId = typeof rawSubscription === 'string'
+                            ? rawSubscription
+                            : rawSubscription?.id
+
+                        if (!isNil(subscriptionId)) {
+                            const stripe = stripeHelper(request.log).getStripe()
+                            if (!isNil(stripe)) {
+                                const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+                                const platformId = subscription.metadata?.platformId as string
+                                if (!isNil(platformId) && subscription.status === 'active') {
+                                    await platformPlanService(request.log).update({
+                                        platformId,
+                                        stripeSubscriptionStatus: ApSubscriptionStatus.ACTIVE,
+                                    })
+                                }
+                            }
                         }
-                        if (invoice.metadata.type === StripeCheckoutType.AI_CREDIT_AUTO_TOP_UP) {
+
+                        if (!isNil(invoice.metadata) && invoice.metadata.type === StripeCheckoutType.AI_CREDIT_AUTO_TOP_UP) {
                             const platformId = invoice.metadata.platformId as string
                             const amountInCents = invoice.amount_paid
                             const amountInUsd = amountInCents / 100
                             await platformAiCreditsService(request.log).aiCreditsPaymentSucceeded(platformId, amountInUsd, StripeCheckoutType.AI_CREDIT_AUTO_TOP_UP)
+                        }
+                        break
+                    }
+                    case 'invoice.payment_failed': {
+                        const invoice = webhook.data.object as Stripe.Invoice
+                        const rawSubscription = invoice.subscription
+                        const subscriptionId = typeof rawSubscription === 'string'
+                            ? rawSubscription
+                            : rawSubscription?.id
+
+                        if (!isNil(subscriptionId)) {
+                            const stripe = stripeHelper(request.log).getStripe()
+                            if (!isNil(stripe)) {
+                                const subscription = await stripe.subscriptions.retrieve(subscriptionId)
+                                const platformId = subscription.metadata?.platformId as string
+                                if (!isNil(platformId)) {
+                                    request.log.warn({ platformId, subscriptionId }, 'Stripe subscription invoice payment failed, entering past_due state')
+                                    await platformPlanService(request.log).update({
+                                        platformId,
+                                        stripeSubscriptionStatus: ApSubscriptionStatus.PAST_DUE,
+                                    })
+                                }
+                            }
                         }
                         break
                     }

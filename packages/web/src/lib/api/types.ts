@@ -517,3 +517,30 @@ export interface UpdateScheduledTaskRequest {
   timezone?: string
   status?: AutomationStatus
 }
+
+export type SubscriptionStatus = 'active' | 'canceled' | 'past_due' | 'unpaid' | 'incomplete' | 'trialing'
+
+export interface PlatformPlanInfo {
+  plan: string
+  stripeSubscriptionStatus?: SubscriptionStatus
+  stripeSubscriptionId?: string
+  stripeCustomerId?: string
+  activeFlowsLimit?: number
+  includedAiCredits?: number
+}
+
+export interface PlatformUsageInfo {
+  activeFlows?: number
+  aiCreditsLimit?: number
+  aiCreditsRemaining?: number
+  totalAiCreditsUsed?: number
+}
+
+export interface PlatformBillingInformation {
+  plan: PlatformPlanInfo
+  usage: PlatformUsageInfo
+  nextBillingAmount?: number
+  nextBillingDate?: number
+  cancelAt?: number
+}
+

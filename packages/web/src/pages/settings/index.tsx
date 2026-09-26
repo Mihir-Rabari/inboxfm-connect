@@ -1,15 +1,49 @@
-import { Building2, Moon, Palette, Shield, Sun, User } from 'lucide-react'
+import { AlertTriangle, Building2, CreditCard, ExternalLink, Loader2, Moon, Palette, Shield, Sparkles, Sun, User } from 'lucide-react'
 import { PageHeader } from '@/components/layout/page-header'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth/auth-context'
+import {
+  useBillingInfoQuery,
+  useCreateBillingCheckoutMutation,
+  useCreateBillingPortalMutation,
+} from '@/lib/query/hooks'
 import { useTheme } from '@/lib/theme/theme-provider'
 import { toast } from 'sonner'
 
 export default function SettingsPage() {
   const { user, currentProject } = useAuth()
   const { theme, setTheme } = useTheme()
+  const billingQuery = useBillingInfoQuery()
+  const portalMutation = useCreateBillingPortalMutation()
+  const checkoutMutation = useCreateBillingCheckoutMutation()
+
+  const billingInfo = billingQuery.data
+
+  async function handleManageBilling() {
+    try {
+      const { url } = await portalMutation.mutateAsync()
+      if (url) {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      }
+    } catch {
+      toast.error('Could not generate Stripe billing portal session')
+    }
+  }
+
+  async function handleUpgradePlan() {
+    try {
+      const res = await checkoutMutation.mutateAsync({ newActiveFlowsLimit: 25 })
+      const checkoutUrl = res.stripeCheckoutUrl || res.url
+      if (checkoutUrl) {
+        window.open(checkoutUrl, '_blank', 'noopener,noreferrer')
+      }
+    } catch {
+      toast.error('Could not initiate Stripe checkout session')
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -19,6 +53,90 @@ export default function SettingsPage() {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Billing & Subscription */}
+        <Card className="border-border shadow-xs col-span-1 lg:col-span-2">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-sm font-bold flex items-center gap-2">
+                <CreditCard className="h-4 w-4 text-primary" />
+                <span>Subscription & Billing</span>
+              </CardTitle>
+              {billingInfo?.plan?.stripeSubscriptionStatus === 'active' && (
+                <Badge variant="outline" className="text-emerald-600 dark:text-emerald-400 border-emerald-500/20 bg-emerald-500/10">
+                  Active Subscription
+                </Badge>
+              )}
+              {billingInfo?.plan?.stripeSubscriptionStatus === 'past_due' && (
+                <Badge variant="destructive">
+                  Payment Past Due
+                </Badge>
+              )}
+              {(!billingInfo?.plan?.stripeSubscriptionStatus || billingInfo?.plan?.stripeSubscriptionStatus === 'canceled') && (
+                <Badge variant="secondary">
+                  Community Plan
+                </Badge>
+              )}
+            </div>
+            <CardDescription className="text-xs">
+              Manage platform subscription tiers, quotas, and Stripe billing details.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {billingInfo?.plan?.stripeSubscriptionStatus === 'past_due' && (
+              <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive flex items-start gap-2.5">
+                <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-semibold">Your recent subscription payment failed.</p>
+                  <p className="text-[11px] opacity-90">Please update your payment method in Stripe to maintain full plan limits and prevent service interruption.</p>
+                </div>
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="rounded-lg border border-border p-3 space-y-1">
+                <span className="text-[11px] text-muted-foreground uppercase font-semibold">Active Plan</span>
+                <p className="text-sm font-bold capitalize text-foreground">{billingInfo?.plan?.plan || 'Community Edition'}</p>
+              </div>
+              <div className="rounded-lg border border-border p-3 space-y-1">
+                <span className="text-[11px] text-muted-foreground uppercase font-semibold">Active Flows Limit</span>
+                <p className="text-sm font-bold text-foreground">
+                  {billingInfo?.plan?.activeFlowsLimit != null ? billingInfo.plan.activeFlowsLimit : 'Unlimited'}
+                </p>
+              </div>
+              <div className="rounded-lg border border-border p-3 space-y-1">
+                <span className="text-[11px] text-muted-foreground uppercase font-semibold">AI Credits</span>
+                <p className="text-sm font-bold text-foreground">
+                  {billingInfo?.plan?.includedAiCredits ?? 0}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 pt-1">
+              {billingInfo?.plan?.stripeSubscriptionId ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 text-xs"
+                  disabled={portalMutation.isPending}
+                  onClick={() => handleManageBilling()}
+                >
+                  {portalMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ExternalLink className="h-3.5 w-3.5" />}
+                  <span>Manage in Stripe</span>
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  className="gap-1.5 text-xs shadow-xs"
+                  disabled={checkoutMutation.isPending}
+                  onClick={() => handleUpgradePlan()}
+                >
+                  {checkoutMutation.isPending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                  <span>Upgrade to Paid Tier</span>
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
         {/* Project Info */}
         <Card className="border-border shadow-xs">
           <CardHeader className="pb-3">

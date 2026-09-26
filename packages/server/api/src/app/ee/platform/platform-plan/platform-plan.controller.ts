@@ -38,7 +38,8 @@ export const platformPlanController: FastifyPluginAsyncZod = async (fastify) => 
             security: securityAccess.platformAdminOnly([PrincipalType.USER]),
         },
     }, async (request) => {
-        return stripeHelper(request.log).createPortalSessionUrl(request.principal.platform.id)
+        const url = await stripeHelper(request.log).createPortalSessionUrl(request.principal.platform.id)
+        return { url }
     })
 
     fastify.post('/create-checkout-session', CreateCheckoutSessionRequest, async (request) => {
@@ -50,11 +51,12 @@ export const platformPlanController: FastifyPluginAsyncZod = async (fastify) => 
         const baseActiveFlowsLimit = STANDARD_CLOUD_PLAN.activeFlowsLimit ?? 0
         const extraActiveFlows = Math.max(0, newActiveFlowsLimit - baseActiveFlowsLimit)
 
-        return stripeHelper(request.log).createNewSubscriptionCheckoutSession({
+        const stripeCheckoutUrl = await stripeHelper(request.log).createNewSubscriptionCheckoutSession({
             platformId: platformPlan.platformId,
             customerId,
             extraActiveFlows,
         })
+        return { stripeCheckoutUrl, url: stripeCheckoutUrl }
     })
 
     fastify.post('/update-active-flows-addon', UpdateActiveFlowsAddonRequest, async (request) => {

@@ -1,6 +1,6 @@
 import { Activity, CalendarClock, ChevronRight, Copy, Filter, Globe, Zap } from 'lucide-react'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { PageHeader } from '@/components/layout/page-header'
 import { Badge } from '@/components/ui/badge'
@@ -25,6 +25,7 @@ const PROVENANCE_ICONS: Record<ProvenanceKind, typeof Zap> = {
 }
 
 export default function ActivityPage() {
+  const navigate = useNavigate()
   const { filters, setFilters } = useActivityFilters()
   const executionsQuery = useExecutionsQuery({
     status: filters.status === 'ALL' ? undefined : filters.status,
@@ -91,6 +92,8 @@ export default function ActivityPage() {
           icon={Activity}
           title="No executions recorded yet."
           description="Executions appear here when trigger bindings run, scheduled tasks fire, or executions are created through the API."
+          actionLabel="Explore Actions to Run"
+          onAction={() => navigate('/actions')}
         />
       )
     }

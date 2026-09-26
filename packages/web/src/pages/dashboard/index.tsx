@@ -13,7 +13,7 @@ import {
   XCircle,
   Zap,
 } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { PageHeader } from '@/components/layout/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -31,6 +31,7 @@ import {
 } from '@/lib/query/hooks'
 
 export default function DashboardPage() {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const { data: integrations, isLoading: isIntegrationsLoading } = useIntegrations()
   const { data: connections, isLoading: isConnectionsLoading } = useConnectionsQuery()
@@ -270,7 +271,7 @@ export default function DashboardPage() {
                 title="No executions recorded yet"
                 description="When you test a tool, fire a trigger binding, or run a scheduled task, execution logs will appear here."
                 actionLabel="Explore Tools to Test"
-                onAction={() => (window.location.href = '/actions')}
+                onAction={() => navigate('/actions')}
               />
             </div>
           ) : (

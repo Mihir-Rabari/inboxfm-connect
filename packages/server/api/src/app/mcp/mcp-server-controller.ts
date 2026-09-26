@@ -7,6 +7,7 @@ import { ProjectResourceType } from '../core/security/authorization/common'
 import { securityAccess } from '../core/security/authorization/fastify-security'
 import { system } from '../helper/system/system'
 import { AppSystemProp } from '../helper/system/system-props'
+import { McpMirrorState, mcpMirrorState } from './mcp-mirror-state'
 import { mcpServerService } from './mcp-service'
 import { mcpOAuthTokenService } from './oauth/token/mcp-oauth-token.service'
 
@@ -28,6 +29,10 @@ export const mcpServerController: FastifyPluginAsyncZod = async (app) => {
         return mcpServerService(req.log).rotateToken({
             projectId: req.projectId,
         })
+    })
+
+    app.get('/mirror-state', GetMirrorStateRequest, async (req) => {
+        return mcpMirrorState.exportForProject({ projectId: req.projectId })
     })
 
     app.post('/token', GenerateMcpTokenRequest, async (req) => {
@@ -131,6 +136,29 @@ const GenerateMcpTokenRequest = {
         }),
         response: {
             [StatusCodes.OK]: GenerateMcpTokenResponse,
+        },
+    },
+}
+
+const GetMirrorStateRequest = {
+    config: {
+        security: securityAccess.project(
+            [PrincipalType.USER],
+            Permission.READ_MCP,
+            {
+                type: ProjectResourceType.PARAM,
+            },
+        ),
+    },
+    schema: {
+        tags: ['mcp'],
+        description: 'Export the mirror-safe MCP server state for project promotion (never includes bearer tokens)',
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
+        params: z.object({
+            projectId: ApId,
+        }),
+        response: {
+            [StatusCodes.OK]: McpMirrorState,
         },
     },
 }

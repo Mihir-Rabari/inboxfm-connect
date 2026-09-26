@@ -41,7 +41,7 @@ export const stripeHelper = (log: FastifyBaseLogger) => ({
         const platformBilling = await platformPlanService(log).getOrCreateForPlatform(platformId)
         const session = await stripe.billingPortal.sessions.create({
             customer: platformBilling.stripeCustomerId!,
-            return_url: 'https://cloud.activepieces.com/platform/billing',
+            return_url: `${frontendUrl || 'http://localhost:4200'}/settings`,
         })
 
         return session.url
@@ -190,8 +190,8 @@ export const stripeHelper = (log: FastifyBaseLogger) => ({
             },
             allow_promotion_codes: true,
             customer: customerId,
-            success_url: `${frontendUrl}/platform/setup/billing/success?action=create`,
-            cancel_url: `${frontendUrl}/platform/setup/billing/error`,
+            success_url: `${frontendUrl || 'http://localhost:4200'}/settings?billing=success`,
+            cancel_url: `${frontendUrl || 'http://localhost:4200'}/settings?billing=canceled`,
         })
         
         return session.url!

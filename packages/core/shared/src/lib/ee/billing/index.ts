@@ -16,6 +16,11 @@ export type ProjectPlanLimits = {
 export enum ApSubscriptionStatus {
     ACTIVE = 'active',
     CANCELED = 'canceled',
+    PAST_DUE = 'past_due',
+    UNPAID = 'unpaid',
+    INCOMPLETE = 'incomplete',
+    INCOMPLETE_EXPIRED = 'incomplete_expired',
+    TRIALING = 'trialing',
 }
 
 export const METRIC_TO_LIMIT_MAPPING = {

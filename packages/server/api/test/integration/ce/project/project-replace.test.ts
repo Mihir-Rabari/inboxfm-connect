@@ -1,6 +1,8 @@
 import { apId } from '@inboxfm-connect/core-utils'
 import {
     FieldType,
+    PackageType,
+    PieceType,
     ProjectReplaceArtifact,
     ProjectStateSnapshot,
 } from '@inboxfm-connect/shared'
@@ -503,6 +505,289 @@ describe('Project Replace API (CE)', () => {
             })
 
             expect(applyRes.statusCode).toBe(StatusCodes.CONFLICT)
+        })
+
+        it('should reject preflight when custom piece archive checksum is missing or mismatched', async () => {
+            const crypto = await import('crypto')
+            const dummyArchive = Buffer.from('test-package-payload-content').toString('base64')
+            const correctChecksum = crypto.createHash('sha256').update(Buffer.from('test-package-payload-content')).digest('hex')
+
+            // Test 1: Missing archiveChecksum
+            const snapshotWithoutChecksum: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                customPieces: [{
+                    name: '@custom/missing-checksum',
+                    version: '1.0.0',
+                    pieceType: 'CUSTOM',
+                    packageType: 'ARCHIVE',
+                    archiveFileBase64: dummyArchive,
+                }],
+                requiredConnections: [],
+            }
+
+            const planRes1 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: snapshotWithoutChecksum,
+            })
+            expect(planRes1.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            const artifact1 = planRes1.json()
+            expect(artifact1.plan.preflight.passed).toBe(false)
+            expect(artifact1.plan.preflight.errors.some((e: any) => e.kind === 'CHECKSUM_MISMATCH')).toBe(true)
+
+            // Test 2: Mismatched archiveChecksum
+            const snapshotWithWrongChecksum: ProjectStateSnapshot = {
+                ...snapshotWithoutChecksum,
+                customPieces: [{
+                    name: '@custom/bad-checksum',
+                    version: '1.0.0',
+                    pieceType: 'CUSTOM',
+                    packageType: 'ARCHIVE',
+                    archiveFileBase64: dummyArchive,
+                    archiveChecksum: 'ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff',
+                }],
+            }
+
+            const planRes2 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: snapshotWithWrongChecksum,
+            })
+            expect(planRes2.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            const artifact2 = planRes2.json()
+            expect(artifact2.plan.preflight.passed).toBe(false)
+            expect(artifact2.plan.preflight.errors.some((e: any) => e.kind === 'CHECKSUM_MISMATCH')).toBe(true)
+
+            // Test 3: Valid archiveChecksum produces valid plan with deployable piece
+            const snapshotWithValidChecksum: ProjectStateSnapshot = {
+                ...snapshotWithoutChecksum,
+                customPieces: [{
+                    name: '@custom/valid-piece',
+                    version: '1.0.0',
+                    pieceType: 'CUSTOM',
+                    packageType: 'ARCHIVE',
+                    archiveFileBase64: dummyArchive,
+                    archiveChecksum: correctChecksum,
+                }],
+            }
+
+            const planRes3 = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: snapshotWithValidChecksum,
+            })
+            expect(planRes3.statusCode).toBe(StatusCodes.OK)
+            const artifact3 = planRes3.json()
+            expect(artifact3.plan.preflight.passed).toBe(true)
+            expect(artifact3.plan.preflight.customIntegrations.deployable.length).toBe(1)
+            expect(artifact3.plan.changes.creates.some((c: any) => c.kind === 'custom_piece' && c.name === '@custom/valid-piece@1.0.0')).toBe(true)
+        })
+
+        it('should block dependent trigger bindings when dependent custom piece install fails or is missing', async () => {
+            // Snapshot with missing custom piece AND a trigger binding referencing it
+            const snapshotWithDependent: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [{
+                    externalId: 'tb-custom-dep',
+                    pieceName: '@custom/missing-dep',
+                    pieceVersion: '1.0.0',
+                    triggerName: 'test_trigger',
+                    promptTemplate: 'run when event fires',
+                    settings: {},
+                    status: 'ENABLED',
+                }],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [{
+                    name: '@custom/missing-dep',
+                    version: '1.0.0',
+                    pieceType: 'CUSTOM',
+                }],
+                customPieces: [{
+                    name: '@custom/missing-dep',
+                    version: '1.0.0',
+                    pieceType: 'CUSTOM',
+                }],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: snapshotWithDependent,
+            })
+            expect(planRes.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            const artifact = planRes.json()
+            expect(artifact.plan.preflight.passed).toBe(false)
+
+            // When applying with force: true, trigger binding creation MUST be blocked
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                    force: true,
+                },
+            })
+
+            // Multi-status or response contains failure for the trigger binding
+            expect([StatusCodes.OK, StatusCodes.MULTI_STATUS]).toContain(applyRes.statusCode)
+            const result = applyRes.json()
+            expect(result.applied.triggerBindingsCreated).toBe(0)
+            const tbFailure = result.failed.find((f: any) => f.kind === 'trigger_binding')
+            expect(tbFailure).toBeDefined()
+            expect(tbFailure.error).toContain('Activation blocked: dependent custom integration')
+        })
+
+        it('should perform zero mutations when inspectOnly is true', async () => {
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [{ name: 'InspectOnlyTable', externalId: 'ext-inspect', fields: [] }],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                customPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+            const artifact = planRes.json()
+
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                    inspectOnly: true,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.OK)
+            const result = applyRes.json()
+            expect(result.applied.tablesCreated).toBe(0)
+
+            // Verify table was NOT actually created in destination
+            const { TableEntity } = await import('../../../../src/app/tables/table/table.entity')
+            const { repoFactory } = await import('../../../../src/app/core/db/repo-factory')
+            const created = await repoFactory(TableEntity)().findOneBy({ projectId: ctx.project.id, externalId: 'ext-inspect' })
+            expect(created).toBeNull()
+        })
+
+        it('should check compatibility for already installed custom pieces and reject with INCOMPATIBLE_INTEGRATION', async () => {
+            const { pieceMetadataService } = await import('../../../../src/app/pieces/metadata/piece-metadata-service')
+            const { createMockPieceMetadata } = await import('../../../helpers/mocks')
+            await pieceMetadataService(app!.log).create({
+                pieceMetadata: createMockPieceMetadata({
+                    name: '@custom/installed-incompatible',
+                    version: '1.0.0',
+                    minimumSupportedRelease: '99.0.0',
+                }),
+                platformId: ctx.platform.id,
+                packageType: PackageType.REGISTRY,
+                pieceType: PieceType.CUSTOM,
+            })
+
+            const snapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                customPieces: [{
+                    name: '@custom/installed-incompatible',
+                    version: '1.0.0',
+                    pieceType: 'CUSTOM',
+                    minimumSupportedRelease: '99.0.0',
+                }],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: snapshot,
+            })
+
+            expect(planRes.statusCode).toBe(StatusCodes.BAD_REQUEST)
+            const artifact = planRes.json()
+            expect(artifact.plan.preflight.passed).toBe(false)
+            expect(artifact.plan.preflight.errors.some((e: any) => e.kind === 'INCOMPATIBLE_INTEGRATION')).toBe(true)
+            // Crucial: Incompatible piece must NOT be counted as unchanged!
+            expect(artifact.plan.changes.unchanged.some((u: any) => u.externalId.includes('@custom/installed-incompatible'))).toBe(false)
+        })
+
+        it('should allow inspection via POST /inspect with READ_PROJECT permission and perform zero mutations', async () => {
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                tables: [{ name: 'InspectEndpointTable', externalId: 'ext-inspect-ep', fields: [] }],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                customPieces: [],
+                requiredConnections: [],
+            }
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: sourceSnapshot,
+            })
+            const artifact = planRes.json()
+
+            // Call dedicated /inspect endpoint
+            const inspectRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/inspect`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                },
+            })
+
+            expect(inspectRes.statusCode).toBe(StatusCodes.OK)
+            const result = inspectRes.json()
+            expect(result.applied.tablesCreated).toBe(0)
+
+            // Verify table was NOT actually created in destination
+            const { TableEntity } = await import('../../../../src/app/tables/table/table.entity')
+            const { repoFactory } = await import('../../../../src/app/core/db/repo-factory')
+            const created = await repoFactory(TableEntity)().findOneBy({ projectId: ctx.project.id, externalId: 'ext-inspect-ep' })
+            expect(created).toBeNull()
         })
     })
 })

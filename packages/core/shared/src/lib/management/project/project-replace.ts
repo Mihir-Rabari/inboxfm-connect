@@ -4,7 +4,7 @@ import { TableAutomationStatus, TableAutomationTrigger } from '../../automation/
 import { ScheduledTaskStatus } from '../../execution/scheduled-task'
 import { TriggerBindingStatus } from '../../execution/trigger-binding'
 
-export const ProjectReplaceResourceKind = z.enum(['table', 'trigger_binding', 'scheduled_task', 'mcp_server'])
+export const ProjectReplaceResourceKind = z.enum(['table', 'trigger_binding', 'scheduled_task', 'mcp_server', 'custom_piece'])
 export type ProjectReplaceResourceKind = z.infer<typeof ProjectReplaceResourceKind>
 
 export const ProjectReplaceOp = z.enum(['CREATE', 'UPDATE', 'DELETE'])
@@ -50,6 +50,21 @@ export const McpServerSnapshotSchema = z.object({
 })
 export type McpServerSnapshotSchema = z.infer<typeof McpServerSnapshotSchema>
 
+export const MAX_CUSTOM_PIECE_ARCHIVE_BYTES = 15 * 1024 * 1024 // 15MB cap
+export const MAX_CUSTOM_PIECE_BASE64_LENGTH = Math.ceil((MAX_CUSTOM_PIECE_ARCHIVE_BYTES * 4) / 3) + 4
+
+export const RequiredPieceSchema = z.object({
+    name: z.string(),
+    version: z.string(),
+    pieceType: z.enum(['OFFICIAL', 'CUSTOM']).optional(),
+    packageType: z.enum(['ARCHIVE', 'REGISTRY']).optional(),
+    archiveChecksum: z.string().optional(),
+    minimumSupportedRelease: z.string().optional(),
+    maximumSupportedRelease: z.string().optional(),
+    archiveFileBase64: z.string().max(MAX_CUSTOM_PIECE_BASE64_LENGTH, 'Archive base64 payload exceeds 15MB limit').optional(),
+})
+export type RequiredPieceSchema = z.infer<typeof RequiredPieceSchema>
+
 export const ProjectStateSnapshot = z.object({
     schemaVersion: z.literal(1),
     sourceActivepiecesVersion: z.string(),
@@ -62,10 +77,8 @@ export const ProjectStateSnapshot = z.object({
     triggerBindings: z.array(TriggerBindingSnapshotSchema),
     scheduledTasks: z.array(ScheduledTaskSnapshotSchema),
     mcp: McpServerSnapshotSchema.nullable().optional(),
-    requiredPieces: z.array(z.object({
-        name: z.string(),
-        version: z.string(),
-    })),
+    requiredPieces: z.array(RequiredPieceSchema),
+    customPieces: z.array(RequiredPieceSchema).optional(),
     requiredConnections: z.array(z.object({
         externalId: z.string(),
         pieceName: z.string(),
@@ -74,7 +87,16 @@ export const ProjectStateSnapshot = z.object({
 export type ProjectStateSnapshot = z.infer<typeof ProjectStateSnapshot>
 
 export const PreflightError = z.object({
-    kind: z.enum(['VERSION_SKEW', 'MISSING_PIECE', 'MISSING_CONNECTION', 'PERMISSIONS', 'GENERAL']),
+    kind: z.enum([
+        'VERSION_SKEW',
+        'MISSING_PIECE',
+        'MISSING_CUSTOM_PIECE',
+        'MISSING_CONNECTION',
+        'CHECKSUM_MISMATCH',
+        'INCOMPATIBLE_INTEGRATION',
+        'PERMISSIONS',
+        'GENERAL',
+    ]),
     message: z.string(),
     details: z.record(z.string(), z.unknown()).optional(),
 })
@@ -104,6 +126,12 @@ export const ProjectReplacePlan = z.object({
     preflight: z.object({
         passed: z.boolean(),
         errors: z.array(PreflightError),
+        customIntegrations: z.object({
+            required: z.array(RequiredPieceSchema),
+            missing: z.array(RequiredPieceSchema),
+            deployable: z.array(RequiredPieceSchema),
+            compatible: z.array(RequiredPieceSchema),
+        }).optional(),
     }),
     changes: z.object({
         creates: z.array(ProjectReplaceDiffItem),
@@ -134,9 +162,11 @@ export type ProjectReplaceArtifact = z.infer<typeof ProjectReplaceArtifact>
 
 export const ProjectReplaceApplyRequest = z.object({
     plan: ProjectReplacePlan,
-    snapshot: ProjectStateSnapshot.optional(),
+    snapshot: ProjectStateSnapshot,
     dryRun: z.boolean().optional(),
     force: z.boolean().optional(),
+    deployCustomIntegrations: z.boolean().optional(),
+    inspectOnly: z.boolean().optional(),
 })
 export type ProjectReplaceApplyRequest = z.infer<typeof ProjectReplaceApplyRequest>
 
@@ -155,6 +185,8 @@ export const ProjectReplaceApplyResult = z.object({
         scheduledTasksDeleted: z.number(),
         scheduledTasksUnchanged: z.number(),
         mcpUpdated: z.number(),
+        customPiecesInstalled: z.number(),
+        customPiecesUnchanged: z.number(),
     }),
     failed: z.array(z.object({
         kind: ProjectReplaceResourceKind,

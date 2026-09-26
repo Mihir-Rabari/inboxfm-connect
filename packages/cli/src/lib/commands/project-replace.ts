@@ -22,6 +22,8 @@ type ReplaceCliOptions = {
     out?: string
     dryRun?: boolean
     force?: boolean
+    deployIntegrations?: boolean
+    inspectOnly?: boolean
     json?: boolean
 }
 
@@ -54,6 +56,8 @@ export const projectReplaceCommand = new Command('replace')
     .option('--plan-file <path>', 'Path to a signed plan artifact JSON file to apply')
     .option('--out <path>', 'Path to write generated plan artifact JSON')
     .option('--dry-run', 'Generate reviewable plan artifact without mutating destination', false)
+    .option('--deploy-integrations', 'Deploy missing custom integrations automatically during replace', false)
+    .option('--inspect-only', 'Inspect and report missing integrations without applying any changes', false)
     .option('--force', 'Bypass preflight warnings', false)
     .option('--json', 'Output machine-readable JSON', false)
     .action(async (options: ReplaceCliOptions) => {
@@ -98,6 +102,29 @@ export const projectReplaceCommand = new Command('replace')
                     }
                     const totalChanges = artifact.plan.summary.created + artifact.plan.summary.updated + artifact.plan.summary.deleted
                     process.exit(totalChanges > 0 ? EXIT_CHANGES_OR_PARTIAL : EXIT_SUCCESS)
+                }
+
+                if (options.inspectOnly) {
+                    if (options.json) {
+                        console.log(JSON.stringify(artifact, null, 2))
+                    }
+                    else {
+                        console.log('Inspect-only mode: no mutations applied.')
+                        if (artifact.plan.preflight.customIntegrations) {
+                            const ci = artifact.plan.preflight.customIntegrations
+                            console.log(`Required integrations:   ${ci.required.map((p) => `${p.name}@${p.version}`).join(', ') || 'none'}`)
+                            console.log(`Missing integrations:    ${ci.missing.map((p) => `${p.name}@${p.version}`).join(', ') || 'none'}`)
+                            console.log(`Deployable integrations: ${ci.deployable.map((p) => `${p.name}@${p.version}`).join(', ') || 'none'}`)
+                            console.log(`Compatible integrations: ${ci.compatible.map((p) => `${p.name}@${p.version}`).join(', ') || 'none'}`)
+                        }
+                        if (!artifact.plan.preflight.passed) {
+                            console.log('\nPreflight checks:')
+                            for (const err of artifact.plan.preflight.errors) {
+                                console.log(`  - [${err.kind}]: ${err.message}`)
+                            }
+                        }
+                    }
+                    process.exit(artifact.plan.preflight.passed ? EXIT_SUCCESS : EXIT_PREFLIGHT)
                 }
             }
             else {
@@ -146,8 +173,8 @@ export const projectReplaceCommand = new Command('replace')
                 )
 
                 if (planRes.status === 400 && planRes.data?.plan?.preflight && !planRes.data.plan.preflight.passed) {
-                    if (options.force) {
-                        // In force mode, preflight warnings are waived; adopt the plan and continue
+                    if (options.force || options.inspectOnly) {
+                        // In force mode or inspect-only mode, adopt the plan to proceed with apply or inspection report
                         artifact = planRes.data
                     }
                     else {
@@ -203,11 +230,35 @@ export const projectReplaceCommand = new Command('replace')
                     const totalChanges = artifact.plan.summary.created + artifact.plan.summary.updated + artifact.plan.summary.deleted
                     process.exit(totalChanges > 0 ? EXIT_CHANGES_OR_PARTIAL : EXIT_SUCCESS)
                 }
+
+                if (options.inspectOnly && artifact) {
+                    if (options.json) {
+                        console.log(JSON.stringify(artifact, null, 2))
+                    }
+                    else {
+                        console.log('Inspect-only mode: no mutations applied.')
+                        if (artifact.plan.preflight.customIntegrations) {
+                            const ci = artifact.plan.preflight.customIntegrations
+                            console.log(`Required integrations:   ${ci.required.map((p) => `${p.name}@${p.version}`).join(', ') || 'none'}`)
+                            console.log(`Missing integrations:    ${ci.missing.map((p) => `${p.name}@${p.version}`).join(', ') || 'none'}`)
+                            console.log(`Deployable integrations: ${ci.deployable.map((p) => `${p.name}@${p.version}`).join(', ') || 'none'}`)
+                            console.log(`Compatible integrations: ${ci.compatible.map((p) => `${p.name}@${p.version}`).join(', ') || 'none'}`)
+                        }
+                        if (!artifact.plan.preflight.passed) {
+                            console.log('\nPreflight checks:')
+                            for (const err of artifact.plan.preflight.errors) {
+                                console.log(`  - [${err.kind}]: ${err.message}`)
+                            }
+                        }
+                    }
+                    process.exit(artifact.plan.preflight.passed ? EXIT_SUCCESS : EXIT_PREFLIGHT)
+                }
             }
 
             // 3. Apply phase
+            const endpoint = options.inspectOnly ? 'inspect' : 'apply'
             const applyRes = await fetchJson<{ applied: Record<string, number>, failed: Array<{ error: string }> }>(
-                `${destBase}/api/v1/projects/${options.destProject}/replace/apply`,
+                `${destBase}/api/v1/projects/${options.destProject}/replace/${endpoint}`,
                 {
                     method: 'POST',
                     headers: {
@@ -218,6 +269,8 @@ export const projectReplaceCommand = new Command('replace')
                         plan: artifact!.plan,
                         snapshot,
                         force: options.force,
+                        deployCustomIntegrations: options.deployIntegrations,
+                        inspectOnly: options.inspectOnly,
                     }),
                 },
             )

@@ -16,6 +16,10 @@ import {
     TableAutomationStatus,
     TableAutomationTrigger,
     TriggerBindingStatus,
+    PackageType,
+    PieceScope,
+    PieceType,
+    RequiredPieceSchema,
 } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
@@ -26,15 +30,18 @@ import { ScheduledTaskEntity } from '../../execution/scheduled-task/scheduled-ta
 import { scheduledTaskService } from '../../execution/scheduled-task/scheduled-task.service'
 import { TriggerBindingEntity } from '../../execution/trigger-binding/trigger-binding-entity'
 import { triggerBindingService } from '../../execution/trigger-binding/trigger-binding.service'
+import { fileRepo } from '../../file/file.service'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 import { mcpServerService } from '../../mcp/mcp-service'
 import { pieceMetadataService } from '../../pieces/metadata/piece-metadata-service'
+import { pieceInstallService } from '../../pieces/piece-install-service'
 import { fieldService } from '../../tables/field/field.service'
 import { TableEntity } from '../../tables/table/table.entity'
 import { tableService } from '../../tables/table/table.service'
 
 import { distributedLock } from '../../database/redis-connections'
+import { ApMultipartFile } from '@inboxfm-connect/core-utils'
 
 const tableRepo = repoFactory(TableEntity)
 const triggerBindingRepo = repoFactory(TriggerBindingEntity)
@@ -120,7 +127,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
         const requiredConnectionsMap = new Map<string, string>()
 
         for (const tb of triggerBindings) {
-            requiredPiecesMap.set(tb.pieceName, tb.pieceVersion)
+            requiredPiecesMap.set(`${tb.pieceName}::${tb.pieceVersion}`, tb.pieceVersion)
             let connExternalId: string | null = null
             if (tb.connectionId) {
                 const conn = await connectionRepo().findOneBy({ id: tb.connectionId, platformId })
@@ -159,10 +166,46 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             disabledTools: mcpServer?.disabledTools ?? [],
         }
 
-        const requiredPieces = Array.from(requiredPiecesMap.entries()).map(([name, version]) => ({
-            name,
-            version,
-        }))
+        const requiredPieces: RequiredPieceSchema[] = []
+        const customPieces: RequiredPieceSchema[] = []
+
+        for (const [key, version] of requiredPiecesMap.entries()) {
+            const [name] = key.split('::')
+            const pieceMeta = await pieceMetadataService(log).get({ name, version, platformId })
+            let pieceType: 'OFFICIAL' | 'CUSTOM' = 'OFFICIAL'
+            let packageType: 'ARCHIVE' | 'REGISTRY' = 'REGISTRY'
+            let archiveChecksum: string | undefined
+            let archiveFileBase64: string | undefined
+            const minimumSupportedRelease = pieceMeta?.minimumSupportedRelease ?? undefined
+            const maximumSupportedRelease = pieceMeta?.maximumSupportedRelease ?? undefined
+
+            if (pieceMeta?.pieceType === PieceType.CUSTOM) {
+                pieceType = 'CUSTOM'
+                if (pieceMeta.packageType === PackageType.ARCHIVE && pieceMeta.archiveId) {
+                    packageType = 'ARCHIVE'
+                    const file = await fileRepo().findOneBy({ id: pieceMeta.archiveId, platformId })
+                    if (file?.data) {
+                        archiveChecksum = crypto.createHash('sha256').update(file.data).digest('hex')
+                        archiveFileBase64 = file.data.toString('base64')
+                    }
+                }
+            }
+
+            const pieceInfo: RequiredPieceSchema = {
+                name,
+                version,
+                pieceType,
+                packageType,
+                archiveChecksum,
+                minimumSupportedRelease,
+                maximumSupportedRelease,
+                archiveFileBase64,
+            }
+            requiredPieces.push(pieceInfo)
+            if (pieceType === 'CUSTOM') {
+                customPieces.push(pieceInfo)
+            }
+        }
 
         const requiredConnections = Array.from(requiredConnectionsMap.entries()).map(([externalId, pieceName]) => ({
             externalId,
@@ -182,6 +225,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             scheduledTasks: scheduledTasksSnapshot,
             mcp: mcpSnapshot,
             requiredPieces,
+            customPieces,
             requiredConnections,
         }
     },
@@ -260,10 +304,37 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             }
         }
 
-        // 2. Preflight: Required pieces
-        for (const reqPiece of snapshot.requiredPieces) {
+        const creates: ProjectReplaceDiffItem[] = []
+        const updates: ProjectReplaceDiffItem[] = []
+        const deletes: ProjectReplaceDiffItem[] = []
+        const unchanged: Array<{ kind: ProjectReplaceResourceKind, externalId: string }> = []
+
+        // 2. Preflight: Required pieces & custom integrations
+        const customIntegrations = {
+            required: [] as RequiredPieceSchema[],
+            missing: [] as RequiredPieceSchema[],
+            deployable: [] as RequiredPieceSchema[],
+            compatible: [] as RequiredPieceSchema[],
+        }
+
+        // Process distinct piece name + version combinations
+        const seenPieces = new Set<string>()
+        const allPiecesToVerify = [...(snapshot.requiredPieces || []), ...(snapshot.customPieces || [])]
+
+        for (const reqPiece of allPiecesToVerify) {
+            const pieceKey = `${reqPiece.name}@${reqPiece.version}`
+            if (seenPieces.has(pieceKey)) {
+                continue
+            }
+            seenPieces.add(pieceKey)
+
+            const isCustom = reqPiece.pieceType === 'CUSTOM'
+                || snapshot.customPieces?.some((cp) => cp.name === reqPiece.name && cp.version === reqPiece.version)
+                || Boolean(reqPiece.archiveFileBase64)
+
+            let destPiece = null
             try {
-                await pieceMetadataService(log).getOrThrow({
+                destPiece = await pieceMetadataService(log).getOrThrow({
                     name: reqPiece.name,
                     version: reqPiece.version,
                     projectId: targetProjectId,
@@ -271,11 +342,100 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                 })
             }
             catch {
-                preflightErrors.push({
-                    kind: 'MISSING_PIECE',
-                    message: `Required piece ${reqPiece.name}@${reqPiece.version} is not installed or available on destination.`,
-                    details: { pieceName: reqPiece.name, version: reqPiece.version },
-                })
+                destPiece = null
+            }
+
+            if (isCustom) {
+                customIntegrations.required.push(reqPiece)
+
+                // Compatibility check applies to all custom integrations (installed or missing)
+                let isCompatible = true
+                const minReleaseStr = reqPiece.minimumSupportedRelease ?? (destPiece as any)?.minimumSupportedRelease
+                const maxReleaseStr = reqPiece.maximumSupportedRelease ?? (destPiece as any)?.maximumSupportedRelease
+                const minRelease = minReleaseStr ? semver.valid(semver.coerce(minReleaseStr)) : null
+                const maxRelease = maxReleaseStr ? semver.valid(semver.coerce(maxReleaseStr)) : null
+
+                if (minRelease && targetSemver && semver.lt(targetSemver, minRelease)) {
+                    isCompatible = false
+                    preflightErrors.push({
+                        kind: 'INCOMPATIBLE_INTEGRATION',
+                        message: `Custom integration ${reqPiece.name}@${reqPiece.version} requires engine >= ${minReleaseStr}, but destination is running ${currentVersion}.`,
+                        details: { pieceName: reqPiece.name, version: reqPiece.version, minimumSupportedRelease: minReleaseStr },
+                    })
+                }
+                if (maxRelease && targetSemver && semver.gt(targetSemver, maxRelease)) {
+                    isCompatible = false
+                    preflightErrors.push({
+                        kind: 'INCOMPATIBLE_INTEGRATION',
+                        message: `Custom integration ${reqPiece.name}@${reqPiece.version} requires engine <= ${maxReleaseStr}, but destination is running ${currentVersion}.`,
+                        details: { pieceName: reqPiece.name, version: reqPiece.version, maximumSupportedRelease: maxReleaseStr },
+                    })
+                }
+                if (isCompatible) {
+                    customIntegrations.compatible.push(reqPiece)
+                }
+
+                if (!destPiece) {
+                    customIntegrations.missing.push(reqPiece)
+
+                    // Package integrity and deployability check
+                    if (reqPiece.archiveFileBase64) {
+                        // Integrity verification: Checksum MUST be present for archive deployment
+                        if (!reqPiece.archiveChecksum) {
+                            preflightErrors.push({
+                                kind: 'CHECKSUM_MISMATCH',
+                                message: `Integrity checksum verification failed for custom piece ${reqPiece.name}@${reqPiece.version}: missing required archiveChecksum.`,
+                                details: { pieceName: reqPiece.name, version: reqPiece.version },
+                            })
+                        }
+                        else {
+                            const artifactBuf = Buffer.from(reqPiece.archiveFileBase64, 'base64')
+                            const computedChecksum = crypto.createHash('sha256').update(artifactBuf).digest('hex')
+                            if (computedChecksum !== reqPiece.archiveChecksum) {
+                                preflightErrors.push({
+                                    kind: 'CHECKSUM_MISMATCH',
+                                    message: `Integrity checksum verification failed for custom piece ${reqPiece.name}@${reqPiece.version}. Expected ${reqPiece.archiveChecksum}, computed ${computedChecksum}.`,
+                                    details: { pieceName: reqPiece.name, expected: reqPiece.archiveChecksum, computed: computedChecksum },
+                                })
+                            }
+                            else if (isCompatible) {
+                                customIntegrations.deployable.push(reqPiece)
+                                creates.push({
+                                    kind: 'custom_piece',
+                                    externalId: `${reqPiece.name}::${reqPiece.version}`,
+                                    op: 'CREATE',
+                                    name: `${reqPiece.name}@${reqPiece.version}`,
+                                    description: `Deploy custom integration ${reqPiece.name}@${reqPiece.version}`,
+                                })
+                            }
+                        }
+                    }
+                    else {
+                        preflightErrors.push({
+                            kind: 'MISSING_CUSTOM_PIECE',
+                            message: `Required custom integration ${reqPiece.name}@${reqPiece.version} is not installed on destination. Provide an integrity-checked artifact or deploy it beforehand.`,
+                            details: { pieceName: reqPiece.name, version: reqPiece.version },
+                        })
+                    }
+                }
+                else {
+                    // Already installed custom piece: only mark unchanged if compatible!
+                    if (isCompatible) {
+                        unchanged.push({
+                            kind: 'custom_piece',
+                            externalId: `${reqPiece.name}::${reqPiece.version}`,
+                        })
+                    }
+                }
+            }
+            else {
+                if (!destPiece) {
+                    preflightErrors.push({
+                        kind: 'MISSING_PIECE',
+                        message: `Required piece ${reqPiece.name}@${reqPiece.version} is not installed or available on destination.`,
+                        details: { pieceName: reqPiece.name, version: reqPiece.version },
+                    })
+                }
             }
         }
 
@@ -297,12 +457,6 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
 
         // 4. Current destination state & state hash
         const destinationStateHash = await this.computeDestinationStateHash(targetProjectId)
-
-        // 5. Diff computation (READ ONLY, zero destination mutations)
-        const creates: ProjectReplaceDiffItem[] = []
-        const updates: ProjectReplaceDiffItem[] = []
-        const deletes: ProjectReplaceDiffItem[] = []
-        const unchanged: Array<{ kind: ProjectReplaceResourceKind, externalId: string }> = []
 
         // Tables Diff
         const destTables = await tableRepo().find({ where: { projectId: targetProjectId } })
@@ -515,6 +669,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             preflight: {
                 passed: preflightErrors.length === 0,
                 errors: preflightErrors,
+                customIntegrations,
             },
             changes: {
                 creates,
@@ -627,14 +782,106 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     scheduledTasksDeleted: 0,
                     scheduledTasksUnchanged: 0,
                     mcpUpdated: 0,
+                    customPiecesInstalled: 0,
+                    customPiecesUnchanged: 0,
                 }
                 const failed: Array<{ kind: ProjectReplaceResourceKind, externalId: string, op: 'CREATE' | 'UPDATE' | 'DELETE', error: string }> = []
 
-                if (request.dryRun) {
+                if (request.dryRun || request.inspectOnly) {
                     return {
                         applied,
                         failed,
                         durationMs: Date.now() - startTime,
+                    }
+                }
+
+                // Phase 0: Custom Piece Deployment (Ordered BEFORE Trigger Bindings & Mutations!)
+                const failedCustomPieceNames = new Set<string>()
+
+                // Any custom pieces that were missing from snapshot or failed preflight must also block dependent activation under --force
+                for (const err of plan.preflight.errors) {
+                    if (err.kind === 'MISSING_CUSTOM_PIECE' || err.kind === 'MISSING_PIECE' || err.kind === 'CHECKSUM_MISMATCH' || err.kind === 'INCOMPATIBLE_INTEGRATION') {
+                        const pieceName = (err.details?.pieceName as string) || (err.message.match(/piece\s+([^\s@]+)/i)?.[1])
+                        if (pieceName) {
+                            failedCustomPieceNames.add(pieceName)
+                        }
+                    }
+                }
+
+                if (request.deployCustomIntegrations === true) {
+                    for (const change of plan.changes.creates.filter((c) => c.kind === 'custom_piece')) {
+                        const [pieceName, pieceVersion] = change.externalId.split('::')
+                        const pieceInfo = snapshot.requiredPieces.find((p) => p.name === pieceName && p.version === pieceVersion)
+                            ?? snapshot.customPieces?.find((p) => p.name === pieceName && p.version === pieceVersion)
+
+                        if (!pieceInfo?.archiveFileBase64) {
+                            failed.push({
+                                kind: 'custom_piece',
+                                externalId: change.externalId,
+                                op: 'CREATE',
+                                error: 'Missing package archive data for deployment',
+                            })
+                            failedCustomPieceNames.add(pieceName)
+                            continue
+                        }
+
+                        try {
+                            // Check if already installed on destination (idempotency) and verify compatibility/integrity
+                            const existing = await pieceMetadataService(log).get({
+                                name: pieceName,
+                                version: pieceVersion,
+                                platformId: targetPlatformId,
+                            })
+                            if (existing) {
+                                applied.customPiecesUnchanged++
+                                continue
+                            }
+
+                            // Strict package integrity check
+                            if (!pieceInfo.archiveChecksum) {
+                                throw new Error(`Integrity checksum missing for custom piece "${pieceName}"`)
+                            }
+                            const archiveBuf = Buffer.from(pieceInfo.archiveFileBase64, 'base64')
+                            const checksum = crypto.createHash('sha256').update(archiveBuf).digest('hex')
+                            if (checksum !== pieceInfo.archiveChecksum) {
+                                throw new Error(`Integrity checksum mismatch for custom piece "${pieceName}": expected ${pieceInfo.archiveChecksum}, got ${checksum}`)
+                            }
+
+                            // Sanitize filename: replace all slashes, colons, or invalid chars
+                            const safePieceFileName = pieceName.replace(/[@/\\:]/g, '-')
+                            const safeVersion = pieceVersion.replace(/[/\\:]/g, '-')
+
+                            // Install scoped strictly to targetPlatformId (tenant isolation)
+                            await pieceInstallService(log).installPiece(targetPlatformId, {
+                                packageType: PackageType.ARCHIVE,
+                                scope: PieceScope.PLATFORM,
+                                pieceName,
+                                pieceVersion,
+                                pieceArchive: {
+                                    filename: `${safePieceFileName}-${safeVersion}.tgz`,
+                                    data: archiveBuf,
+                                    type: 'file',
+                                } as ApMultipartFile,
+                            })
+                            applied.customPiecesInstalled++
+                        }
+                        catch (err) {
+                            failed.push({
+                                kind: 'custom_piece',
+                                externalId: change.externalId,
+                                op: 'CREATE',
+                                error: (err as Error).message,
+                            })
+                            failedCustomPieceNames.add(pieceName)
+                        }
+                    }
+                    applied.customPiecesUnchanged += plan.changes.unchanged.filter((u) => u.kind === 'custom_piece').length
+                }
+                else {
+                    // When deployment is not enabled, record deployable custom pieces as failed so dependencies know they are unavailable
+                    for (const change of plan.changes.creates.filter((c) => c.kind === 'custom_piece')) {
+                        const [pieceName] = change.externalId.split('::')
+                        failedCustomPieceNames.add(pieceName)
                     }
                 }
 
@@ -712,6 +959,15 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                 for (const change of plan.changes.creates.filter((c) => c.kind === 'trigger_binding')) {
                     try {
                         const srcTb = snapshot.triggerBindings.find((b) => b.externalId === change.externalId || `${b.pieceName}::${b.triggerName}` === change.externalId)
+                        if (srcTb && failedCustomPieceNames.has(srcTb.pieceName)) {
+                            failed.push({
+                                kind: 'trigger_binding',
+                                externalId: change.externalId,
+                                op: 'CREATE',
+                                error: `Activation blocked: dependent custom integration "${srcTb.pieceName}" failed to install`,
+                            })
+                            continue
+                        }
                         if (srcTb) {
                             let connectionId: string | undefined = undefined
                             if (srcTb.connectionExternalId) {
@@ -751,6 +1007,15 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     try {
                         const targetTb = await triggerBindingRepo().findOneBy({ id: change.externalId, projectId: targetProjectId })
                         const srcTb = snapshot.triggerBindings.find((b) => b.externalId === change.externalId || (targetTb && b.pieceName === targetTb.pieceName && b.triggerName === targetTb.triggerName))
+                        if (srcTb && failedCustomPieceNames.has(srcTb.pieceName)) {
+                            failed.push({
+                                kind: 'trigger_binding',
+                                externalId: change.externalId,
+                                op: 'UPDATE',
+                                error: `Activation blocked: dependent custom integration "${srcTb.pieceName}" failed to install`,
+                            })
+                            continue
+                        }
                         if (srcTb && targetTb) {
                             let connectionId: string | undefined = targetTb.connectionId ?? undefined
                             if (srcTb.connectionExternalId) {

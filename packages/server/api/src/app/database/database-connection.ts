@@ -5,6 +5,7 @@ import {
 } from 'typeorm'
 import { AIProviderEntity } from '../ai/ai-provider-entity'
 import { AiToolConfigEntity } from '../ai/ai-tool-config-entity'
+import { AgentEntity } from '../agents/agent.entity'
 import { PlatformAnalyticsReportEntity } from '../analytics/platform-analytics-report.entity'
 import { ApiKeyEntity } from '../api-keys/api-key.entity'
 import { ConnectionEntity } from '../app-connection/app-connection.entity'
@@ -64,6 +65,7 @@ function getEntities(): EntitySchema<unknown>[] {
         ToolCallEntity,
         TriggerBindingEntity,
         ScheduledTaskEntity,
+        AgentEntity,
         FileEntity,
         FlagEntity,
         ProjectEntity,

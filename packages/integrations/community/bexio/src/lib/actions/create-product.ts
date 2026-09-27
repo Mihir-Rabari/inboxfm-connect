@@ -344,14 +344,15 @@ export const createProductAction = createAction({
               value: stock.id,
             })),
           };
-        } catch (error) {
+        } catch (error: any) {
+          const reason = error?.message || error?.response?.data?.message || 'Failed to load stock locations';
           console.error(
             'Failed to load stock locations from Bexio API (/2.0/stock):',
             error
           );
           return {
             disabled: true,
-            placeholder: 'Failed to load stock locations',
+            placeholder: `Connection test failed: ${reason}`,
             options: [],
           };
         }
@@ -385,14 +386,15 @@ export const createProductAction = createAction({
               value: place.id,
             })),
           };
-        } catch (error) {
+        } catch (error: any) {
+          const reason = error?.message || error?.response?.data?.message || 'Failed to load stock areas';
           console.error(
             'Failed to load stock areas from Bexio API (/2.0/stock_place):',
             error
           );
           return {
             disabled: true,
-            placeholder: 'Failed to load stock areas',
+            placeholder: `Connection test failed: ${reason}`,
             options: [],
           };
         }
@@ -468,14 +470,15 @@ export const createProductAction = createAction({
               value: group.id,
             })),
           };
-        } catch (error) {
+        } catch (error: any) {
+          const reason = error?.message || error?.response?.data?.message || 'Failed to load article groups';
           console.error(
             'Failed to load article groups from Bexio API (/2.0/article_group):',
             error
           );
           return {
             disabled: true,
-            placeholder: 'Failed to load article groups',
+            placeholder: `Connection test failed: ${reason}`,
             options: [],
           };
         }

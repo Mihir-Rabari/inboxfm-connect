@@ -48,7 +48,7 @@ describe('Bexio Dropdown Endpoints & Error Handling', () => {
       const result = await statusProp.options({ auth: mockAuth });
 
       expect(result.disabled).toBe(true);
-      expect(result.placeholder).toBe('Failed to load timesheet statuses');
+      expect(result.placeholder).toBe('Connection test failed: Network error');
       expect(result.options).toEqual([]);
     });
 
@@ -80,7 +80,7 @@ describe('Bexio Dropdown Endpoints & Error Handling', () => {
       const result = await serviceProp.options({ auth: mockAuth });
 
       expect(result.disabled).toBe(true);
-      expect(result.placeholder).toBe('Failed to load client services');
+      expect(result.placeholder).toBe('Connection test failed: API 500');
       expect(result.options).toEqual([]);
     });
   });
@@ -112,7 +112,7 @@ describe('Bexio Dropdown Endpoints & Error Handling', () => {
       const result = await stockProp.options({ auth: mockAuth });
 
       expect(result.disabled).toBe(true);
-      expect(result.placeholder).toBe('Failed to load stock locations');
+      expect(result.placeholder).toBe('Connection test failed: Unauthorized');
       expect(result.options).toEqual([]);
     });
 

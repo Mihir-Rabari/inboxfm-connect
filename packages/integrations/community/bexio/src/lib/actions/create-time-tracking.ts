@@ -95,14 +95,15 @@ export const createTimeTrackingAction = createAction({
               value: status.id,
             })),
           };
-        } catch (error) {
+        } catch (error: any) {
+          const reason = error?.message || error?.response?.data?.message || 'Failed to load timesheet statuses';
           console.error(
             'Failed to load timesheet statuses from Bexio API (/2.0/timesheet_status):',
             error
           );
           return {
             disabled: true,
-            placeholder: 'Failed to load timesheet statuses',
+            placeholder: `Connection test failed: ${reason}`,
             options: [],
           };
         }
@@ -136,14 +137,15 @@ export const createTimeTrackingAction = createAction({
               value: service.id,
             })),
           };
-        } catch (error) {
+        } catch (error: any) {
+          const reason = error?.message || error?.response?.data?.message || 'Failed to load client services';
           console.error(
             'Failed to load client services from Bexio API (/2.0/client_service):',
             error
           );
           return {
             disabled: true,
-            placeholder: 'Failed to load client services',
+            placeholder: `Connection test failed: ${reason}`,
             options: [],
           };
         }

@@ -141,6 +141,16 @@ export type AppConnectionType = 'OAUTH2' | 'SECRET_TEXT' | 'BASIC_AUTH' | 'CUSTO
 
 export type AppConnectionStatus = 'ACTIVE' | 'ERROR'
 
+export type ConnectionHealthStatus = 'healthy' | 'unhealthy' | 'error'
+
+export interface TestConnectionResponse {
+  success: boolean
+  status: ConnectionHealthStatus
+  message: string
+  testedAt: string
+  responseTimeMs: number
+}
+
 export interface AppConnection {
   id: string
   created: string

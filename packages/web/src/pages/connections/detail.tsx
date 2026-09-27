@@ -1,4 +1,4 @@
-import { ArrowLeft, KeyRound, PencilLine, Trash2 } from 'lucide-react'
+import { Activity, AlertCircle, ArrowLeft, CheckCircle2, KeyRound, Loader2, PencilLine, RefreshCw, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -11,7 +11,8 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ApiClientError } from '@/lib/api/client'
-import { useConnection, useDeleteConnection, useIntegration } from '@/lib/query/hooks'
+import { TestConnectionResponse } from '@/lib/api/types'
+import { useConnection, useDeleteConnection, useIntegration, useTestConnection } from '@/lib/query/hooks'
 import { connectionLinks } from '@/lib/utils/connection-links'
 import { connectionFormat } from '@/lib/utils/connection-format'
 
@@ -40,7 +41,47 @@ export default function ConnectionDetailPage() {
   const { data: connection, isLoading, isError, error, refetch } = useConnection(id)
   const { data: piece } = useIntegration(connection?.pieceName)
   const deleteConnection = useDeleteConnection()
+  const testConnection = useTestConnection()
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [lastTestResult, setLastTestResult] = useState<TestConnectionResponse | null>(null)
+
+  const handleTestConnection = () => {
+    if (!connection || testConnection.isPending) return
+
+    testConnection.mutate(
+      { id: connection.id },
+      {
+        onSuccess: (result) => {
+          setLastTestResult(result)
+          if (result.success) {
+            toast.success('Connection is healthy', {
+              description: `${result.message} (${result.responseTimeMs}ms)`,
+            })
+          } else {
+            toast.error('Connection test failed', {
+              description: result.message,
+            })
+          }
+        },
+        onError: (testError) => {
+          const fallbackResult: TestConnectionResponse = {
+            success: false,
+            status: 'error',
+            message:
+              testError instanceof Error
+                ? testError.message
+                : 'Unable to reach the server to test this connection. Check your network and try again.',
+            testedAt: new Date().toISOString(),
+            responseTimeMs: 0,
+          }
+          setLastTestResult(fallbackResult)
+          toast.error('Connection test failed', {
+            description: fallbackResult.message,
+          })
+        },
+      }
+    )
+  }
 
   if (!id || isLoading) {
     return (
@@ -88,6 +129,14 @@ export default function ConnectionDetailPage() {
   }
 
   const pieceDisplayName = piece?.displayName ?? connection.pieceName
+  const isTesting = testConnection.isPending
+  const isAuthExpired =
+    lastTestResult &&
+    !lastTestResult.success &&
+    (lastTestResult.message.toLowerCase().includes('expired') ||
+      lastTestResult.message.toLowerCase().includes('reconnect') ||
+      lastTestResult.message.toLowerCase().includes('revoked') ||
+      lastTestResult.message.toLowerCase().includes('token'))
 
   return (
     <div className="space-y-6">
@@ -100,6 +149,26 @@ export default function ConnectionDetailPage() {
         ]}
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={handleTestConnection}
+              disabled={isTesting}
+              aria-label="Test connection health"
+            >
+              {isTesting ? (
+                <>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                  <span>Testing connection...</span>
+                </>
+              ) : (
+                <>
+                  <Activity className="h-3.5 w-3.5 text-primary" />
+                  <span>Test Connection</span>
+                </>
+              )}
+            </Button>
             <Button variant="outline" size="sm" asChild className="gap-1.5">
               <Link
                 to={connectionLinks.reconnect({
@@ -124,6 +193,55 @@ export default function ConnectionDetailPage() {
           </div>
         }
       />
+
+      {/* Health Check Status Banner */}
+      {lastTestResult && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={`rounded-xl border p-4 transition-all duration-200 ${
+            lastTestResult.success
+              ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100'
+              : 'border-destructive/30 bg-destructive/10 text-destructive'
+          }`}
+        >
+          <div className="flex items-start gap-3">
+            {lastTestResult.success ? (
+              <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            ) : (
+              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+            )}
+            <div className="flex-1 space-y-1">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold leading-tight">
+                  {lastTestResult.success ? 'Connection is healthy' : 'Connection test failed'}
+                </h3>
+                <span className="text-[11px] opacity-80">
+                  {lastTestResult.responseTimeMs > 0 && `${lastTestResult.responseTimeMs}ms • `}
+                  {formatDate(lastTestResult.testedAt)}
+                </span>
+              </div>
+              <p className="text-xs leading-relaxed opacity-90">{lastTestResult.message}</p>
+              {isAuthExpired && (
+                <div className="mt-2.5 pt-1">
+                  <Button size="sm" variant="default" asChild className="gap-1.5 h-7 text-xs">
+                    <Link
+                      to={connectionLinks.reconnect({
+                        pieceName: connection.pieceName,
+                        externalId: connection.externalId,
+                        displayName: connection.displayName,
+                      })}
+                    >
+                      <RefreshCw className="h-3 w-3" />
+                      <span>Reconnect this account</span>
+                    </Link>
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <Card className="rounded-xl shadow-xs">
         <CardContent className="p-5">

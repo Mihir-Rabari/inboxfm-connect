@@ -1,0 +1,32 @@
+---
+title: 'Test Connection (Health Check)'
+openapi: POST /v1/connections/{id}/test
+---
+
+Verify that an existing connection is active, healthy, and usable before an AI agent, workflow, REST request, or MCP tool executes actions against it.
+
+### Description
+
+Performs a lightweight, non-destructive health check against the target integration with the stored credentials:
+1. Validates connection existence and access permissions for the caller's project.
+2. Checks token staleness and automatically executes OAuth / custom-auth token refreshes when expired.
+3. Submits an isolated authentication validation to the integration engine.
+4. Updates the connection status (`ACTIVE` vs `ERROR`) accordingly.
+5. Returns a structured health check result including response time and status.
+
+### Response
+
+```json
+{
+  "success": true,
+  "status": "healthy",
+  "message": "Connection is healthy and working.",
+  "testedAt": "2026-09-27T12:00:00.000Z",
+  "responseTimeMs": 142
+}
+```
+
+### Security
+
+- Never returns sensitive tokens, passwords, or decrypted secrets in response payloads or error logs.
+- Enforces project and platform tenant isolation.

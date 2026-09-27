@@ -72,7 +72,7 @@ export type OpenAICompatibleProviderConfig = z.infer<typeof OpenAICompatibleProv
 // Host/path-safe identifiers: interpolated into the gateway URL, so anything
 // outside alphanumerics, hyphen and underscore (e.g. `/`, `#`, `?`) is rejected
 // instead of redirecting the request to an attacker-chosen host or path.
-const SAFE_CLOUDFLARE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-_]{0,63}$/
+const SAFE_CLOUDFLARE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/
 
 export const CloudflareGatewayProviderConfig = z.object({
     accountId: z.string().regex(SAFE_CLOUDFLARE_ID_PATTERN, formErrors.invalidCloudflareAccountId),

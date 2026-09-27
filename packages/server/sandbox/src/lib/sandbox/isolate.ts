@@ -58,13 +58,13 @@ const etcDir = path.resolve(process.cwd(), 'packages/server/api/src/assets/etc')
 export function isolateProcess(log: SandboxLogger, enginePath: string, _codeDirectory: string, boxId: number): SandboxProcessMaker {
     return {
         create: async (params: CreateSandboxProcessParams) => {
-            const { sandboxId, mounts, env } = params
+            const { sandboxId, mounts, env, resourceLimits } = params
 
             for (const mount of mounts) {
                 assertMountInsideRoot(mount)
             }
 
-            const engineSandboxPath = path.join('/root/common', path.basename(enginePath))
+            const engineSandboxPath = path.posix.join('/root/common', path.posix.basename(enginePath.replace(/\\/g, '/')))
             const sandboxEnv = {
                 ...env,
                 AP_BASE_CODE_DIRECTORY: '/root/codes',
@@ -115,15 +115,9 @@ export function isolateProcess(log: SandboxLogger, enginePath: string, _codeDire
                 '--processes',
                 // Ceiling, not a countdown. Isolate mode previously applied no
                 // memory limit at all, so a runaway piece could exhaust the host.
-                `--mem=${params.resourceLimits.memoryLimitMb}`,
-                // Deliberately NO `--time` here. Isolate's --time is a wall-clock
-                // limit measured from process start, and it kills the process. A
-                // sandbox is reused when REUSE_SANDBOX=true (and always in
-                // DEVELOPMENT - see canReuseSandbox), so a fixed --time would
-                // tear down a healthy worker mid-execution once it aged past
-                // FLOW_TIMEOUT_SECONDS. The per-execution budget is already
-                // enforced precisely, per run, by the setTimeout in
-                // sandbox.ts#execute using executeOptions.timeoutInSeconds.
+                // isolate's --mem takes KB, so scale from the configured MB.
+                `--mem=${resourceLimits.memoryLimitMb * 1024}`,
+                `--time=${resourceLimits.timeLimitSeconds}`,
                 '--chdir=/root',
                 ...envArgs,
                 '--run',
@@ -132,7 +126,7 @@ export function isolateProcess(log: SandboxLogger, enginePath: string, _codeDire
                 // Keep V8's own heap ceiling at or below the isolate ceiling so
                 // the allocation failure happens inside the sandbox (where we
                 // can report it) rather than as an opaque host OOM.
-                `--max-old-space-size=${params.resourceLimits.memoryLimitMb}`,
+                `--max-old-space-size=${resourceLimits.memoryLimitMb}`,
                 engineSandboxPath,
             ]
 

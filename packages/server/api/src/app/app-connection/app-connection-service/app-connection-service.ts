@@ -1,5 +1,5 @@
 import { ActivepiecesError, apId, Cursor, ErrorCode, isNil, Metadata, PlatformId, ProjectId, SeekPage, spreadIfDefined, unique } from '@inboxfm-connect/core-utils'
-import { ApEdition, ApEnvironment, AppConnection, AppConnectionId, AppConnectionOwners, AppConnectionScope, AppConnectionStatus, AppConnectionType, AppConnectionValue, AppConnectionWithoutSensitiveData, EngineResponse, EngineResponseStatus, ExecuteValidateAuthResponse, MAX_PLATFORM_APP_CONNECTION_OWNERS, OAuth2GrantType, PlatformAppConnectionOwner, PlatformAppConnectionOwnersResponse, PlatformAppConnectionProjectInfo, PlatformAppConnectionsListItem, PlatformRole, UpsertAppConnectionRequestBody, User, UserIdentity, UserWithMetaInformation, WorkerJobType } from '@inboxfm-connect/shared'
+import { ApEdition, ApEnvironment, AppConnection, AppConnectionId, AppConnectionOwners, AppConnectionScope, AppConnectionStatus, AppConnectionType, AppConnectionValue, AppConnectionWithoutSensitiveData, ConnectionHealthStatus, EngineResponse, EngineResponseStatus, ExecuteValidateAuthResponse, MAX_PLATFORM_APP_CONNECTION_OWNERS, OAuth2GrantType, PlatformAppConnectionOwner, PlatformAppConnectionOwnersResponse, PlatformAppConnectionProjectInfo, PlatformAppConnectionsListItem, PlatformRole, TestConnectionResponse, UpsertAppConnectionRequestBody, User, UserIdentity, UserWithMetaInformation, WorkerJobType } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import semver from 'semver'
 import { ArrayContains, Equal, FindOperator, FindOptionsWhere, ILike, In } from 'typeorm'
@@ -372,11 +372,156 @@ export const appConnectionService = (log: FastifyBaseLogger) => ({
             .limit(MAX_PLATFORM_APP_CONNECTION_OWNERS + 1)
             .getRawMany<PlatformAppConnectionOwner>()
 
-        const truncated = rows.length > MAX_PLATFORM_APP_CONNECTION_OWNERS
-        const data = truncated ? rows.slice(0, MAX_PLATFORM_APP_CONNECTION_OWNERS) : rows
-        return { data, truncated }
-    },
+    async testConnection(params: TestConnectionParams): Promise<TestConnectionResponse> {
+        const startTime = Date.now()
+        const encryptedAppConnection = await appConnectionsRepo().findOne({
+            where: {
+                id: params.id,
+                platformId: params.platformId,
+                ...(params.projectId ? { projectIds: ArrayContains([params.projectId]) } : {}),
+            },
+        })
 
+        if (isNil(encryptedAppConnection)) {
+            throw new ActivepiecesError({
+                code: ErrorCode.ENTITY_NOT_FOUND,
+                params: {
+                    entityType: 'AppConnection',
+                    entityId: params.id,
+                },
+            })
+        }
+
+        try {
+            const appConnection = await appConnectionHandler(log).decryptConnection(encryptedAppConnection)
+
+            if (await appConnectionHandler(log).needRefresh(appConnection, log)) {
+                const refreshedConnection = await appConnectionHandler(log).lockAndRefreshConnection({
+                    platformId: params.platformId,
+                    projectId: params.projectId,
+                    externalId: appConnection.externalId,
+                    log,
+                })
+                if (isNil(refreshedConnection) || refreshedConnection.status === AppConnectionStatus.ERROR) {
+                    const responseTimeMs = Date.now() - startTime
+                    return {
+                        success: false,
+                        status: ConnectionHealthStatus.ERROR,
+                        message: 'Authentication has expired or token refresh failed. Please reconnect this account.',
+                        testedAt: new Date().toISOString(),
+                        responseTimeMs,
+                    }
+                }
+                appConnection.value = refreshedConnection.value
+            }
+
+            if (appConnection.type === AppConnectionType.NO_AUTH) {
+                const responseTimeMs = Date.now() - startTime
+                return {
+                    success: true,
+                    status: ConnectionHealthStatus.HEALTHY,
+                    message: 'Connection is working (no authentication required).',
+                    testedAt: new Date().toISOString(),
+                    responseTimeMs,
+                }
+            }
+
+            const resolvedValue = await secretManagersService(log).resolveObject({
+                value: appConnection.value,
+                platformId: params.platformId,
+                projectIds: [params.projectId],
+            })
+
+            const pieceMetadata = await pieceMetadataService(log).getOrThrow({
+                name: appConnection.pieceName,
+                version: appConnection.pieceVersion,
+                platformId: params.platformId,
+            })
+
+            const piecePackage = await getPiecePackageWithoutArchive(log, params.platformId, {
+                pieceName: appConnection.pieceName,
+                pieceVersion: pieceMetadata.version,
+            })
+
+            const engineResponse = await userInteractionWatcher.submitAndWaitForResponse<EngineResponse<ExecuteValidateAuthResponse>>({
+                piece: piecePackage,
+                projectId: params.projectId,
+                platformId: params.platformId,
+                connectionValue: resolvedValue,
+                jobType: WorkerJobType.EXECUTE_VALIDATION,
+            }, log)
+
+            const responseTimeMs = Date.now() - startTime
+
+            if (engineResponse.status === EngineResponseStatus.TIMEOUT) {
+                return {
+                    success: false,
+                    status: ConnectionHealthStatus.ERROR,
+                    message: 'Connection health check timed out while connecting to the integration service.',
+                    testedAt: new Date().toISOString(),
+                    responseTimeMs,
+                }
+            }
+
+            if (engineResponse.status !== EngineResponseStatus.OK) {
+                await appConnectionsRepo().update(appConnection.id, {
+                    status: AppConnectionStatus.ERROR,
+                })
+                return {
+                    success: false,
+                    status: ConnectionHealthStatus.ERROR,
+                    message: `Connection validation failed: ${engineResponse.error ?? 'Execution error'}`,
+                    testedAt: new Date().toISOString(),
+                    responseTimeMs,
+                }
+            }
+
+            const validateAuthResult = engineResponse.response
+            if (!validateAuthResult.valid) {
+                await appConnectionsRepo().update(appConnection.id, {
+                    status: AppConnectionStatus.ERROR,
+                })
+                return {
+                    success: false,
+                    status: ConnectionHealthStatus.UNHEALTHY,
+                    message: validateAuthResult.error || 'Connection validation failed. Invalid or revoked credentials.',
+                    testedAt: new Date().toISOString(),
+                    responseTimeMs,
+                }
+            }
+
+            if (encryptedAppConnection.status === AppConnectionStatus.ERROR) {
+                await appConnectionsRepo().update(appConnection.id, {
+                    status: AppConnectionStatus.ACTIVE,
+                })
+            }
+
+            return {
+                success: true,
+                status: ConnectionHealthStatus.HEALTHY,
+                message: 'Connection is healthy and working.',
+                testedAt: new Date().toISOString(),
+                responseTimeMs,
+            }
+        }
+        catch (err) {
+            const responseTimeMs = Date.now() - startTime
+            log.error({ err, connectionId: params.id }, 'Error testing connection health')
+            const safeErrorMessage = err instanceof ActivepiecesError
+                ? (err.params as { message?: string })?.message || err.message
+                : err instanceof Error
+                    ? err.message
+                    : 'An unexpected error occurred during connection health check.'
+
+            return {
+                success: false,
+                status: ConnectionHealthStatus.ERROR,
+                message: safeErrorMessage,
+                testedAt: new Date().toISOString(),
+                responseTimeMs,
+            }
+        }
+    },
 })
 
 const fetchProjectsForPlatform = async (projectIds: string[], platformId: string): Promise<Map<string, PlatformAppConnectionProjectInfo>> => {
@@ -686,5 +831,12 @@ type EngineValidateAuthParams = {
     platformId: string
     auth: AppConnectionValue
 }
+
+type TestConnectionParams = {
+    id: AppConnectionId
+    projectId: ProjectId
+    platformId: PlatformId
+}
+
 
 

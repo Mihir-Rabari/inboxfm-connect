@@ -540,4 +540,81 @@ describe('AppConnection CE API', () => {
             expect(stillExists).not.toBeNull()
         })
     })
+
+    describeWithAuth('POST /v1/connections/:id/test (Health Check)', () => app!, (setup) => {
+        it('should test connection successfully, update status to ACTIVE and save metadata', async () => {
+            const ctx = await setup()
+
+            const mockPiece = createMockPieceMetadata({
+                platformId: ctx.platform.id,
+                packageType: PackageType.REGISTRY,
+                pieceType: PieceType.OFFICIAL,
+            })
+            await db.save('integration_metadata', mockPiece)
+            pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
+
+            const createResponse = await ctx.post('/v1/connections', {
+                externalId: 'test-conn-to-test',
+                displayName: 'Test Conn',
+                pieceName: mockPiece.name,
+                projectId: ctx.project.id,
+                type: AppConnectionType.SECRET_TEXT,
+                value: { type: AppConnectionType.SECRET_TEXT, secret_text: 'secret' },
+                pieceVersion: mockPiece.version,
+            })
+            const connectionId = createResponse?.json().id
+
+            const testResponse = await ctx.post(`/v1/connections/${connectionId}/test`, {})
+
+            expect(testResponse?.statusCode).toBe(StatusCodes.OK)
+            const body = testResponse?.json()
+            expect(body.status).toBe('PASS')
+            expect(body.testedAt).toBeDefined()
+            expect(body.connection.status).toBe(AppConnectionStatus.ACTIVE)
+
+            const saved = await db.findOneBy('app_connection', { id: connectionId })
+            expect(saved.status).toBe(AppConnectionStatus.ACTIVE)
+            expect(saved.metadata?.lastTestedAt).toBeDefined()
+            expect(saved.metadata?.lastTestResult).toBe('PASS')
+        })
+
+        it('should return 404 for non-existent connection', async () => {
+            const ctx = await setup()
+            const nonExistentId = apId()
+
+            const response = await ctx.post(`/v1/connections/${nonExistentId}/test`, {})
+
+            expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
+        })
+
+        it('should support /v1/app-connections/:id/test route alias', async () => {
+            const ctx = await setup()
+
+            const mockPiece = createMockPieceMetadata({
+                platformId: ctx.platform.id,
+                packageType: PackageType.REGISTRY,
+                pieceType: PieceType.OFFICIAL,
+            })
+            await db.save('integration_metadata', mockPiece)
+            pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
+
+            const createResponse = await ctx.post('/v1/connections', {
+                externalId: 'test-alias-conn',
+                displayName: 'Test Alias Conn',
+                pieceName: mockPiece.name,
+                projectId: ctx.project.id,
+                type: AppConnectionType.SECRET_TEXT,
+                value: { type: AppConnectionType.SECRET_TEXT, secret_text: 'secret' },
+                pieceVersion: mockPiece.version,
+            })
+            const connectionId = createResponse?.json().id
+
+            const testResponse = await ctx.post(`/v1/app-connections/${connectionId}/test`, {})
+
+            expect(testResponse?.statusCode).toBe(StatusCodes.OK)
+            const body = testResponse?.json()
+            expect(body.status).toBe('PASS')
+            expect(body.connection.id).toBe(connectionId)
+        })
+    })
 })

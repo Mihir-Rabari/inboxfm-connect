@@ -6,6 +6,7 @@ import {
   OAuth2AuthorizationUrlRequest,
   OAuth2AuthorizationUrlResponse,
   SeekPage,
+  TestConnectionResponse,
 } from './types'
 
 /**
@@ -54,6 +55,10 @@ const connectionsApi = {
       `${CONNECTIONS_PATH}/oauth2/authorization-url`,
       request,
     )
+  },
+
+  test({ id }: { id: string }): Promise<TestConnectionResponse> {
+    return apiClient.post<TestConnectionResponse>(`${CONNECTIONS_PATH}/${encodeURIComponent(id)}/test`)
   },
 }
 

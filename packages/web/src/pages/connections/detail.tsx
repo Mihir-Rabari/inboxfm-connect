@@ -1,4 +1,4 @@
-import { ArrowLeft, KeyRound, PencilLine, Trash2 } from 'lucide-react'
+import { ArrowLeft, KeyRound, Loader2, PencilLine, ShieldCheck, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -6,12 +6,14 @@ import { ConnectionStatusBadge } from '@/components/connections/connection-statu
 import { DeleteConnectionDialog } from '@/components/connections/delete-connection-dialog'
 import { PieceLogo } from '@/components/connections/piece-logo'
 import { PageHeader } from '@/components/layout/page-header'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ApiClientError } from '@/lib/api/client'
-import { useConnection, useDeleteConnection, useIntegration } from '@/lib/query/hooks'
+import { useConnection, useDeleteConnection, useIntegration, useTestConnection } from '@/lib/query/hooks'
+import { cn } from '@/lib/utils/cn'
 import { connectionLinks } from '@/lib/utils/connection-links'
 import { connectionFormat } from '@/lib/utils/connection-format'
 
@@ -40,7 +42,33 @@ export default function ConnectionDetailPage() {
   const { data: connection, isLoading, isError, error, refetch } = useConnection(id)
   const { data: piece } = useIntegration(connection?.pieceName)
   const deleteConnection = useDeleteConnection()
+  const testConnection = useTestConnection()
   const [deleteOpen, setDeleteOpen] = useState(false)
+
+  const handleTestConnection = () => {
+    if (!connection) return
+    testConnection.mutate(
+      { id: connection.id },
+      {
+        onSuccess: (result) => {
+          if (result.status === 'PASS') {
+            toast.success('Connection is healthy', {
+              description: result.message,
+            })
+          } else {
+            toast.error('Connection test failed', {
+              description: result.error || result.message,
+            })
+          }
+        },
+        onError: (err) => {
+          toast.error('Failed to test connection', {
+            description: err instanceof Error ? err.message : 'Unknown error during connection test',
+          })
+        },
+      }
+    )
+  }
 
   if (!id || isLoading) {
     return (
@@ -100,6 +128,21 @@ export default function ConnectionDetailPage() {
         ]}
         actions={
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              disabled={testConnection.isPending}
+              onClick={handleTestConnection}
+              data-testid="test-connection-button"
+            >
+              {testConnection.isPending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ShieldCheck className="h-3.5 w-3.5" />
+              )}
+              <span>{testConnection.isPending ? 'Testing...' : 'Test Connection'}</span>
+            </Button>
             <Button variant="outline" size="sm" asChild className="gap-1.5">
               <Link
                 to={connectionLinks.reconnect({
@@ -153,6 +196,29 @@ export default function ConnectionDetailPage() {
             </DetailRow>
             <DetailRow label="Created">{formatDate(connection.created)}</DetailRow>
             <DetailRow label="Updated">{formatDate(connection.updated)}</DetailRow>
+            <DetailRow label="Last Tested">
+              {connection.metadata?.lastTestedAt ? (
+                <div className="inline-flex items-center gap-2">
+                  <span>{formatDate(String(connection.metadata.lastTestedAt))}</span>
+                  <Badge
+                    variant={connection.metadata.lastTestResult === 'PASS' ? 'success' : 'destructive'}
+                    dot
+                    className="text-[10px] font-semibold"
+                  >
+                    {connection.metadata.lastTestResult === 'PASS' ? 'Passed' : 'Failed'}
+                  </Badge>
+                </div>
+              ) : (
+                <span className="text-muted-foreground">Not tested yet</span>
+              )}
+            </DetailRow>
+            {Boolean(connection.metadata?.lastTestError) && (
+              <DetailRow label="Test Error">
+                <span className="text-destructive font-mono text-[11px] break-all">
+                  {String(connection.metadata?.lastTestError)}
+                </span>
+              </DetailRow>
+            )}
             {connection.externalId && (
               <DetailRow label="External ID">
                 <span className="font-mono text-[11px] break-all">{connection.externalId}</span>

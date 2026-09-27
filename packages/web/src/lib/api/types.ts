@@ -152,6 +152,16 @@ export interface AppConnection {
   status: AppConnectionStatus
   externalId?: string
   projectIds: string[]
+  metadata?: Record<string, unknown> | null
+}
+
+export interface TestConnectionResponse {
+  status: 'PASS' | 'FAIL'
+  valid: boolean
+  message: string
+  error?: string
+  testedAt: string
+  connection: AppConnection
 }
 
 export interface CreateConnectionRequest {

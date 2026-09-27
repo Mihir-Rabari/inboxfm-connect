@@ -8,6 +8,9 @@ export const appConnectionModule: FastifyPluginAsyncZod = async (app) => {
     await app.register(appConnectionController, {
         prefix: '/v1/connections',
     })
+    await app.register(appConnectionController, {
+        prefix: '/v1/app-connections',
+    })
     await app.register(appConnectionWorkerController, {
         prefix: '/v1/worker/connections',
     })

@@ -1,9 +1,12 @@
 import { ActivepiecesError, apId, Cursor, ErrorCode, isNil, Metadata, PlatformId, ProjectId, SeekPage, spreadIfDefined, unique } from '@inboxfm-connect/core-utils'
-import { ApEdition, ApEnvironment, AppConnection, AppConnectionId, AppConnectionOwners, AppConnectionScope, AppConnectionStatus, AppConnectionType, AppConnectionValue, AppConnectionWithoutSensitiveData, EngineResponse, EngineResponseStatus, ExecuteValidateAuthResponse, MAX_PLATFORM_APP_CONNECTION_OWNERS, OAuth2GrantType, PlatformAppConnectionOwner, PlatformAppConnectionOwnersResponse, PlatformAppConnectionProjectInfo, PlatformAppConnectionsListItem, PlatformRole, UpsertAppConnectionRequestBody, User, UserIdentity, UserWithMetaInformation, WorkerJobType } from '@inboxfm-connect/shared'
+import { ApEdition, ApEnvironment, AppConnection, AppConnectionId, AppConnectionOwners, AppConnectionScope, AppConnectionStatus, AppConnectionType, AppConnectionValue, AppConnectionWithoutSensitiveData, EngineResponse, EngineResponseStatus, ExecuteValidateAuthResponse, MAX_PLATFORM_APP_CONNECTION_OWNERS, OAuth2GrantType, PlatformAppConnectionOwner, PlatformAppConnectionOwnersResponse, PlatformAppConnectionProjectInfo, PlatformAppConnectionsListItem, PlatformRole, TestConnectionResponse, UpsertAppConnectionRequestBody, User, UserIdentity, UserWithMetaInformation, WorkerJobType } from '@inboxfm-connect/shared'
+import { AxiosError } from 'axios'
+import dayjs from 'dayjs'
 import { FastifyBaseLogger } from 'fastify'
 import semver from 'semver'
 import { ArrayContains, Equal, FindOperator, FindOptionsWhere, ILike, In } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
+import { distributedLock } from '../../database/redis-connections'
 import { projectMemberService } from '../../ee/projects/project-members/project-member.service'
 import { containsSecretManagerReference, secretManagersService } from '../../ee/secret-managers/secret-managers.service'
 import { encryptUtils } from '../../helper/encryption'
@@ -294,6 +297,115 @@ export const appConnectionService = (log: FastifyBaseLogger) => ({
             return null
         }
         return oauth2Util(log).removeRefreshTokenAndClientSecret(refreshedConnection)
+    },
+
+    async testConnection({
+        id,
+        projectId,
+        platformId,
+    }: {
+        id: AppConnectionId
+        projectId: ProjectId
+        platformId: PlatformId
+    }): Promise<TestConnectionResponse> {
+        const encryptedAppConnection = await appConnectionsRepo().findOneBy({
+            id,
+            platformId,
+            projectIds: ArrayContains([projectId]),
+        })
+        if (isNil(encryptedAppConnection)) {
+            throw new ActivepiecesError({
+                code: ErrorCode.ENTITY_NOT_FOUND,
+                params: {
+                    entityType: 'appConnection',
+                    message: `App connection ${id} not found`,
+                },
+            })
+        }
+
+        let appConnection = await appConnectionHandler(log).decryptConnection(encryptedAppConnection)
+
+        return distributedLock(log).runExclusive({
+            key: `${platformId}_${appConnection.externalId}`,
+            timeoutInSeconds: 60,
+            fn: async () => {
+                const freshEncrypted = await appConnectionsRepo().findOneBy({
+                    id,
+                    platformId,
+                    projectIds: ArrayContains([projectId]),
+                })
+                if (!isNil(freshEncrypted)) {
+                    appConnection = await appConnectionHandler(log).decryptConnection(freshEncrypted)
+                }
+
+                const testedAt = dayjs().toISOString()
+                let pass = true
+                let errorMessage: string | undefined
+
+                try {
+                    switch (appConnection.value.type) {
+                        case AppConnectionType.PLATFORM_OAUTH2:
+                        case AppConnectionType.CLOUD_OAUTH2:
+                        case AppConnectionType.OAUTH2:
+                        case AppConnectionType.CUSTOM_AUTH: {
+                            appConnection = await appConnectionHandler(log).refresh(appConnection, projectId, log)
+                            break
+                        }
+                        case AppConnectionType.NO_AUTH: {
+                            pass = false
+                            errorMessage = 'Connection has no authentication credentials configured'
+                            break
+                        }
+                        case AppConnectionType.SECRET_TEXT:
+                        case AppConnectionType.BASIC_AUTH:
+                        case AppConnectionType.OIDC: {
+                            await engineValidateAuth({
+                                platformId,
+                                pieceName: appConnection.pieceName,
+                                projectId,
+                                auth: appConnection.value,
+                            }, log)
+                            break
+                        }
+                        default:
+                            break
+                    }
+                }
+                catch (e: unknown) {
+                    pass = false
+                    errorMessage = extractReadableErrorMessage(e)
+                    log.warn({ connectionId: id, error: errorMessage }, 'App connection health test failed')
+                }
+
+                const newStatus = pass ? AppConnectionStatus.ACTIVE : AppConnectionStatus.ERROR
+                const previousMetadata = (appConnection.metadata ?? {}) as Record<string, unknown>
+                const newMetadata: Metadata = {
+                    ...previousMetadata,
+                    lastTestedAt: testedAt,
+                    lastTestResult: pass ? 'PASS' : 'FAIL',
+                    lastTestError: errorMessage ?? null,
+                }
+
+                await appConnectionsRepo().update(appConnection.id, {
+                    status: newStatus,
+                    ...spreadIfDefined('metadata', newMetadata),
+                    updated: testedAt,
+                    ...(pass ? { value: await encryptUtils.encryptObject(appConnection.value) } : {}),
+                })
+
+                const updatedRow = await appConnectionsRepo().findOneByOrFail({ id: appConnection.id })
+                const connectionWithoutSensitiveData = appConnectionService(log).removeSensitiveData(updatedRow)
+
+                return {
+                    status: pass ? 'PASS' : 'FAIL',
+                    valid: pass,
+                    message: pass ? 'Connection tested successfully' : (errorMessage || 'Connection test failed'),
+                    error: errorMessage,
+                    testedAt,
+                    connection: connectionWithoutSensitiveData,
+                }
+            },
+        })
     },
     async deleteAllProjectConnections(projectId: string) {
         await appConnectionsRepo().delete({
@@ -686,5 +798,26 @@ type EngineValidateAuthParams = {
     platformId: string
     auth: AppConnectionValue
 }
+
+function extractReadableErrorMessage(e: unknown): string {
+    if (e instanceof ActivepiecesError) {
+        const params = (e.error as Record<string, unknown> | undefined)?.params as Record<string, unknown> | undefined
+        if (typeof params?.error === 'string') return params.error
+        if (typeof params?.message === 'string') return params.message
+        return e.message
+    }
+    if (e instanceof AxiosError) {
+        const data = e.response?.data as Record<string, unknown> | undefined
+        if (typeof data?.error_description === 'string') return data.error_description
+        if (typeof data?.error === 'string') return data.error
+        if (typeof data?.message === 'string') return data.message
+        return e.message
+    }
+    if (e instanceof Error) {
+        return e.message
+    }
+    return String(e)
+}
+
 
 

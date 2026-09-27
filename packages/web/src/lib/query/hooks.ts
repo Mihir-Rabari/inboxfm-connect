@@ -9,6 +9,7 @@ import { executionsApi } from '../api/executions'
 import { platformApi } from '../api/platform'
 import { platformApiKeysApi } from '../api/platform-api-keys'
 import {
+  AppConnection,
   ConnectionsListParams,
   CreateConnectionRequest,
   CreateScheduledTaskRequest,
@@ -93,6 +94,29 @@ export function useDeleteConnection() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['connections'] })
       void queryClient.invalidateQueries({ queryKey: ['connection'] })
+    },
+  })
+}
+
+export function useTestConnection() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => connectionsApi.test({ id }),
+    onSuccess: (result, variables) => {
+      queryClient.setQueryData(['connection', variables.id], (old: AppConnection | undefined) => {
+        if (!old) return old
+        return {
+          ...old,
+          status: result.status === 'PASS' ? 'ACTIVE' : 'ERROR',
+          metadata: {
+            ...(old.metadata || {}),
+            lastTestedAt: result.testedAt,
+            lastTestResult: result.status,
+            lastTestError: result.error,
+          },
+        }
+      })
+      void queryClient.invalidateQueries({ queryKey: ['connections'] })
     },
   })
 }

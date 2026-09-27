@@ -9,4 +9,7 @@ export const formErrors = {
     apiKeyExpiryMustBeFuture: 'apiKeyExpiryMustBeFuture',
     activeFlowsLimitMin: 'activeFlowsLimitMin',
     activeFlowsLimitMax: 'activeFlowsLimitMax',
+    invalidAzureResourceName: 'invalidAzureResourceName',
+    invalidCloudflareAccountId: 'invalidCloudflareAccountId',
+    invalidCloudflareGatewayId: 'invalidCloudflareGatewayId',
 } as const

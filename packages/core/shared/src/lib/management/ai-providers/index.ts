@@ -1,5 +1,6 @@
 import { AIProviderName, BaseModelSchema } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
+import { formErrors } from '../../form-errors'
 
 export enum AIProviderModelType {
     IMAGE = 'image',
@@ -68,9 +69,14 @@ export const OpenAICompatibleProviderConfig = z.object({
 export type OpenAICompatibleProviderConfig = z.infer<typeof OpenAICompatibleProviderConfig>
 
 
+// Host/path-safe identifiers: interpolated into the gateway URL, so anything
+// outside alphanumerics, hyphen and underscore (e.g. `/`, `#`, `?`) is rejected
+// instead of redirecting the request to an attacker-chosen host or path.
+const SAFE_CLOUDFLARE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-_]{0,63}$/
+
 export const CloudflareGatewayProviderConfig = z.object({
-    accountId: z.string(),
-    gatewayId: z.string(),
+    accountId: z.string().regex(SAFE_CLOUDFLARE_ID_PATTERN, formErrors.invalidCloudflareAccountId),
+    gatewayId: z.string().regex(SAFE_CLOUDFLARE_ID_PATTERN, formErrors.invalidCloudflareGatewayId),
     models: z.array(ProviderModelConfig),
     vertexProject: z.string().optional(),
     vertexRegion: z.string().optional(),
@@ -79,8 +85,13 @@ export type CloudflareGatewayProviderConfig = z.infer<typeof CloudflareGatewayPr
 
 export const DEFAULT_AZURE_API_VERSION = '2024-10-21'
 
+// Interpolated into `https://<resourceName>.openai.azure.com`: anything outside
+// hostname-safe characters (e.g. `#`, `/`) would redirect the host entirely,
+// sending the Azure API key to an attacker-chosen server.
+const SAFE_AZURE_RESOURCE_NAME_PATTERN = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/i
+
 export const AzureProviderConfig = z.object({
-    resourceName: z.string(),
+    resourceName: z.string().regex(SAFE_AZURE_RESOURCE_NAME_PATTERN, formErrors.invalidAzureResourceName),
     apiVersion: z.preprocess(
         (v) => (typeof v === 'string' && v.trim().length === 0 ? undefined : v),
         z.string().optional(),

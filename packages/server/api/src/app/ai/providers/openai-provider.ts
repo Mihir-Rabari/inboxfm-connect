@@ -1,4 +1,4 @@
-import { httpClient, HttpMethod } from '@inboxfm-connect/pieces-common'
+import { safeHttp } from '@inboxfm-connect/server-utils'
 import { AIProviderModel, AIProviderModelType, OpenAIProviderAuthConfig, OpenAIProviderConfig } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { AIProviderStrategy } from './ai-provider'
@@ -9,16 +9,16 @@ export const openaiProvider: AIProviderStrategy<OpenAIProviderAuthConfig, OpenAI
         await openaiProvider.listModels(authConfig, config)
     },
     async listModels(authConfig: OpenAIProviderAuthConfig, _config: OpenAIProviderConfig): Promise<AIProviderModel[]> {
-        const res = await httpClient.sendRequest<{ data: OpenAIModel[] }>({
+        const res = await safeHttp.axios.request<{ data: OpenAIModel[] }>({
             url: 'https://api.openai.com/v1/models',
-            method: HttpMethod.GET,
+            method: 'GET',
             headers: {
                 'Authorization': `Bearer ${authConfig.apiKey}`,
                 'Content-Type': 'application/json',
             },
         })
 
-        const { data } = res.body
+        const { data } = res.data
 
         const openaiImageModels = [
             'gpt-image-1',

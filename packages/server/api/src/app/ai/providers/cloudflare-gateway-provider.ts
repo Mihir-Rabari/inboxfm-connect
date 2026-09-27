@@ -1,6 +1,6 @@
 import { createGoogleGenerativeAI } from '@ai-sdk/google'
 import { isNil } from '@inboxfm-connect/core-utils'
-import { httpClient, HttpMethod } from '@inboxfm-connect/pieces-common'
+import { safeHttp } from '@inboxfm-connect/server-utils'
 import { AIProviderModel, AIProviderModelType, CloudflareGatewayProviderAuthConfig, CloudflareGatewayProviderConfig, splitCloudflareGatewayModelId } from '@inboxfm-connect/shared'
 import { generateText } from 'ai'
 import { FastifyBaseLogger } from 'fastify'
@@ -36,14 +36,14 @@ export const cloudflareGatewayProvider: AIProviderStrategy<CloudflareGatewayProv
                     })
                 }
                 else {
-                    await httpClient.sendRequest({
+                    await safeHttp.axios.request({
                         url: `https://gateway.ai.cloudflare.com/v1/${config.accountId}/${config.gatewayId}/compat/chat/completions`,
-                        method: HttpMethod.POST,
+                        method: 'POST',
                         headers: {
                             'cf-aig-authorization': `Bearer ${authConfig.apiKey}`,
                             'Content-Type': 'application/json',
                         },
-                        body: {
+                        data: {
                             model: model.modelId,
                             messages: [{ role: 'user', content: 'Hi, reply only with "ok"' }],
                         },

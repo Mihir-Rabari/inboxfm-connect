@@ -2,23 +2,22 @@ import { AIProviderName } from '@inboxfm-connect/core-utils'
 import { AIProviderModelType, ALLOWED_CHAT_MODELS_BY_PROVIDER } from '@inboxfm-connect/shared'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const { mockSendRequest } = vi.hoisted(() => ({ mockSendRequest: vi.fn() }))
+const { mockAxiosRequest } = vi.hoisted(() => ({ mockAxiosRequest: vi.fn() }))
 
-vi.mock('@inboxfm-connect/pieces-common', () => ({
-    httpClient: { sendRequest: mockSendRequest },
-    HttpMethod: { GET: 'GET' },
+vi.mock('@inboxfm-connect/server-utils', () => ({
+    safeHttp: { axios: { request: mockAxiosRequest } },
 }))
 
 import { googleProvider } from '../../../../../src/app/ai/providers/google-provider'
 
 describe('googleProvider.listModels', () => {
     beforeEach(() => {
-        mockSendRequest.mockReset()
+        mockAxiosRequest.mockReset()
     })
 
     it('strips the models/ prefix from every emitted model id', async () => {
-        mockSendRequest.mockResolvedValue({
-            body: {
+        mockAxiosRequest.mockResolvedValue({
+            data: {
                 models: [
                     { name: 'models/gemini-2.5-pro', displayName: 'Gemini 2.5 Pro' },
                     { name: 'models/gemini-2.5-flash', displayName: 'Gemini 2.5 Flash' },
@@ -35,8 +34,8 @@ describe('googleProvider.listModels', () => {
     })
 
     it('emits ids that intersect the Google chat allow-list so the picker populates', async () => {
-        mockSendRequest.mockResolvedValue({
-            body: {
+        mockAxiosRequest.mockResolvedValue({
+            data: {
                 models: [
                     { name: 'models/gemini-2.5-pro', displayName: 'Gemini 2.5 Pro' },
                     { name: 'models/gemini-2.5-flash', displayName: 'Gemini 2.5 Flash' },
@@ -55,8 +54,8 @@ describe('googleProvider.listModels', () => {
     })
 
     it('still classifies image models by their name', async () => {
-        mockSendRequest.mockResolvedValue({
-            body: {
+        mockAxiosRequest.mockResolvedValue({
+            data: {
                 models: [
                     { name: 'models/gemini-2.5-flash', displayName: 'Gemini 2.5 Flash' },
                     { name: 'models/imagen-3.0-generate-image', displayName: 'Imagen 3' },

@@ -147,6 +147,8 @@ export const aiProviderService = (log: FastifyBaseLogger) => ({
             const errorMessage = error instanceof Error ? error.message : 'Unknown error'
             const includeHttpErrorInMessage = provider === AIProviderName.CLOUDFLARE_GATEWAY
             log.error({ error }, '[aiProviderService#validateProviderCredentials] Failed to validate provider credentials')
+            // Upstream error bodies stay server-side (log above) — params are
+            // serialized to API clients, so raw bodies must never be included.
             throw new ActivepiecesError({
                 code: ErrorCode.INVALID_AI_PROVIDER_CREDENTIALS,
                 params: {
@@ -154,7 +156,6 @@ export const aiProviderService = (log: FastifyBaseLogger) => ({
                     message: includeHttpErrorInMessage
                         ? `Failed to validate credentials for ${providerStrategy.name}, ${errorMessage}`
                         : `Failed to validate credentials for ${providerStrategy.name}`,
-                    httpErrorResponse: errorMessage,
                 },
             })
         }

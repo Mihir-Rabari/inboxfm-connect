@@ -40,11 +40,12 @@ import {
   UpdateTriggerBindingRequest,
 } from '../api/types'
 
-export function useIntegrations(params?: IntegrationsListParams) {
+export function useIntegrations(params?: IntegrationsListParams, options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: ['integrations', params ?? {}],
     queryFn: () => apiClient.get<SeekPage<PieceSummary>>('/integrations', { params }),
     placeholderData: keepPreviousData,
+    enabled: options?.enabled,
   })
 }
 
@@ -66,14 +67,16 @@ export function useIntegration(name?: string) {
 
 export function useConnectionsQuery(
   params?: ConnectionsListParams,
-  options?: { keepPreviousData?: boolean }
+  options?: { keepPreviousData?: boolean; enabled?: boolean; showErrorToast?: boolean }
 ) {
   const projectId = apiClient.getProjectId()
+  const showErrorToast = options?.showErrorToast ?? true
   return useQuery({
     queryKey: ['connections', params ?? {}, projectId],
     queryFn: () => connectionsApi.list(params),
     placeholderData: options?.keepPreviousData ? keepPreviousData : undefined,
-    meta: { showErrorDialog: true },
+    meta: { showErrorToast, showErrorDialog: showErrorToast },
+    enabled: options?.enabled,
   })
 }
 
@@ -218,14 +221,16 @@ export function useKnowledgeSearch(request: KnowledgeSearchRequest, enabled = tr
   })
 }
 
-export function useTriggerBindingsQuery() {
+export function useTriggerBindingsQuery(options?: { enabled?: boolean; showErrorToast?: boolean }) {
+  const showErrorToast = options?.showErrorToast ?? true
   return useQuery({
     queryKey: ['trigger-bindings', apiClient.getProjectId()],
     queryFn: () => automationsApi.listTriggerBindings(),
     select: (page) => page.data,
     // Every current call site (Trigger Bindings list, Dashboard summary) renders
     // this as primary data, so a fetch failure should surface an error dialog.
-    meta: { showErrorDialog: true },
+    meta: { showErrorToast },
+    enabled: options?.enabled,
   })
 }
 
@@ -306,14 +311,16 @@ export function useRunTriggerBinding() {
   })
 }
 
-export function useScheduledTasksQuery() {
+export function useScheduledTasksQuery(options?: { enabled?: boolean; showErrorToast?: boolean }) {
+  const showErrorToast = options?.showErrorToast ?? true
   return useQuery({
     queryKey: ['scheduled-tasks', apiClient.getProjectId()],
     queryFn: () => automationsApi.listScheduledTasks(),
     select: (page) => page.data,
     // Every current call site (Scheduled Tasks list, Dashboard summary) renders
     // this as primary data, so a fetch failure should surface an error dialog.
-    meta: { showErrorDialog: true },
+    meta: { showErrorToast },
+    enabled: options?.enabled,
   })
 }
 
@@ -431,15 +438,20 @@ export function useGenerateMcpToken() {
   })
 }
 
-export function useExecutionsQuery(params?: { status?: ExecutionStatus; limit?: number }) {
+export function useExecutionsQuery(
+  params?: { status?: ExecutionStatus; limit?: number },
+  options?: { enabled?: boolean; showErrorToast?: boolean }
+) {
   const projectId = apiClient.getProjectId()
+  const showErrorToast = options?.showErrorToast ?? true
   return useQuery({
     queryKey: ['executions', params ?? {}, projectId],
     queryFn: () => executionsApi.list({ status: params?.status, limit: params?.limit }),
     placeholderData: keepPreviousData,
     // Every current call site (Activity list, Dashboard "Recent Executions") renders
     // this as primary data, so a fetch failure should surface an error dialog.
-    meta: { showErrorDialog: true },
+    meta: { showErrorToast },
+    enabled: options?.enabled,
   })
 }
 

@@ -1,10 +1,28 @@
 services:
+  proxy:
+    image: nginx:1.30.5-alpine
+    container_name: inboxfm-proxy
+    restart: unless-stopped
+    depends_on:
+      - app
+    ports:
+      - '8080:80'
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O - http://127.0.0.1/_gateway/health >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - activepieces
   app:
     image: ghcr.io/activepieces/activepieces:0.86.1
     container_name: activepieces-app
     restart: unless-stopped
-    ports:
-      - '8080:80'
+    expose:
+      - '80'
     depends_on:
       - postgres
       - redis

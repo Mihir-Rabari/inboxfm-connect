@@ -33,9 +33,11 @@ function replaceOldStepNameWithNewOne({
     oldStepName,
     newStepName,
 }: ReplaceOldStepNameWithNewOneProps): string {
-    // Shared brace-counting tokenizer: unlike /{{(.*?)}}/g it does not stop at
-    // the first `}}`, so mentions containing `}}` (string literals, nested
-    // braces) keep their trailing step reference on duplicate/paste.
+    // Shared brace-counting tokenizer (the same one the engine props-resolver
+    // uses): unlike /{{(.*?)}}/g it matches nested `{{ ... }}` pairs, so a step
+    // reference trailing a nested token is still renamed on duplicate/paste.
+    // Note: a `}}` inside a string literal still closes the token — the
+    // tokenizer is brace-aware, not string-aware.
     const tokens = extractMustacheTokens(input)
     if (tokens.length === 0) {
         return input

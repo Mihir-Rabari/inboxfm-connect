@@ -1,4 +1,4 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import type {
   CreateAIProviderRequest,
   UpdateAIProviderRequest,
@@ -40,12 +40,17 @@ import {
   UpdateTriggerBindingRequest,
 } from '../api/types'
 
-export function useIntegrations(params?: IntegrationsListParams, options?: { enabled?: boolean }) {
+export function useIntegrations(
+  params?: IntegrationsListParams,
+  options?: { enabled?: boolean; showErrorToast?: boolean }
+) {
+  const showErrorToast = options?.showErrorToast ?? false
   return useQuery({
     queryKey: ['integrations', params ?? {}],
     queryFn: () => apiClient.get<SeekPage<PieceSummary>>('/integrations', { params }),
     placeholderData: keepPreviousData,
     enabled: options?.enabled,
+    meta: { showErrorToast },
   })
 }
 
@@ -75,6 +80,23 @@ export function useConnectionsQuery(
     queryKey: ['connections', params ?? {}, projectId],
     queryFn: () => connectionsApi.list(params),
     placeholderData: options?.keepPreviousData ? keepPreviousData : undefined,
+    meta: { showErrorToast, showErrorDialog: showErrorToast },
+    enabled: options?.enabled,
+  })
+}
+
+export function useConnectionsInfiniteQuery(
+  params?: Omit<ConnectionsListParams, 'cursor'>,
+  options?: { enabled?: boolean; showErrorToast?: boolean }
+) {
+  const projectId = apiClient.getProjectId()
+  const showErrorToast = options?.showErrorToast ?? true
+  return useInfiniteQuery({
+    queryKey: ['connections', 'infinite', params ?? {}, projectId],
+    queryFn: ({ pageParam }) =>
+      connectionsApi.list({ ...params, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.next ?? undefined,
     meta: { showErrorToast, showErrorDialog: showErrorToast },
     enabled: options?.enabled,
   })
@@ -234,6 +256,22 @@ export function useTriggerBindingsQuery(options?: { enabled?: boolean; showError
   })
 }
 
+export function useTriggerBindingsInfiniteQuery(
+  options?: { enabled?: boolean; showErrorToast?: boolean }
+) {
+  const projectId = apiClient.getProjectId()
+  const showErrorToast = options?.showErrorToast ?? true
+  return useInfiniteQuery({
+    queryKey: ['trigger-bindings', 'infinite', projectId],
+    queryFn: ({ pageParam }) =>
+      automationsApi.listTriggerBindings(pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.next ?? undefined,
+    meta: { showErrorToast },
+    enabled: options?.enabled,
+  })
+}
+
 export function useTriggerBindingQuery(id?: string) {
   return useQuery({
     queryKey: ['trigger-binding', id],
@@ -319,6 +357,22 @@ export function useScheduledTasksQuery(options?: { enabled?: boolean; showErrorT
     select: (page) => page.data,
     // Every current call site (Scheduled Tasks list, Dashboard summary) renders
     // this as primary data, so a fetch failure should surface an error dialog.
+    meta: { showErrorToast },
+    enabled: options?.enabled,
+  })
+}
+
+export function useScheduledTasksInfiniteQuery(
+  options?: { enabled?: boolean; showErrorToast?: boolean }
+) {
+  const projectId = apiClient.getProjectId()
+  const showErrorToast = options?.showErrorToast ?? true
+  return useInfiniteQuery({
+    queryKey: ['scheduled-tasks', 'infinite', projectId],
+    queryFn: ({ pageParam }) =>
+      automationsApi.listScheduledTasks(pageParam ? { cursor: pageParam } : undefined),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.next ?? undefined,
     meta: { showErrorToast },
     enabled: options?.enabled,
   })

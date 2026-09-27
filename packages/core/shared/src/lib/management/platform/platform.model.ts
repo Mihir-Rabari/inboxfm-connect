@@ -220,6 +220,7 @@ export const PlatformWithoutSensitiveData = z.object({
 export type PlatformWithoutSensitiveData = z.infer<typeof PlatformWithoutSensitiveData>
 
 export const PlatformBillingInformation = z.object({
+    stripeBillingEnabled: z.boolean(),
     plan: PlatformPlan,
     usage: PlatformUsage,
     nextBillingDate: z.number(),

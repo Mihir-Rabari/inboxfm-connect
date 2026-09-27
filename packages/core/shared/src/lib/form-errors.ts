@@ -7,4 +7,6 @@ export const formErrors = {
     invalidFileName: 'invalidFileName',
     messageRequiresContentOrFiles: 'messageRequiresContentOrFiles',
     apiKeyExpiryMustBeFuture: 'apiKeyExpiryMustBeFuture',
+    activeFlowsLimitMin: 'activeFlowsLimitMin',
+    activeFlowsLimitMax: 'activeFlowsLimitMax',
 } as const

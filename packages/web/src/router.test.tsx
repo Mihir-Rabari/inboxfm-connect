@@ -10,8 +10,20 @@ import { act } from 'react'
 import { mount, waitFor } from '@/test/test-utils'
 
 function stubBackend() {
+  const mockProject = {
+    id: 'prj_test',
+    displayName: 'Test Project',
+    platformId: 'plt_test',
+  }
   const stubFetch = async (input: RequestInfo | URL): Promise<Response> => {
     const url = String(input)
+    const pathname = new URL(url, 'http://localhost').pathname
+    if (pathname === '/api/v1/projects') {
+      return new Response(JSON.stringify({ data: [mockProject] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
     const isArrayResponse =
       url.includes('/trigger-bindings') || url.includes('/scheduled-tasks')
     const body = isArrayResponse ? [] : { data: [], next: null, previous: null }
@@ -22,6 +34,25 @@ function stubBackend() {
   }
 
   global.fetch = vi.fn(stubFetch)
+}
+
+function signInTestUser() {
+  const mockUser = {
+    id: 'usr_test',
+    email: 'test@example.com',
+    firstName: 'Test',
+    lastName: 'User',
+    platformId: 'plt_test',
+  }
+  apiClient.setToken('mock-token')
+  apiClient.setProjectId('prj_test')
+  localStorage.setItem('ap-user', JSON.stringify(mockUser))
+}
+
+function signOutTestUser() {
+  apiClient.setToken(null)
+  apiClient.setProjectId(null)
+  localStorage.clear()
 }
 
 async function navigateAndMount(path: string): Promise<HTMLElement> {
@@ -48,11 +79,13 @@ async function renderRouterAt(path: string): Promise<HTMLElement> {
 
 describe('router', () => {
   beforeEach(() => {
+    queryClient.clear()
     localStorage.clear()
     document.body.innerHTML = ''
     apiClient.setToken('test-token')
     apiClient.setProjectId('proj_default')
     stubBackend()
+    signInTestUser()
   })
 
   it('renders the application shell at the index route', async () => {
@@ -88,5 +121,51 @@ describe('router', () => {
     expect(container.querySelector('aside')).toBeNull()
     expect(document.body.textContent).toContain('Workflow automation built for')
     expect(document.body.querySelector('a[href="/login"]')).not.toBeNull()
+  }, 15000)
+
+  it('redirects unauthenticated users to the /login page', async () => {
+    signOutTestUser()
+    const container = await navigateAndMount('/')
+
+    await waitFor(() => document.body.textContent?.includes('Sign in') === true)
+
+    expect(router.state.location.pathname).toBe('/login')
+    expect(container.querySelector('aside')).toBeNull()
+  }, 15000)
+
+  it('navigates to /actions when clicking the empty-state CTA on dashboard', async () => {
+    const container = await renderRouterAt('/')
+
+    await waitFor(() => container.textContent?.includes('Explore Tools to Test') === true)
+
+    const ctaButton = Array.from(container.querySelectorAll('button')).find((btn) =>
+      btn.textContent?.includes('Explore Tools to Test')
+    )
+    expect(ctaButton).toBeDefined()
+
+    await act(async () => {
+      ctaButton?.click()
+    })
+
+    await waitFor(() => router.state.location.pathname === '/actions')
+    expect(router.state.location.pathname).toBe('/actions')
+  }, 15000)
+
+  it('navigates to /actions when clicking the empty-state CTA on activity', async () => {
+    const container = await renderRouterAt('/activity')
+
+    await waitFor(() => container.textContent?.includes('Explore Actions to Run') === true)
+
+    const ctaButton = Array.from(container.querySelectorAll('button')).find((btn) =>
+      btn.textContent?.includes('Explore Actions to Run')
+    )
+    expect(ctaButton).toBeDefined()
+
+    await act(async () => {
+      ctaButton?.click()
+    })
+
+    await waitFor(() => router.state.location.pathname === '/actions')
+    expect(router.state.location.pathname).toBe('/actions')
   }, 15000)
 })

@@ -14,6 +14,7 @@ The primary [CI workflow](../.github/workflows/ci.yml) runs on every PR without 
 | Checks (migrations) | Apply migrations, detect schema drift, inspect new rollback metadata | `node tools/ci/run-check.mjs migrations` |
 | Checks (integrations) | Lint changed integration packages; build all integrations when thin shared libraries, framework/common, compiler configuration, or dependencies change | `node tools/ci/run-check.mjs integrations` |
 | tool-search (postgres) | Real PostgreSQL+pgvector driver behavior and database-only tests | Requires a PostgreSQL service with pgvector |
+| Browser journey | Real sign-in, persisted scheduled automation, and Text Helper execution in Chromium, Firefox, and WebKit | `npm run test:e2e` |
 | main | Aggregate gate; fails when any required job fails or is cancelled | Inspect the jobs above |
 
 Every suite runs with Node 24 and Bun 1.3.3. Installs use `--frozen-lockfile`. Action versions in the primary workflow and setup action are pinned to commits. Only the Bun download cache is shared; built workspace output is not reused across concurrent suites.
@@ -56,4 +57,19 @@ Upstream-specific preview, browser-E2E, release, translation, and monitoring aut
 
 The public SDK release workflow has its own environment, smoke target, tag, and publishing gates; see [the SDK release documentation](../packages/connect-sdk/README.md). Benchmark self-tests run in primary CI; a configured performance environment is required for live regression runs.
 
-The inherited browser-E2E package has outstanding setup work tracked in [#134](https://github.com/Mihir-Rabari/inboxfm-connect/issues/134). Unit/web/API integration tests run today; they are not a substitute for browser-E2E coverage.
+## Browser checks
+
+Install browser engines once, then run the journey from the repository root:
+
+```bash
+bun x playwright install --with-deps chromium firefox webkit
+npm run test:e2e
+# Focus one engine while debugging:
+npm run test:e2e -- --project=chromium
+```
+
+The command builds the API and Text Helper, starts the compiled CE API and Vite frontend, and runs Playwright against loopback addresses. Each run owns a fresh temporary PGlite database, integration workspace, and runtime cache; it seeds the development user and removes the temporary directory on exit. The temporary workspace contains the actual compiled Text Helper and engine, so discovery stays limited to the integration being exercised. Vite's test mode disables the development auto-login shortcut. It does not reuse a running developer server or the normal development database. Both ports 3000 and 4200 must be free.
+
+The journey uses actual authentication, automation persistence, a project-scoped no-auth connection, and the integration runtime. The scheduled automation is disabled to prevent background AI requests. The action runs locally and needs no provider credentials. Authentication and service responses are not mocked. This covers the current headless platform rather than the removed visual flow builder.
+
+CI runs all three engines on every PR and requires the browser job through the aggregate `main` gate. Failure artifacts include the HTML report, screenshots, videos, and Playwright traces. Inspect a trace with `bun x playwright show-trace PATH_TO_TRACE.zip`. Traces can contain the temporary test user's token, so retain them only for the configured seven-day diagnostic window.

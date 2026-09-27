@@ -1,6 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { apiKeysApi } from '../api/api-keys'
 import { automationsApi } from '../api/automations'
+import { billingApi } from '../api/billing'
 import { apiClient } from '../api/client'
 import { connectionsApi } from '../api/connections'
 import { executeApi } from '../api/execute'
@@ -63,6 +64,7 @@ export function useConnectionsQuery(params?: ConnectionsListParams) {
   return useQuery({
     queryKey: ['connections', params ?? {}, projectId],
     queryFn: () => connectionsApi.list(params),
+    meta: { showErrorToast: true, showErrorDialog: true },
   })
 }
 
@@ -442,3 +444,26 @@ export function useExecutionToolCallsQuery(id?: string) {
     gcTime: 0,
   })
 }
+
+export function useBillingInfoQuery() {
+  return useQuery({
+    queryKey: ['platform-billing-info'],
+    queryFn: () => billingApi.getInfo(),
+    staleTime: 60_000,
+    retry: false,
+  })
+}
+
+export function useCreateBillingPortalMutation() {
+  return useMutation({
+    mutationFn: () => billingApi.createPortalSession(),
+  })
+}
+
+export function useCreateBillingCheckoutMutation() {
+  return useMutation({
+    mutationFn: ({ newActiveFlowsLimit }: { newActiveFlowsLimit: number }) =>
+      billingApi.createCheckoutSession({ newActiveFlowsLimit }),
+  })
+}
+

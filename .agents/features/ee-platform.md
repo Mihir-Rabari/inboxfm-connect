@@ -5,7 +5,8 @@ The EE Platform module manages billing, quota enforcement, AI credits, license k
 
 ## Key Files
 - `packages/server/api/src/app/ee/platform/` — backend service and controller
-- `packages/server/api/src/app/ee/billing/` — Stripe webhook, checkout, billing controller
+- `packages/server/api/src/app/ee/platform/platform-plan/` — Stripe webhook, checkout, billing controller and helpers
+- `packages/server/api/src/app/ee/platform/platform-plan/billing-checkout.service.ts` — serializes checkout per platform, preserves the customer, and rejects managed/existing subscriptions
 - `packages/core/shared/src/lib/ee/billing/index.ts` — shared plan constants, Zod schemas, `STANDARD_CLOUD_PLAN`, `OPEN_SOURCE_PLAN`
 - `packages/core/shared/src/lib/management/platform/` — `PlatformPlan` type and all feature-flag fields
 - `packages/web/src/features/billing/api/billing-plans-api.ts` — `platformBillingApi` (portal, checkout, AI credits, auto top-up)
@@ -67,6 +68,10 @@ The EE Platform module manages billing, quota enforcement, AI credits, license k
 - AI credits: one-time payment checkout sessions
 - Auto top-up: setup mode checkout (collects payment method) → automatic invoices
 - Webhook handler: `checkout.session.completed`, `invoice.paid`, `customer.subscription.*`
+
+The billing-info response exposes `stripeBillingEnabled`, which is false for CE/EE and for Cloud without a Stripe secret. The settings page offers paid checkout only when billing state loaded successfully and the plan supports self-service; managed Enterprise plans retain their existing billing path. Checkout checks live Stripe subscriptions before creating a session and reuses an open session for the same quantity. Changing quantity expires the previous open session. Configure Stripe's [one-subscription-per-customer setting](https://docs.stripe.com/payments/checkout/limit-subscriptions) on the deployment's own Stripe account as an additional payment-time guard.
+
+These implementations remain under the applicable Enterprise licensing boundaries. Local tests use mocked Stripe APIs and do not create charges or authorize production use.
 
 ## License Keys (Self-hosted EE)
 

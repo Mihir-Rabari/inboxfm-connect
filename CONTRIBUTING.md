@@ -50,6 +50,7 @@ npm run test-unit
 npm run test-api
 npm run check-migrations
 npm run check-licenses
+npm run test:e2e
 
 # A specific frontend or SDK check:
 bun x turbo run lint typecheck --filter=@inboxfm-connect/web

@@ -24,7 +24,10 @@ export class FetchHttpClient extends BaseHttpClient {
     request: HttpRequest<HttpRequestBody>,
     options?: SendRequestOptions
   ): Promise<HttpResponse<ResponseBody>> {
-    process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
+    // Never touch NODE_TLS_REJECT_UNAUTHORIZED here: it is process-global, so
+    // disabling it would accept invalid certs for every HTTPS call in the
+    // process (OAuth exchanges, API keys). Callers that need custom TLS
+    // handling pass their own agent via options.dispatcher instead.
 
     const { urlWithoutQueryParams, queryParams: urlQueryParams } = this.getUrl(request);
     const headers = this.getHeaders(request);

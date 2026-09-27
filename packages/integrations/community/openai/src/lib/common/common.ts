@@ -105,7 +105,8 @@ export const calculateMessagesTokenSize = async (
   await Promise.all(
     messages.map((message: any) => {
       return new Promise((resolve) => {
-        tokenLength += calculateTokensFromString(message.content, model);
+        const text = typeof message === 'string' ? message : (message?.content ?? '');
+        tokenLength += calculateTokensFromString(text, model);
         resolve(tokenLength);
       });
     })
@@ -114,23 +115,28 @@ export const calculateMessagesTokenSize = async (
   return tokenLength;
 };
 
-export const reduceContextSize = async (
-  messages: any[],
+export const reduceContextSize = async <T = any>(
+  messages: T[],
   model: string,
   maxTokens: number
-) => {
-  // TODO: Summarize context instead of cutoff
-  const cutoffSize = Math.round(messages.length * 0.1);
-  const cutoffMessages = messages.splice(cutoffSize, messages.length - 1);
+): Promise<T[]> => {
+  // Defensive copy to prevent mutation of the caller's array
+  let currentMessages = [...messages];
+  const targetTokenLimit = maxTokens / 1.5;
 
-  if (
-    (await calculateMessagesTokenSize(cutoffMessages, model)) >
-    maxTokens / 1.5
-  ) {
-    reduceContextSize(cutoffMessages, model, maxTokens);
+  // Note: Model-based summarization requires an active API client and credentials.
+  // In this standalone helper, we iteratively discard the oldest turns from the front
+  // of the conversation until the total size is within targetTokenLimit.
+  while (currentMessages.length > 0) {
+    const currentTokens = await calculateMessagesTokenSize(currentMessages, model);
+    if (currentTokens <= targetTokenLimit) {
+      break;
+    }
+    const cutoffCount = Math.max(1, Math.round(currentMessages.length * 0.1));
+    currentMessages = currentMessages.slice(cutoffCount);
   }
 
-  return cutoffMessages;
+  return currentMessages;
 };
 
 export const exceedsHistoryLimit = (

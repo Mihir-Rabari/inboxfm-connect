@@ -228,6 +228,7 @@ const systemPropValidators: {
     },
     [AppSystemProp.LOG_KEEP_SLOW_MS]: numberValidator,
     [AppSystemProp.PROJECT_REPLACE_SIGNING_SECRET]: stringValidator,
+    [AppSystemProp.UPSTREAM_NEWSLETTER_OPT_IN]: booleanValidator,
 }
 
 

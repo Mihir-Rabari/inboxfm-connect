@@ -60,7 +60,15 @@ jobs:
 
       - name: Get changed files
         id: changed-files
-        run: echo "files=$(git diff --name-only HEAD origin/main | tr '\n' ' ')" >> $GITHUB_OUTPUT
+        run: |
+          if [ "${{ github.event_name }}" = "push" ] && [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            DIFF_BASE="${{ github.event.before }}"
+          elif [ -n "${{ github.base_ref }}" ]; then
+            DIFF_BASE="origin/${{ github.base_ref }}"
+          else
+            DIFF_BASE="origin/main"
+          fi
+          echo "files=$(git diff --name-only HEAD $DIFF_BASE | tr '\n' ' ')" >> $GITHUB_OUTPUT
 
       - name: Check if framework or common pieces are changed
         id: check-framework-common

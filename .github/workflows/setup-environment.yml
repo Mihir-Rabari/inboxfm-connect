@@ -6,6 +6,7 @@ on:
   push:
     branches:
       - dev
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -60,14 +61,14 @@ jobs:
         uses: actions/github-script@v8
         with:
           script: |
-            const isManualTrigger = context.eventName === 'workflow_dispatch';
-            if (isManualTrigger) {
-              console.log('Manual trigger, skipping label check');
+            const isBypass = context.eventName === 'workflow_dispatch' || context.eventName === 'push';
+            if (isBypass) {
+              console.log(`${context.eventName} trigger, skipping label check`);
               core.setOutput('should-setup', true);
               return true;
             }
 
-            const labels = context.payload.pull_request.labels.map(label => label.name);
+            const labels = context.payload.pull_request?.labels?.map(label => label.name) ?? [];
             const hasPreviewLabel = labels.includes('preview');
             
             console.log('PR labels:', labels);

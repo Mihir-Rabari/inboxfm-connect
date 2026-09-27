@@ -273,7 +273,7 @@ describe('Files Controller', () => {
             })
             const fileId = apId()
 
-            await app!.inject({
+            const putResponse = await app!.inject({
                 method: 'PUT',
                 url: `/api/v1/files/${fileId}`,
                 query: { token: engineToken },
@@ -283,6 +283,7 @@ describe('Files Controller', () => {
                 },
                 payload: Buffer.from('audience guarded'),
             })
+            expect(putResponse?.statusCode).toBe(StatusCodes.OK)
 
             const audienceLessToken = await jwtUtils.sign({
                 payload: { fileId, fileType: FileType.FLOW_STEP_FILE },
@@ -308,7 +309,7 @@ describe('Files Controller', () => {
             })
             const fileId = apId()
 
-            await app!.inject({
+            const putResponse = await app!.inject({
                 method: 'PUT',
                 url: `/api/v1/files/${fileId}`,
                 query: { token: engineToken },
@@ -318,6 +319,7 @@ describe('Files Controller', () => {
                 },
                 payload: Buffer.from('audience guarded'),
             })
+            expect(putResponse?.statusCode).toBe(StatusCodes.OK)
 
             const foreignAudienceToken = await jwtUtils.sign({
                 payload: { fileId, fileType: FileType.FLOW_STEP_FILE },

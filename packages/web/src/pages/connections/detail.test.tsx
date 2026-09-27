@@ -178,4 +178,127 @@ describe('Connection detail page', () => {
     expect(deleted).toBe(true)
     await waitFor(() => container.textContent?.includes('list') === true)
   }, 15000)
+
+  it('runs connection health check and displays success state', async () => {
+    let testCalled = false
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const raw = String(input)
+      if (raw.includes('/connections/conn_1/test') && init?.method === 'POST') {
+        testCalled = true
+        return new Response(
+          JSON.stringify({
+            success: true,
+            status: 'healthy',
+            message: 'Connection is healthy and working.',
+            testedAt: '2026-09-27T12:00:00.000Z',
+            responseTimeMs: 120,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (raw.includes('/connections/conn_1')) {
+        return new Response(JSON.stringify(githubConnection('conn_1', 'Mihir GitHub')), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      if (raw.includes('/integrations/github')) {
+        return new Response(
+          JSON.stringify({
+            name: 'github',
+            displayName: 'GitHub',
+            logoUrl: '',
+            description: '',
+            version: '0.3.4',
+            auth: { type: 'OAUTH2' },
+            actions: {},
+            triggers: {},
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      return new Response(JSON.stringify({ message: 'unhandled' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+
+    const container = renderDetail('conn_1')
+    await waitFor(() => container.textContent?.includes('Mihir GitHub') === true)
+
+    const testButton = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Test Connection')
+    )
+    expect(testButton).toBeDefined()
+
+    await act(async () => {
+      testButton?.click()
+    })
+
+    await waitFor(() => testCalled === true)
+    expect(testCalled).toBe(true)
+
+    await waitFor(() => container.textContent?.includes('Connection is healthy') === true)
+    expect(container.textContent).toContain('Connection is healthy and working.')
+    expect(container.textContent).toContain('120ms')
+  }, 15000)
+
+  it('runs connection health check and displays failure state with reconnect guidance on expired token', async () => {
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const raw = String(input)
+      if (raw.includes('/connections/conn_1/test') && init?.method === 'POST') {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            status: 'error',
+            message: 'Authentication has expired. Please reconnect this account.',
+            testedAt: '2026-09-27T12:00:00.000Z',
+            responseTimeMs: 85,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (raw.includes('/connections/conn_1')) {
+        return new Response(JSON.stringify(githubConnection('conn_1', 'Mihir GitHub')), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      if (raw.includes('/integrations/github')) {
+        return new Response(
+          JSON.stringify({
+            name: 'github',
+            displayName: 'GitHub',
+            logoUrl: '',
+            description: '',
+            version: '0.3.4',
+            auth: { type: 'OAUTH2' },
+            actions: {},
+            triggers: {},
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      return new Response(JSON.stringify({ message: 'unhandled' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+
+    const container = renderDetail('conn_1')
+    await waitFor(() => container.textContent?.includes('Mihir GitHub') === true)
+
+    const testButton = Array.from(container.querySelectorAll('button')).find((b) =>
+      b.textContent?.includes('Test Connection')
+    )
+    expect(testButton).toBeDefined()
+
+    await act(async () => {
+      testButton?.click()
+    })
+
+    await waitFor(() => container.textContent?.includes('Connection test failed') === true)
+    expect(container.textContent).toContain('Authentication has expired. Please reconnect this account.')
+    expect(container.textContent).toContain('Reconnect this account')
+  }, 15000)
 })

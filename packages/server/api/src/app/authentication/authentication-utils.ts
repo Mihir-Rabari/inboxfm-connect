@@ -217,7 +217,7 @@ export const authenticationUtils = (log: FastifyBaseLogger) => ({
 
     async saveNewsLetterSubscriber(identity: UserIdentity): Promise<void> {
         const optIn = system.getBoolean(AppSystemProp.UPSTREAM_NEWSLETTER_OPT_IN) ?? false
-        if (!optIn) {
+        if (!optIn || identity.newsLetter !== true) {
             return
         }
         const environment = system.get(AppSystemProp.ENVIRONMENT)
@@ -232,6 +232,7 @@ export const authenticationUtils = (log: FastifyBaseLogger) => ({
                     headers: {
                         'Content-Type': 'application/json',
                     },
+                    timeout: 5000,
                 },
             )
         }

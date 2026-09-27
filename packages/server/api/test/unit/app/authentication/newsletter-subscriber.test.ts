@@ -1,17 +1,23 @@
 import { ApEnvironment, UserIdentity, UserIdentityProvider } from '@inboxfm-connect/shared'
 import { safeHttp } from '@inboxfm-connect/server-utils'
+import { FastifyBaseLogger } from 'fastify'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { authenticationUtils } from '../../../../src/app/authentication/authentication-utils'
 import { system } from '../../../../src/app/helper/system/system'
 import { AppSystemProp } from '../../../../src/app/helper/system/system-props'
 
 describe('saveNewsLetterSubscriber', () => {
-    const mockLog = {
+    const mockLog: FastifyBaseLogger = {
         warn: vi.fn(),
         info: vi.fn(),
         error: vi.fn(),
         debug: vi.fn(),
-    } as any
+        fatal: vi.fn(),
+        trace: vi.fn(),
+        child: vi.fn().mockReturnThis(),
+        level: 'info',
+        silent: vi.fn(),
+    } as unknown as FastifyBaseLogger
 
     const mockIdentity: UserIdentity = {
         id: 'user_123',
@@ -31,9 +37,9 @@ describe('saveNewsLetterSubscriber', () => {
         vi.restoreAllMocks()
     })
 
-    it('defaults to OFF: does not send user PII or call safeHttp when UPSTREAM_NEWSLETTER_OPT_IN is unset', async () => {
+    it('defaults to OFF: does not send user PII or call safeHttp when UPSTREAM_NEWSLETTER_OPT_IN is unset (undefined)', async () => {
         const postSpy = vi.spyOn(safeHttp.axios, 'post').mockResolvedValue({} as any)
-        vi.spyOn(system, 'getBoolean').mockReturnValue(false)
+        vi.spyOn(system, 'getBoolean').mockReturnValue(undefined)
         vi.spyOn(system, 'get').mockReturnValue(ApEnvironment.PRODUCTION)
 
         const utils = authenticationUtils(mockLog)
@@ -42,7 +48,39 @@ describe('saveNewsLetterSubscriber', () => {
         expect(postSpy).not.toHaveBeenCalled()
     })
 
-    it('does not send user PII when environment is not PRODUCTION even if opt-in is true', async () => {
+    it('does not send user PII when user consent newsLetter is false even if operator opt-in is true', async () => {
+        const postSpy = vi.spyOn(safeHttp.axios, 'post').mockResolvedValue({} as any)
+        vi.spyOn(system, 'getBoolean').mockReturnValue(true)
+        vi.spyOn(system, 'get').mockReturnValue(ApEnvironment.PRODUCTION)
+
+        const optedOutUser: UserIdentity = {
+            ...mockIdentity,
+            newsLetter: false,
+        }
+
+        const utils = authenticationUtils(mockLog)
+        await utils.saveNewsLetterSubscriber(optedOutUser)
+
+        expect(postSpy).not.toHaveBeenCalled()
+    })
+
+    it('does not send user PII when user consent newsLetter is undefined/unspecified', async () => {
+        const postSpy = vi.spyOn(safeHttp.axios, 'post').mockResolvedValue({} as any)
+        vi.spyOn(system, 'getBoolean').mockReturnValue(true)
+        vi.spyOn(system, 'get').mockReturnValue(ApEnvironment.PRODUCTION)
+
+        const unconfirmedUser: UserIdentity = {
+            ...mockIdentity,
+            newsLetter: undefined as any,
+        }
+
+        const utils = authenticationUtils(mockLog)
+        await utils.saveNewsLetterSubscriber(unconfirmedUser)
+
+        expect(postSpy).not.toHaveBeenCalled()
+    })
+
+    it('does not send user PII when environment is not PRODUCTION even if opt-in is true and user consented', async () => {
         const postSpy = vi.spyOn(safeHttp.axios, 'post').mockResolvedValue({} as any)
         vi.spyOn(system, 'getBoolean').mockReturnValue(true)
         vi.spyOn(system, 'get').mockReturnValue(ApEnvironment.DEVELOPMENT)
@@ -53,7 +91,7 @@ describe('saveNewsLetterSubscriber', () => {
         expect(postSpy).not.toHaveBeenCalled()
     })
 
-    it('routes through safeHttp.axios when UPSTREAM_NEWSLETTER_OPT_IN is explicitly enabled in PRODUCTION', async () => {
+    it('routes through safeHttp.axios when UPSTREAM_NEWSLETTER_OPT_IN is true, PRODUCTION env, and user consented', async () => {
         const postSpy = vi.spyOn(safeHttp.axios, 'post').mockResolvedValue({} as any)
         vi.spyOn(system, 'getBoolean').mockImplementation((prop) => {
             if (prop === AppSystemProp.UPSTREAM_NEWSLETTER_OPT_IN) {
@@ -74,6 +112,7 @@ describe('saveNewsLetterSubscriber', () => {
                 headers: {
                     'Content-Type': 'application/json',
                 },
+                timeout: 5000,
             }),
         )
     })

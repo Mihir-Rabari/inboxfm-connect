@@ -20,6 +20,7 @@ export class ApiClient {
   private token: string | null = null
   private projectId: string | null = null
   private isRedirectingToLogin = false
+  private onUnauthorized: (() => void) | null = null
 
   constructor() {
     // The session token is a 7-day JWT — the account's full credential — so it
@@ -64,6 +65,10 @@ export class ApiClient {
     }
   }
 
+  setOnUnauthorized(handler: (() => void) | null): void {
+    this.onUnauthorized = handler
+  }
+
   resetRedirectState(): void {
     this.isRedirectingToLogin = false
   }
@@ -83,6 +88,14 @@ export class ApiClient {
     this.setProjectId(null)
     if (typeof localStorage !== 'undefined') {
       localStorage.removeItem('ap-user')
+    }
+
+    if (this.onUnauthorized) {
+      try {
+        this.onUnauthorized()
+      } catch {
+        // guard against listener errors
+      }
     }
 
     try {

@@ -117,7 +117,12 @@ export function isolateProcess(log: SandboxLogger, enginePath: string, _codeDire
                 // memory limit at all, so a runaway piece could exhaust the host.
                 // isolate's --mem takes KB, so scale from the configured MB.
                 `--mem=${resourceLimits.memoryLimitMb * 1024}`,
-                `--time=${resourceLimits.timeLimitSeconds}`,
+                // Isolate `--time` enforces cumulative CPU time for the entire lifetime of the
+                // process. Reusable sandboxes execute multiple sequential jobs over the same
+                // process, so a cumulative cap would cause healthy later runs to get SIGKILLed.
+                // Per-execution timeouts are enforced at the application layer; `--time` is only
+                // passed for one-off (non-reusable) sandbox processes.
+                ...(params.reusable ? [] : [`--time=${resourceLimits.timeLimitSeconds}`]),
                 '--chdir=/root',
                 ...envArgs,
                 '--run',

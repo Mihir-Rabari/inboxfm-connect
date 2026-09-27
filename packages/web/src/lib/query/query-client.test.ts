@@ -17,14 +17,14 @@ describe('QueryClient Error Handling & Toast Feedback (Issue #29 / DESIGN_SYSTEM
     queryClient.clear()
   })
 
-  it('triggers sonner toast error when a query with showErrorToast: true fails', async () => {
+  it('triggers sonner toast error when a query with showErrorDialog: true fails', async () => {
     const error = new ApiClientError(500, 'Internal Server Error')
 
     await expect(
       queryClient.fetchQuery({
         queryKey: ['connections-fail-test'],
         queryFn: () => Promise.reject(error),
-        meta: { showErrorToast: true },
+        meta: { showErrorDialog: true },
         retry: false,
       })
     ).rejects.toThrow()
@@ -40,7 +40,7 @@ describe('QueryClient Error Handling & Toast Feedback (Issue #29 / DESIGN_SYSTEM
       queryClient.fetchQuery({
         queryKey: ['fallback-error-test'],
         queryFn: () => Promise.reject(new Error('')),
-        meta: { showErrorToast: true },
+        meta: { showErrorDialog: true },
         retry: false,
       })
     ).rejects.toThrow()
@@ -50,30 +50,14 @@ describe('QueryClient Error Handling & Toast Feedback (Issue #29 / DESIGN_SYSTEM
     })
   })
 
-  it('surfaces errors for the shared showErrorDialog convention', async () => {
-    await expect(
-      queryClient.fetchQuery({
-        queryKey: ['dialog-error-test'],
-        queryFn: () => Promise.reject(new ApiClientError(500, 'Page unavailable')),
-        meta: { showErrorDialog: true },
-        retry: false,
-      })
-    ).rejects.toThrow()
-
-    expect(toast.error).toHaveBeenCalledTimes(1)
-    expect(toast.error).toHaveBeenCalledWith('Query Failed', {
-      description: 'Page unavailable',
-    })
-  })
-
-  it('does NOT trigger sonner toast error when a query explicitly disables showErrorToast', async () => {
+  it('does NOT trigger sonner toast error when a query explicitly disables showErrorDialog', async () => {
     const error = new ApiClientError(500, 'Silent Failure')
 
     await expect(
       queryClient.fetchQuery({
         queryKey: ['silent-fail-test'],
         queryFn: () => Promise.reject(error),
-        meta: { showErrorToast: false },
+        meta: { showErrorDialog: false },
         retry: false,
       })
     ).rejects.toThrow()

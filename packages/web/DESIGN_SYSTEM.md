@@ -81,9 +81,9 @@ Every list view (Connections, Trigger Bindings, Scheduled Tasks, API Keys, Activ
 Per architecture conventions, `packages/web/src/lib/query/query-client.ts` catches query errors:
 
 - **Primary page data queries** (table rows, lists: `useConnectionsQuery`, `useTriggerBindingsQuery`, `useScheduledTasksQuery`, `useExecutionsQuery`, `useProjectApiKeysQuery`, `usePlatformApiKeysQuery`, `useMcpServerQuery`):
-  Include `meta: { showErrorToast: true, showErrorDialog: true }` so failure surfaces a toast and error state. The fork's query cache also accepts `showErrorDialog` alone for compatibility with the shared convention.
+  Include `meta: { showErrorDialog: true }` so failure surfaces a toast and error state. This is the single supported flag (see `AGENTS.md`); `queryMeta` is typed so misspelled flags fail typecheck.
 - **Auxiliary queries** (categories, metadata, single-item lookups):
-  Omit `showErrorToast` so they fail silently or gracefully without alerting modal cascades.
+  Omit `showErrorDialog` so they fail silently or gracefully without alerting modal cascades.
 
 ---
 

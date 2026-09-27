@@ -100,17 +100,25 @@ export const calculateTokensFromString = (string: string, model: string) => {
 export const calculateMessagesTokenSize = async (
   messages: any[],
   model: string
-) => {
+): Promise<number> => {
   let tokenLength = 0;
-  await Promise.all(
-    messages.map((message: any) => {
-      return new Promise((resolve) => {
-        const text = typeof message === 'string' ? message : (message?.content ?? '');
-        tokenLength += calculateTokensFromString(text, model);
-        resolve(tokenLength);
-      });
-    })
-  );
+  for (const message of messages) {
+    let text = '';
+    if (typeof message === 'string') {
+      text = message;
+    } else if (message && typeof message === 'object') {
+      if (typeof message.content === 'string') {
+        text = message.content;
+      } else if (Array.isArray(message.content)) {
+        text = message.content
+          .map((part: any) => (typeof part === 'string' ? part : part?.text ?? ''))
+          .join(' ');
+      } else if (message.content !== undefined && message.content !== null) {
+        text = String(message.content);
+      }
+    }
+    tokenLength += calculateTokensFromString(text, model);
+  }
 
   return tokenLength;
 };
@@ -120,7 +128,11 @@ export const reduceContextSize = async <T = any>(
   model: string,
   maxTokens: number
 ): Promise<T[]> => {
-  // Defensive copy to prevent mutation of the caller's array
+  if (maxTokens <= 0 || messages.length === 0) {
+    return [];
+  }
+
+  // Shallow defensive copy: outer array is copied so caller array is not mutated; message objects are shared.
   let currentMessages = [...messages];
   const targetTokenLimit = maxTokens / 1.5;
 
@@ -132,7 +144,14 @@ export const reduceContextSize = async <T = any>(
     if (currentTokens <= targetTokenLimit) {
       break;
     }
-    const cutoffCount = Math.max(1, Math.round(currentMessages.length * 0.1));
+    let cutoffCount = Math.max(1, Math.round(currentMessages.length * 0.1));
+    // Advance cutoff to the next user message boundary so exchanges stay paired (avoid orphaned leading assistant)
+    while (
+      cutoffCount < currentMessages.length &&
+      (currentMessages[cutoffCount] as any)?.role === 'assistant'
+    ) {
+      cutoffCount++;
+    }
     currentMessages = currentMessages.slice(cutoffCount);
   }
 

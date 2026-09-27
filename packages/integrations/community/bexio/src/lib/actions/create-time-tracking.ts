@@ -6,6 +6,7 @@ import {
 } from '@inboxfm-connect/pieces-framework';
 import { bexioAuth } from '../auth';
 import { BexioClient } from '../common/client';
+import { extractErrorMessage } from '../common';
 
 export const createTimeTrackingAction = createAction({
   auth: bexioAuth,
@@ -95,8 +96,11 @@ export const createTimeTrackingAction = createAction({
               value: status.id,
             })),
           };
-        } catch (error: any) {
-          const reason = error?.message || error?.response?.data?.message || 'Failed to load timesheet statuses';
+        } catch (error: unknown) {
+          const reason = extractErrorMessage(
+            error,
+            'Failed to load timesheet statuses'
+          );
           console.error(
             'Failed to load timesheet statuses from Bexio API (/2.0/timesheet_status):',
             error
@@ -137,8 +141,11 @@ export const createTimeTrackingAction = createAction({
               value: service.id,
             })),
           };
-        } catch (error: any) {
-          const reason = error?.message || error?.response?.data?.message || 'Failed to load client services';
+        } catch (error: unknown) {
+          const reason = extractErrorMessage(
+            error,
+            'Failed to load client services'
+          );
           console.error(
             'Failed to load client services from Bexio API (/2.0/client_service):',
             error

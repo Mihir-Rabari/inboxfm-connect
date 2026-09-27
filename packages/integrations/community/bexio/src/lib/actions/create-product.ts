@@ -5,6 +5,7 @@ import {
 } from '@inboxfm-connect/pieces-framework';
 import { bexioAuth } from '../auth';
 import { BexioClient } from '../common/client';
+import { extractErrorMessage } from '../common';
 import { bexioCommonProps } from '../common/props';
 
 export const createProductAction = createAction({
@@ -344,8 +345,11 @@ export const createProductAction = createAction({
               value: stock.id,
             })),
           };
-        } catch (error: any) {
-          const reason = error?.message || error?.response?.data?.message || 'Failed to load stock locations';
+        } catch (error: unknown) {
+          const reason = extractErrorMessage(
+            error,
+            'Failed to load stock locations'
+          );
           console.error(
             'Failed to load stock locations from Bexio API (/2.0/stock):',
             error
@@ -386,8 +390,11 @@ export const createProductAction = createAction({
               value: place.id,
             })),
           };
-        } catch (error: any) {
-          const reason = error?.message || error?.response?.data?.message || 'Failed to load stock areas';
+        } catch (error: unknown) {
+          const reason = extractErrorMessage(
+            error,
+            'Failed to load stock areas'
+          );
           console.error(
             'Failed to load stock areas from Bexio API (/2.0/stock_place):',
             error
@@ -442,47 +449,10 @@ export const createProductAction = createAction({
       description: 'Delivery price',
       required: false,
     }),
-    article_group_id: Property.Dropdown({
-      auth: bexioAuth,
-      displayName: 'Article Group',
-      description: 'Product group/category',
+    article_group_id: Property.Number({
+      displayName: 'Article Group ID',
+      description: 'Numeric ID of the product group/category',
       required: false,
-      refreshers: [],
-      options: async ({ auth }) => {
-        if (!auth) {
-          return {
-            disabled: true,
-            placeholder: 'Connect your Bexio account first',
-            options: [],
-          };
-        }
-
-        try {
-          const client = new BexioClient(auth);
-          const groups = await client.get<Array<{ id: number; name: string }>>(
-            '/2.0/article_group'
-          );
-
-          return {
-            disabled: false,
-            options: groups.map((group) => ({
-              label: group.name,
-              value: group.id,
-            })),
-          };
-        } catch (error: any) {
-          const reason = error?.message || error?.response?.data?.message || 'Failed to load article groups';
-          console.error(
-            'Failed to load article groups from Bexio API (/2.0/article_group):',
-            error
-          );
-          return {
-            disabled: true,
-            placeholder: `Connection test failed: ${reason}`,
-            options: [],
-          };
-        }
-      },
     }),
     account_id: bexioCommonProps.account({
       displayName: 'Account',

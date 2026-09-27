@@ -10,9 +10,13 @@ const API_RATE_LIMIT_AUTHN_ENABLED = system.getBoolean(
     AppSystemProp.API_RATE_LIMIT_AUTHN_ENABLED,
 )
 
+const API_RATE_LIMIT_SYNC_ENABLED = system.getBoolean(
+    AppSystemProp.API_RATE_LIMIT_SYNC_ENABLED,
+)
+
 export const rateLimitModule: FastifyPluginAsyncZod = FastifyPlugin(
     async (app) => {
-        if (API_RATE_LIMIT_AUTHN_ENABLED) {
+        if (API_RATE_LIMIT_AUTHN_ENABLED || API_RATE_LIMIT_SYNC_ENABLED) {
             await app.register(RateLimitPlugin, {
                 global: false,
                 keyGenerator: (req) => networkUtils.extractClientRealIp(req, system.get(AppSystemProp.CLIENT_REAL_IP_HEADER)),
@@ -35,4 +39,17 @@ export const authAbuseRateLimitOptions: RateLimitOptions = {
         10,
     ),
     timeWindow: system.getOrThrow(AppSystemProp.API_RATE_LIMIT_AUTHN_ABUSE_WINDOW),
+}
+
+// IP-scoped tier for routes that synchronously run piece code or fan out to
+// upstream providers inside the API process — POST /v1/execute, executions
+// list, knowledge-search, and the AI-provider routes. Registering this
+// `config.rateLimit` on a route has no effect when the plugin above isn't
+// registered (AP_API_RATE_LIMIT_SYNC_ENABLED=false), same as the AUTHN tiers.
+export const syncExecutionRateLimitOptions: RateLimitOptions = {
+    max: Number.parseInt(
+        system.getOrThrow(AppSystemProp.API_RATE_LIMIT_SYNC_MAX),
+        10,
+    ),
+    timeWindow: system.getOrThrow(AppSystemProp.API_RATE_LIMIT_SYNC_WINDOW),
 }

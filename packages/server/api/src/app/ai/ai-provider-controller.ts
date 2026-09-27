@@ -43,9 +43,10 @@ const ListAIProviders = {
 }
 
 const GetAIProviderConfig = {
+    // Engine-internal control plane (not user-scriptable): exempt from the
+    // per-IP sync tier so concurrent engine fan-out never shares one budget.
     config: {
         security: securityAccess.engine(),
-        rateLimit: syncExecutionRateLimitOptions,
     },
     schema: {
         params: z.object({

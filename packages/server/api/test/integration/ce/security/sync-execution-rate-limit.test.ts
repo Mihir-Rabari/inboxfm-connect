@@ -61,4 +61,53 @@ describe('Sync-execution rate-limit tier', () => {
         expect(throttled.statusCode).toBe(StatusCodes.TOO_MANY_REQUESTS)
         expect(throttled.headers['retry-after']).toBeDefined()
     })
+
+    it('keeps buckets per IP: a second client stays unthrottled', async () => {
+        const firstIp = '198.51.100.31'
+        const secondIp = '198.51.100.32'
+
+        for (let i = 0; i < SYNC_IP_MAX; i++) {
+            const response = await ctx.inject({
+                method: 'GET',
+                url: '/api/v1/executions',
+                query: { projectId: ctx.project.id },
+                headers: { 'x-real-ip': firstIp },
+            })
+            expect(response.statusCode).toBe(StatusCodes.OK)
+        }
+
+        const throttled = await ctx.inject({
+            method: 'GET',
+            url: '/api/v1/executions',
+            query: { projectId: ctx.project.id },
+            headers: { 'x-real-ip': firstIp },
+        })
+        expect(throttled.statusCode).toBe(StatusCodes.TOO_MANY_REQUESTS)
+
+        const otherClient = await ctx.inject({
+            method: 'GET',
+            url: '/api/v1/executions',
+            query: { projectId: ctx.project.id },
+            headers: { 'x-real-ip': secondIp },
+        })
+        expect(otherClient.statusCode).toBe(StatusCodes.OK)
+    })
+
+    it('keys direct access without the IP header by peer IP instead of failing', async () => {
+        for (let i = 0; i < SYNC_IP_MAX; i++) {
+            const response = await ctx.inject({
+                method: 'GET',
+                url: '/api/v1/executions',
+                query: { projectId: ctx.project.id },
+            })
+            expect(response.statusCode).toBe(StatusCodes.OK)
+        }
+
+        const throttled = await ctx.inject({
+            method: 'GET',
+            url: '/api/v1/executions',
+            query: { projectId: ctx.project.id },
+        })
+        expect(throttled.statusCode).toBe(StatusCodes.TOO_MANY_REQUESTS)
+    })
 })

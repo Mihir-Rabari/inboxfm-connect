@@ -1,4 +1,8 @@
-import { createAction, Property, OAuth2PropertyValue } from '@inboxfm-connect/pieces-framework';
+import {
+  createAction,
+  Property,
+  OAuth2PropertyValue,
+} from '@inboxfm-connect/pieces-framework';
 import { bexioAuth } from '../auth';
 import { BexioClient } from '../common/client';
 import { bexioCommonProps } from '../common/props';
@@ -9,7 +13,11 @@ export const createProductAction = createAction({
   displayName: 'Create Product',
   description: 'Create a new product or service',
   audience: 'both',
-  aiMetadata: { description: 'Create a new Bexio article (a physical product or a service) with internal code and name, plus optional pricing, taxes, unit, currency, supplier, stock, and dimension details. Not idempotent: each call adds a separate article even if the code repeats, so check for an existing product first to avoid duplicates. Stock-item fields require the stock_edit scope.', idempotent: false },
+  aiMetadata: {
+    description:
+      'Create a new Bexio article (a physical product or a service) with internal code and name, plus optional pricing, taxes, unit, currency, supplier, stock, and dimension details. Not idempotent: each call adds a separate article even if the code repeats, so check for an existing product first to avoid duplicates. Stock-item fields require the stock_edit scope.',
+    idempotent: false,
+  },
   props: {
     user_id: Property.Dropdown({
       auth: bexioAuth,
@@ -28,19 +36,22 @@ export const createProductAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          const users = await client.get<Array<{
-            id: number;
-            firstname?: string | null;
-            lastname?: string | null;
-            email: string;
-          }>>('/3.0/users');
+          const users = await client.get<
+            Array<{
+              id: number;
+              firstname?: string | null;
+              lastname?: string | null;
+              email: string;
+            }>
+          >('/3.0/users');
 
           return {
             disabled: false,
             options: users.map((user) => {
-              const name = user.firstname && user.lastname
-                ? `${user.firstname} ${user.lastname}`
-                : user.email;
+              const name =
+                user.firstname && user.lastname
+                  ? `${user.firstname} ${user.lastname}`
+                  : user.email;
               return {
                 label: name,
                 value: user.id,
@@ -84,7 +95,7 @@ export const createProductAction = createAction({
       description: 'Internal product description',
       required: false,
     }),
-    contact_id: Property.Dropdown({ 
+    contact_id: Property.Dropdown({
       auth: bexioAuth,
       displayName: 'Contact',
       description: 'Contact associated with this product',
@@ -101,13 +112,15 @@ export const createProductAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          const contacts = await client.get<Array<{
-            id: number;
-            contact_type_id: number;
-            name_1: string;
-            name_2?: string | null;
-            nr?: string | null;
-          }>>('/2.0/contact');
+          const contacts = await client.get<
+            Array<{
+              id: number;
+              contact_type_id: number;
+              name_1: string;
+              name_2?: string | null;
+              nr?: string | null;
+            }>
+          >('/2.0/contact');
 
           return {
             disabled: false,
@@ -170,7 +183,7 @@ export const createProductAction = createAction({
       displayName: 'Currency',
       required: false,
     }),
-    tax_income_id: Property.Dropdown({  
+    tax_income_id: Property.Dropdown({
       auth: bexioAuth,
       displayName: 'Income Tax',
       description: 'Tax for income/sales',
@@ -187,13 +200,15 @@ export const createProductAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          const taxes = await client.get<Array<{
-            id: number;
-            name: string;
-            value: number;
-            display_name?: string;
-            type?: string;
-          }>>('/3.0/taxes');
+          const taxes = await client.get<
+            Array<{
+              id: number;
+              name: string;
+              value: number;
+              display_name?: string;
+              type?: string;
+            }>
+          >('/3.0/taxes');
 
           return {
             disabled: false,
@@ -230,13 +245,15 @@ export const createProductAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          const taxes = await client.get<Array<{
-            id: number;
-            name: string;
-            value: number;
-            display_name?: string;
-            type?: string;
-          }>>('/3.0/taxes');
+          const taxes = await client.get<
+            Array<{
+              id: number;
+              name: string;
+              value: number;
+              display_name?: string;
+              type?: string;
+            }>
+          >('/3.0/taxes');
 
           return {
             disabled: false,
@@ -273,7 +290,9 @@ export const createProductAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          const units = await client.get<Array<{ id: number; name: string }>>('/2.0/unit');
+          const units = await client.get<Array<{ id: number; name: string }>>(
+            '/2.0/unit'
+          );
 
           return {
             disabled: false,
@@ -314,8 +333,9 @@ export const createProductAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          // TODO: Need to confirm endpoint - assuming /2.0/stock or /2.0/stock_location
-          const stocks = await client.get<Array<{ id: number; name: string }>>('/2.0/stock').catch(() => []);
+          const stocks = await client.get<Array<{ id: number; name: string }>>(
+            '/2.0/stock'
+          );
 
           return {
             disabled: false,
@@ -325,6 +345,10 @@ export const createProductAction = createAction({
             })),
           };
         } catch (error) {
+          console.error(
+            'Failed to load stock locations from Bexio API (/2.0/stock):',
+            error
+          );
           return {
             disabled: true,
             placeholder: 'Failed to load stock locations',
@@ -350,8 +374,9 @@ export const createProductAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          // TODO: Need to confirm endpoint - assuming /2.0/stock_place or /2.0/stock_area
-          const stockPlaces = await client.get<Array<{ id: number; name: string }>>('/2.0/stock_place').catch(() => []);
+          const stockPlaces = await client.get<
+            Array<{ id: number; name: string }>
+          >('/2.0/stock_place');
 
           return {
             disabled: false,
@@ -361,6 +386,10 @@ export const createProductAction = createAction({
             })),
           };
         } catch (error) {
+          console.error(
+            'Failed to load stock areas from Bexio API (/2.0/stock_place):',
+            error
+          );
           return {
             disabled: true,
             placeholder: 'Failed to load stock areas',
@@ -428,8 +457,9 @@ export const createProductAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          // TODO: Need to confirm endpoint - assuming /2.0/article_group
-          const groups = await client.get<Array<{ id: number; name: string }>>('/2.0/article_group').catch(() => []);
+          const groups = await client.get<Array<{ id: number; name: string }>>(
+            '/2.0/article_group'
+          );
 
           return {
             disabled: false,
@@ -439,6 +469,10 @@ export const createProductAction = createAction({
             })),
           };
         } catch (error) {
+          console.error(
+            'Failed to load article groups from Bexio API (/2.0/article_group):',
+            error
+          );
           return {
             disabled: true,
             placeholder: 'Failed to load article groups',
@@ -560,5 +594,3 @@ export const createProductAction = createAction({
     return response;
   },
 });
-
-

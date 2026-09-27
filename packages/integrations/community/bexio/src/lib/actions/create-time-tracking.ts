@@ -1,4 +1,9 @@
-import { createAction, Property, OAuth2PropertyValue, DynamicPropsValue } from '@inboxfm-connect/pieces-framework';
+import {
+  createAction,
+  Property,
+  OAuth2PropertyValue,
+  DynamicPropsValue,
+} from '@inboxfm-connect/pieces-framework';
 import { bexioAuth } from '../auth';
 import { BexioClient } from '../common/client';
 
@@ -8,7 +13,11 @@ export const createTimeTrackingAction = createAction({
   displayName: 'Create Time Tracking',
   description: 'Create a new timesheet entry',
   audience: 'both',
-  aiMetadata: { description: 'Logs a new timesheet entry in Bexio for a user against a client service/business activity, recording time either as a duration on a date or as a from/to range. Use to record worked or billable hours, optionally tying it to a contact, project, or milestone. Requires a user, client service, billable flag, and the tracking details for the chosen mode. Not idempotent: each call creates a separate entry.', idempotent: false },
+  aiMetadata: {
+    description:
+      'Logs a new timesheet entry in Bexio for a user against a client service/business activity, recording time either as a duration on a date or as a from/to range. Use to record worked or billable hours, optionally tying it to a contact, project, or milestone. Requires a user, client service, billable flag, and the tracking details for the chosen mode. Not idempotent: each call creates a separate entry.',
+    idempotent: false,
+  },
   props: {
     user_id: Property.Dropdown({
       auth: bexioAuth,
@@ -25,21 +34,24 @@ export const createTimeTrackingAction = createAction({
           };
         }
 
-        try { 
+        try {
           const client = new BexioClient(auth);
-          const users = await client.get<Array<{
-            id: number;
-            firstname?: string | null;
-            lastname?: string | null;
-            email: string;
-          }>>('/3.0/users');
+          const users = await client.get<
+            Array<{
+              id: number;
+              firstname?: string | null;
+              lastname?: string | null;
+              email: string;
+            }>
+          >('/3.0/users');
 
           return {
             disabled: false,
             options: users.map((user) => {
-              const name = user.firstname && user.lastname
-                ? `${user.firstname} ${user.lastname}`
-                : user.email;
+              const name =
+                user.firstname && user.lastname
+                  ? `${user.firstname} ${user.lastname}`
+                  : user.email;
               return {
                 label: name,
                 value: user.id,
@@ -72,8 +84,9 @@ export const createTimeTrackingAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          // TODO: Need to confirm endpoint - assuming /2.0/timesheet_status
-          const statuses = await client.get<Array<{ id: number; name: string }>>('/2.0/timesheet_status').catch(() => []);
+          const statuses = await client.get<
+            Array<{ id: number; name: string }>
+          >('/2.0/timesheet_status');
 
           return {
             disabled: false,
@@ -83,6 +96,10 @@ export const createTimeTrackingAction = createAction({
             })),
           };
         } catch (error) {
+          console.error(
+            'Failed to load timesheet statuses from Bexio API (/2.0/timesheet_status):',
+            error
+          );
           return {
             disabled: true,
             placeholder: 'Failed to load timesheet statuses',
@@ -108,8 +125,9 @@ export const createTimeTrackingAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          // TODO: Need to confirm endpoint - assuming /2.0/client_service
-          const services = await client.get<Array<{ id: number; name: string }>>('/2.0/client_service').catch(() => []);
+          const services = await client.get<
+            Array<{ id: number; name: string }>
+          >('/2.0/client_service');
 
           return {
             disabled: false,
@@ -119,6 +137,10 @@ export const createTimeTrackingAction = createAction({
             })),
           };
         } catch (error) {
+          console.error(
+            'Failed to load client services from Bexio API (/2.0/client_service):',
+            error
+          );
           return {
             disabled: true,
             placeholder: 'Failed to load client services',
@@ -160,13 +182,15 @@ export const createTimeTrackingAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          const contacts = await client.get<Array<{
-            id: number;
-            contact_type_id: number;
-            name_1: string;
-            name_2?: string | null;
-            nr?: string | null;
-          }>>('/2.0/contact');
+          const contacts = await client.get<
+            Array<{
+              id: number;
+              contact_type_id: number;
+              name_1: string;
+              name_2?: string | null;
+              nr?: string | null;
+            }>
+          >('/2.0/contact');
 
           return {
             disabled: false,
@@ -207,13 +231,15 @@ export const createTimeTrackingAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          const contacts = await client.get<Array<{
-            id: number;
-            contact_type_id: number;
-            name_1: string;
-            name_2?: string | null;
-            nr?: string | null;
-          }>>('/2.0/contact');
+          const contacts = await client.get<
+            Array<{
+              id: number;
+              contact_type_id: number;
+              name_1: string;
+              name_2?: string | null;
+              nr?: string | null;
+            }>
+          >('/2.0/contact');
 
           return {
             disabled: false,
@@ -254,16 +280,20 @@ export const createTimeTrackingAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          const projects = await client.get<Array<{
-            id: number;
-            name: string;
-            nr?: string;
-          }>>('/2.0/pr_project');
+          const projects = await client.get<
+            Array<{
+              id: number;
+              name: string;
+              nr?: string;
+            }>
+          >('/2.0/pr_project');
 
           return {
             disabled: false,
             options: projects.map((project) => ({
-              label: project.nr ? `${project.name} (#${project.nr})` : project.name,
+              label: project.nr
+                ? `${project.name} (#${project.nr})`
+                : project.name,
               value: project.id,
             })),
           };
@@ -305,7 +335,7 @@ export const createTimeTrackingAction = createAction({
       },
     }),
     tracking_details: Property.DynamicProperties({
-      auth: bexioAuth,  
+      auth: bexioAuth,
       displayName: 'Tracking Details',
       description: 'Time tracking details',
       required: true,
@@ -415,5 +445,3 @@ export const createTimeTrackingAction = createAction({
     return response;
   },
 });
-
-

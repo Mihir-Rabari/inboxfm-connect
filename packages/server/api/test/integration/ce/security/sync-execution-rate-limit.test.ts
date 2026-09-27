@@ -2,16 +2,18 @@ import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { redisConnections } from '../../../../src/app/database/redis-connections'
+import { system } from '../../../../src/app/helper/system/system'
+import { AppSystemProp } from '../../../../src/app/helper/system/system-props'
 import { createTestContext, TestContext } from '../../../helpers/test-context'
 import { setupTestEnvironment, teardownTestEnvironment } from '../../../helpers/test-setup'
 
 let app: FastifyInstance | null = null
 
-// Mirrors the production default AP_API_RATE_LIMIT_SYNC_MAX (see system.ts).
-// Read eagerly at module load time (core/security/rate-limit.ts), so the test
-// exercises the real default rather than mocking a lower threshold — same
-// caveat as the auth abuse-protection test.
-const SYNC_IP_MAX = 60
+// Tracks the configured AP_API_RATE_LIMIT_SYNC_MAX (default 60, see system.ts)
+// instead of hardcoding it, so an overridden limit exercises the right
+// threshold. The tier itself is still read eagerly at module load time
+// (core/security/rate-limit.ts) from the same process env, so both agree.
+const SYNC_IP_MAX = Number.parseInt(system.getOrThrow(AppSystemProp.API_RATE_LIMIT_SYNC_MAX), 10)
 
 beforeAll(async () => {
     app = await setupTestEnvironment({ fresh: true })

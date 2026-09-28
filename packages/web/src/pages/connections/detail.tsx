@@ -13,7 +13,6 @@ import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ApiClientError } from '@/lib/api/client'
 import { useConnection, useDeleteConnection, useIntegration, useTestConnection } from '@/lib/query/hooks'
-import { cn } from '@/lib/utils/cn'
 import { connectionLinks } from '@/lib/utils/connection-links'
 import { connectionFormat } from '@/lib/utils/connection-format'
 
@@ -197,7 +196,7 @@ export default function ConnectionDetailPage() {
             <DetailRow label="Created">{formatDate(connection.created)}</DetailRow>
             <DetailRow label="Updated">{formatDate(connection.updated)}</DetailRow>
             <DetailRow label="Last Tested">
-              {connection.metadata?.lastTestedAt ? (
+              {connection.metadata?.lastTestedAt && (connection.metadata.lastTestResult === 'PASS' || connection.metadata.lastTestResult === 'FAIL') ? (
                 <div className="inline-flex items-center gap-2">
                   <span>{formatDate(String(connection.metadata.lastTestedAt))}</span>
                   <Badge
@@ -208,6 +207,8 @@ export default function ConnectionDetailPage() {
                     {connection.metadata.lastTestResult === 'PASS' ? 'Passed' : 'Failed'}
                   </Badge>
                 </div>
+              ) : connection.metadata?.lastTestedAt ? (
+                <span>{formatDate(String(connection.metadata.lastTestedAt))}</span>
               ) : (
                 <span className="text-muted-foreground">Not tested yet</span>
               )}

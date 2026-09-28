@@ -283,4 +283,39 @@ describe('Connection detail page', () => {
     expect(container.textContent).toContain('Failed')
     expect(container.textContent).toContain('OAuth token refresh failed: invalid_grant')
   }, 15000)
+
+  it('renders timestamp without an erroneous Failed badge when metadata has lastTestedAt without lastTestResult', async () => {
+    global.fetch = vi.fn(async (input: RequestInfo | URL): Promise<Response> => {
+      const raw = String(input)
+      if (raw.includes('/connections/conn_1')) {
+        const conn = githubConnection('conn_1', 'Mihir GitHub')
+        conn.metadata = {
+          lastTestedAt: '2026-09-28T01:00:00.000Z',
+        }
+        return new Response(JSON.stringify(conn), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        })
+      }
+      if (raw.includes('/integrations/github')) {
+        return new Response(
+          JSON.stringify({
+            name: 'github',
+            displayName: 'GitHub',
+            logoUrl: '',
+            auth: { type: 'OAUTH2' },
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      return new Response(JSON.stringify({ message: 'unhandled' }), { status: 404 })
+    })
+
+    const container = renderDetail('conn_1')
+    await waitFor(() => container.textContent?.includes('Mihir GitHub') === true)
+
+    expect(container.textContent).not.toContain('Not tested yet')
+    expect(container.textContent).not.toContain('Failed')
+    expect(container.textContent).not.toContain('Passed')
+  }, 15000)
 })

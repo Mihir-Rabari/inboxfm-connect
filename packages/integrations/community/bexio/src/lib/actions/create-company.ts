@@ -1,6 +1,7 @@
 import { createAction, Property, OAuth2PropertyValue } from '@inboxfm-connect/pieces-framework';
 import { bexioAuth } from '../auth';
 import { BexioClient } from '../common/client';
+import { getLogger } from '@inboxfm-connect/server-utils';
 
 export const createCompanyAction = createAction({
   auth: bexioAuth,
@@ -51,9 +52,11 @@ export const createCompanyAction = createAction({
             })),
           };
         } catch (error) {
+          const log = getLogger('[bexio:create-company:salutation]');
+          log.error({ error }, 'Failed to load salutations');
           return {
             disabled: true,
-            placeholder: 'Failed to load salutations',
+            placeholder: 'Failed to load salutations. Check your Bexio connection.',
             options: [],
           };
         }
@@ -86,10 +89,14 @@ export const createCompanyAction = createAction({
             })),
           };
         } catch (error) {
+          const log = getLogger('[bexio:create-company:title]');
+          log.error({ error }, 'Failed to load titles');
           return {
             disabled: true,
-            placeholder: 'Failed to load titles',
+            placeholder: 'Failed to load titles. Check your Bexio connection.',
             options: [],
+          };
+        }
           };
         }
       },
@@ -146,9 +153,11 @@ export const createCompanyAction = createAction({
             })),
           };
         } catch (error) {
+          const log = getLogger('[bexio:create-company:country]');
+          log.error({ error }, 'Failed to load countries');
           return {
             disabled: true,
-            placeholder: 'Failed to load countries',
+            placeholder: 'Failed to load countries. Check your Bexio connection.',
             options: [],
           };
         }
@@ -226,9 +235,11 @@ export const createCompanyAction = createAction({
             })),
           };
         } catch (error) {
+          const log = getLogger('[bexio:create-company:language]');
+          log.error({ error }, 'Failed to load languages');
           return {
             disabled: true,
-            placeholder: 'Failed to load languages',
+            placeholder: 'Failed to load languages. Check your Bexio connection.',
             options: [],
           };
         }
@@ -261,9 +272,11 @@ export const createCompanyAction = createAction({
             })),
           };
         } catch (error) {
+          const log = getLogger('[bexio:create-company:contact_group]');
+          log.error({ error }, 'Failed to load contact groups');
           return {
             disabled: true,
-            placeholder: 'Failed to load contact groups',
+            placeholder: 'Failed to load contact groups. Check your Bexio connection.',
             options: [],
           };
         }
@@ -295,10 +308,12 @@ export const createCompanyAction = createAction({
               value: branch.id.toString(),
             })),
           };
-        } catch (error) {
+} catch (error) {
+          const log = getLogger('[bexio:create-company:user]');
+          log.error({ error }, 'Failed to load users');
           return {
             disabled: true,
-            placeholder: 'Failed to load contact sectors',
+            placeholder: 'Failed to load users. Check your Bexio connection.',
             options: [],
           };
         }
@@ -331,9 +346,11 @@ export const createCompanyAction = createAction({
             })),
           };
         } catch (error) {
+          const log = getLogger('[bexio:create-company:user]');
+          log.error({ error }, 'Failed to load users');
           return {
             disabled: true,
-            placeholder: 'Failed to load users',
+            placeholder: 'Failed to load users. Check your Bexio connection.',
             options: [],
           };
         }
@@ -366,9 +383,11 @@ export const createCompanyAction = createAction({
             })),
           };
         } catch (error) {
+          const log = getLogger('[bexio:create-company:owner]');
+          log.error({ error }, 'Failed to load users');
           return {
             disabled: true,
-            placeholder: 'Failed to load users',
+            placeholder: 'Failed to load users. Check your Bexio connection.',
             options: [],
           };
         }

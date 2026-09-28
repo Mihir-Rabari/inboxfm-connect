@@ -15,7 +15,7 @@ if [ -z "$AP_WORKER_TOKEN" ] && [ -n "$AP_JWT_SECRET" ]; then
         const token = jwt.sign(
             { id: crypto.randomUUID(), type: 'WORKER' },
             process.env.AP_JWT_SECRET,
-            { expiresIn: '100y', keyid: '1', algorithm: 'HS256', issuer: 'inboxfm-connect' }
+            { expiresIn: '100y', keyid: '1', algorithm: 'HS256', issuer: 'activepieces' }
         );
         process.stdout.write(token);
     ")
@@ -27,7 +27,7 @@ APPS=""
 if [ "$AP_CONTAINER_TYPE" = "APP" ] || [ "$AP_CONTAINER_TYPE" = "WORKER_AND_APP" ]; then
     APPS="${APPS}
     {
-        name: 'inboxfm-connect-app',
+        name: 'activepieces-app',
         script: 'packages/server/api/dist/src/bootstrap.js',
         node_args: '--enable-source-maps',
         instances: 1,
@@ -39,7 +39,7 @@ fi
 if [ "$AP_CONTAINER_TYPE" = "WORKER" ] || [ "$AP_CONTAINER_TYPE" = "WORKER_AND_APP" ]; then
     APPS="${APPS}
     {
-        name: 'inboxfm-connect-worker',
+        name: 'activepieces-worker',
         script: 'packages/server/worker/dist/src/bootstrap.js',
         node_args: '--enable-source-maps',
         instances: 1,

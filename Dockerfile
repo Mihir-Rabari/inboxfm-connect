@@ -158,7 +158,7 @@ RUN --mount=type=cache,target=/root/.bun/install/cache \
 # Copy frontend files
 COPY --from=build /usr/src/app/dist/packages/web ./dist/packages/web/
 
-LABEL service=inboxfm-connect
+LABEL service=activepieces
 
 # WORKER containers have no HTTP server; treat them as healthy (probe only the app).
 HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=5 \

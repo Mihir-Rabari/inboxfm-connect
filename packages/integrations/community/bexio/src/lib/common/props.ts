@@ -2,7 +2,6 @@ import { Property, OAuth2PropertyValue } from '@inboxfm-connect/pieces-framework
 import { BexioClient } from './client';
 import { BexioAccount, BexioTax, BexioCurrency } from './types';
 import { bexioAuth } from '../auth';
-import { getLogger } from '@inboxfm-connect/server-utils';
 
 export const bexioCommonProps = {
   account: (options: {
@@ -36,15 +35,13 @@ export const bexioCommonProps = {
               value: account.id,
             })),
           };
-} catch (error) {
-        const log = getLogger('[bexio:props:account]');
-        log.error({ error }, 'Failed to load accounts');
-        return {
-          disabled: true,
-          placeholder: 'Failed to load accounts. Check your Bexio connection and API permissions.',
-          options: [],
-        };
-      }
+        } catch (error) {
+          return {
+            disabled: true,
+            placeholder: 'Failed to load accounts',
+            options: [],
+          };
+        }
       },
     });
   },
@@ -76,11 +73,9 @@ export const bexioCommonProps = {
           })),
         };
       } catch (error) {
-        const log = getLogger('[bexio:props:tax]');
-        log.error({ error }, 'Failed to load taxes');
         return {
           disabled: true,
-          placeholder: 'Failed to load taxes. Check your Bexio connection and API permissions.',
+          placeholder: 'Failed to load taxes',
           options: [],
         };
       }
@@ -118,15 +113,13 @@ export const bexioCommonProps = {
               value: currency.id,
             })),
           };
-} catch (error) {
-        const log = getLogger('[bexio:props:currency]');
-        log.error({ error }, 'Failed to load currencies');
-        return {
-          disabled: true,
-          placeholder: 'Failed to load currencies. Check your Bexio connection and API permissions.',
-          options: [],
-        };
-      }
+        } catch (error) {
+          return {
+            disabled: true,
+            placeholder: 'Failed to load currencies',
+            options: [],
+          };
+        }
       },
     });
   },

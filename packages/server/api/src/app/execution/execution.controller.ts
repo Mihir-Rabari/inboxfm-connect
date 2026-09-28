@@ -6,7 +6,6 @@ import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { ProjectResourceType, ProjectTableResource } from '../core/security/authorization/common'
 import { securityAccess } from '../core/security/authorization/fastify-security'
-import { syncExecutionRateLimitOptions } from '../core/security/rate-limit'
 import { securityHelper } from '../helper/security-helper'
 import { ExecutionEntity } from './execution-entity'
 import { executionEventService } from './execution-event.service'
@@ -253,7 +252,6 @@ const ListExecutionsOptions = {
             Permission.READ_RUN,
             { type: ProjectResourceType.QUERY },
         ),
-        rateLimit: syncExecutionRateLimitOptions,
     },
     schema: {
         tags: ['executions'],

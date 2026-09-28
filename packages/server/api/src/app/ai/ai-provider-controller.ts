@@ -4,7 +4,6 @@ import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
 import { securityAccess } from '../core/security/authorization/fastify-security'
-import { syncExecutionRateLimitOptions } from '../core/security/rate-limit'
 import { aiProviderService } from './ai-provider-service'
 
 export const aiProviderController: FastifyPluginAsyncZod = async (app) => {
@@ -38,13 +37,10 @@ export const aiProviderController: FastifyPluginAsyncZod = async (app) => {
 const ListAIProviders = {
     config: {
         security: securityAccess.publicPlatform([PrincipalType.USER, PrincipalType.ENGINE]),
-        rateLimit: syncExecutionRateLimitOptions,
     },
 }
 
 const GetAIProviderConfig = {
-    // Engine-internal control plane (not user-scriptable): exempt from the
-    // per-IP sync tier so concurrent engine fan-out never shares one budget.
     config: {
         security: securityAccess.engine(),
     },
@@ -58,7 +54,6 @@ const GetAIProviderConfig = {
 const ListModels = {
     config: {
         security: securityAccess.publicPlatform([PrincipalType.USER, PrincipalType.ENGINE]),
-        rateLimit: syncExecutionRateLimitOptions,
     },
     schema: {
         params: z.object({
@@ -73,7 +68,6 @@ const ListModels = {
 const CreateAIProvider = {
     config: {
         security: securityAccess.publicPlatform([PrincipalType.USER]),
-        rateLimit: syncExecutionRateLimitOptions,
     },
     schema: {
         body: CreateAIProviderRequest,
@@ -83,7 +77,6 @@ const CreateAIProvider = {
 const UpdateAIProvider = {
     config: {
         security: securityAccess.publicPlatform([PrincipalType.USER]),
-        rateLimit: syncExecutionRateLimitOptions,
     },
     schema: {
         params: z.object({
@@ -96,7 +89,6 @@ const UpdateAIProvider = {
 const DeleteAIProvider = {
     config: {
         security: securityAccess.publicPlatform([PrincipalType.USER]),
-        rateLimit: syncExecutionRateLimitOptions,
     },
     schema: {
         params: z.object({

@@ -12,9 +12,26 @@ import { CellEntity } from './cell.entity'
 import { RecordEntity, RecordSchema } from './record.entity'
 
 const MAX_BATCH_SIZE = 50
+const DEFAULT_LIMIT = 10
+const MAX_LIMIT = 100
 
 const recordRepo = repoFactory(RecordEntity)
 const cellsRepo = repoFactory(CellEntity)
+
+function decodeCursor(cursor: string | null): { created: string; id: string } | null {
+    if (!cursor) return null
+    try {
+        const decoded = Buffer.from(cursor, 'base64').toString('utf-8')
+        const [created, id] = decoded.split('|')
+        return { created, id }
+    } catch {
+        return null
+    }
+}
+
+function encodeCursor(created: string, id: string): string {
+    return Buffer.from(`${created}|${id}`, 'utf-8').toString('base64')
+}
 
 export const recordService = {
     async create({
@@ -68,60 +85,128 @@ export const recordService = {
         tableId,
         projectId,
         filters,
-        limit,
-        fields: prefetchedFields,
+        limit = DEFAULT_LIMIT,
+        cursor,
     }: ListParams): Promise<SeekPage<PopulatedRecord>> {
-        const fields = prefetchedFields ?? await fieldService.getAll({
+        const fields = await fieldService.getAll({
             tableId,
             projectId,
         })
-        const records = await recordRepo().find({
-            where: {
-                projectId,
-                tableId,
-            },
-            order: {
-                created: 'ASC',
-            },
-        })
+        
+        const take = Math.min(Math.max(limit, 1), MAX_LIMIT) + 1 // take one extra to determine if there's a next page
+        const decodedCursor = decodeCursor(cursor)
 
-        const cells = await cellsRepo().find({
-            where: {
-                projectId,
-                fieldId: In(fields.map((field) => field.id)),
-                recordId: In(records.map((record) => record.id)),
-            },
-        })
-        const cellsByRecordId = new Map<string, typeof cells>()
+        // Build where clause for records
+        const recordWhere: any = {
+            projectId,
+            tableId,
+        }
+
+        // Apply cursor pagination
+        if (decodedCursor) {
+            recordWhere._and = [
+                {
+                    created: decodedCursor.created,
+                    id: MoreThan(decodedCursor.id)
+                },
+                {
+                    created: MoreThan(decodedCursor.created)
+                }
+            ]
+        }
+
+        // Get records with pagination and basic filtering that can be done at DB level
+        const recordsQuery = recordRepo()
+            .createQueryBuilder('record')
+            .where('record.projectId = :projectId', { projectId })
+            .andWhere('record.tableId = :tableId', { tableId })
+
+        // Apply cursor conditions
+        if (decodedCursor) {
+            recordsQuery.andWhere(
+                '(record.created > :cursorCreated OR (record.created = :cursorCreated AND record.id > :cursorId))',
+                { cursorCreated: decodedCursor.created, cursorId: decodedCursor.id }
+            )
+        }
+
+        // Order by created ASC, id ASC for consistent pagination
+        recordsQuery.orderBy('record.created', 'ASC').addOrderBy('record.id', 'ASC').limit(take)
+
+        const records = await recordsQuery.getMany()
+
+        // Apply filters that require checking cell values (need to be done in memory after fetching cells)
+        // For now, we'll fetch all cells for these records and filter in memory
+        // In a more advanced implementation, we could push some filters to the DB
+        const recordIds = records.map(record => record.id)
+        let cells: CellEntity[] = []
+        if (recordIds.length > 0) {
+            cells = await cellsRepo().find({
+                where: {
+                    projectId,
+                    fieldId: In(fields.map(field => field.id)),
+                    recordId: In(recordIds),
+                },
+            })
+        }
+
+        // Group cells by recordId
+        const cellsByRecordId = new Map<string, CellEntity[]>()
         for (const cell of cells) {
             const group = cellsByRecordId.get(cell.recordId)
             if (group) {
                 group.push(cell)
-            }
-            else {
+            } else {
                 cellsByRecordId.set(cell.recordId, [cell])
             }
         }
+
+        // Attach cells to records
         for (const record of records) {
             record.cells = cellsByRecordId.get(record.id) ?? []
         }
-        const filteredOutRecords = records.filter((record) => {
+
+        // Apply filters in memory (those that couldn't be pushed to DB)
+        const filteredRecords = records.filter(record => {
             if (!filters || filters.length === 0) {
                 return true
             }
-            return filters.every((filter) => {
-                const cell = record.cells.find(c => c.fieldId === filter.fieldId)
-                    ?? { fieldId: filter.fieldId, value: '' }
+            return filters.every(filter => {
+                const cell = record.cells.find(c => c.fieldId === filter.fieldId) ?? { fieldId: filter.fieldId, value: '' }
                 return doesCellValueMatchFilters(cell, [filter])
             })
         })
 
-        const populatedRecords = await formatRecordsAndFetchField({ records: filteredOutRecords, tableId, projectId, fields })
+        // Format the records
+        const populatedRecords = await formatRecordsAndFetchField({ 
+            records: filteredRecords, 
+            tableId, 
+            projectId, 
+            fields 
+        })
+
+        // Prepare pagination response
+        let next: string | null = null
+        let previous: string | null = null
+
+        // If we have more records than the limit, we have a next page
+        if (populatedRecords.length > limit) {
+            const lastRecord = populatedRecords[limit - 1] // The last record that would be in the current page
+            next = encodeCursor(lastRecord.created, lastRecord.id)
+            // Remove the extra record we fetched
+            populatedRecords.splice(limit, populatedRecords.length - limit)
+        }
+
+        // Set previous cursor if we had a cursor in the request (for backwards pagination)
+        if (cursor) {
+            // For simplicity, we'll set previous to the current cursor
+            // A more sophisticated implementation would calculate the actual previous page cursor
+            previous = cursor
+        }
 
         return {
-            data: populatedRecords.slice(0, limit),
-            next: null,
-            previous: null,
+            data: populatedRecords,
+            next,
+            previous,
         }
     },
 
@@ -365,6 +450,8 @@ type CountParams = {
     tableId: string
 }
 
+import { MoreThan } from 'typeorm'
+
 type RecordInsertion = {
     id: string
     tableId: string
@@ -431,7 +518,7 @@ function formatRecords(records: RecordSchema[], fields: Field[]): PopulatedRecor
     return records.map((record) => {
         const cells = record.cells.reduce<PopulatedRecord['cells']>((acc, cell) => {
             acc[cell.fieldId] = {
-                fieldName: fieldsNamesMap[cell.fieldId],
+                fieldName: fieldNamesMap[cell.fieldId],
                 value: cell.value,
                 updated: cell.updated,
                 created: cell.created,
@@ -510,5 +597,3 @@ const numberFilterValidator = ({ cellValue, filterValue, cb }: { cellValue: unkn
     }
     return false
 }
-
-

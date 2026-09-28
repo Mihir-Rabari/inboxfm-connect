@@ -7,8 +7,25 @@ import {
     RefreshOAuth2Request,
 } from '../../app-connection/app-connection-service/oauth2/oauth2-service'
 import { credentialsOauth2Service } from '../../app-connection/app-connection-service/oauth2/services/credentials-oauth2-service'
+import { connectOAuthAppService } from '../../connect-oauth-apps/connect-oauth-app.service'
 import { pieceMetadataService } from '../../pieces/metadata/piece-metadata-service'
 import { oauthAppService } from '../oauth-apps/oauth-app.service'
+
+async function resolveOAuthApp({ platformId, pieceName, clientId }: { platformId: string, pieceName: string, clientId?: string }): Promise<{ clientId: string, clientSecret: string }> {
+    try {
+        return await oauthAppService.getWithSecret({
+            pieceName,
+            clientId,
+            platformId,
+        })
+    }
+    catch {
+        return connectOAuthAppService.getWithSecretOrThrow({
+            platformId,
+            pieceName,
+        })
+    }
+}
 
 export const platformOAuth2Service = (log: FastifyBaseLogger) => ({
     claim: async ({
@@ -39,7 +56,7 @@ export const platformOAuth2Service = (log: FastifyBaseLogger) => ({
                 },
             })
         }
-        const oauth2App = await oauthAppService.getWithSecret({
+        const oauth2App = await resolveOAuthApp({
             pieceName,
             clientId: request.clientId,
             platformId,
@@ -66,7 +83,7 @@ export const platformOAuth2Service = (log: FastifyBaseLogger) => ({
         platformId,
         connectionValue,
     }: RefreshOAuth2Request<PlatformOAuth2ConnectionValue>): Promise<PlatformOAuth2ConnectionValue> => {
-        const oauth2App = await oauthAppService.getWithSecret({
+        const oauth2App = await resolveOAuthApp({
             pieceName,
             clientId: connectionValue.client_id,
             platformId,

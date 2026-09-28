@@ -52,10 +52,21 @@ export const connectSessionService = {
 
     // Called only after the connection was successfully created, so the token is
     // single-use exactly once a connection actually exists.
+    // Uses an atomic conditional update to guarantee exactly-once consumption under concurrency.
     async markConsumed(id: string): Promise<void> {
-        await repo().update(id, {
-            consumedAt: new Date().toISOString(),
-        })
+        const rows = await repo().query(
+            'UPDATE "connect_session" SET "consumedAt" = $1 WHERE "id" = $2 AND "consumedAt" IS NULL RETURNING id',
+            [new Date().toISOString(), id],
+        )
+        const updatedRows = Array.isArray(rows?.[0]) ? rows[0] : (Array.isArray(rows) ? rows : [])
+        if (updatedRows.length === 0) {
+            throw new ActivepiecesError({
+                code: ErrorCode.SESSION_EXPIRED,
+                params: {
+                    message: 'Connect session has already been used',
+                },
+            })
+        }
     },
 }
 

@@ -17,7 +17,7 @@ import { AppSystemProp } from '../helper/system/system-props'
 // request.log — they get the same structured root logger the request hook builds.
 const runtimeLog = apLogger.create({ bindings: {} })
 
-const runtime = new HeadlessRuntime<AppConnectionSchema>({
+export const executeRuntime = new HeadlessRuntime<AppConnectionSchema>({
     basePath: process.cwd(),
     log: runtimeLog,
     getSettings: () => ({
@@ -70,7 +70,7 @@ export const executeController: FastifyPluginAsyncZod = async (fastify) => {
             pieceName: request.body.integration,
         })
 
-        const { data, error } = await tryCatch(() => runtime.execute({
+        const { data, error } = await tryCatch(() => executeRuntime.execute({
             integration: request.body.integration,
             tool: request.body.tool,
             connectionId,
@@ -94,7 +94,37 @@ export const executeController: FastifyPluginAsyncZod = async (fastify) => {
 
 async function resolveConnectionId({ projectId, connectionId, externalUserId, pieceName }: ResolveConnectionIdParams): Promise<string> {
     if (!isNil(connectionId)) {
-        return connectionId
+        const connection = await appConnectionsRepo().findOneBy({
+            id: connectionId,
+            projectIds: ArrayContains([projectId]),
+        })
+        if (isNil(connection)) {
+            throw new ActivepiecesError({
+                code: ErrorCode.ENTITY_NOT_FOUND,
+                params: {
+                    entityType: 'app_connection',
+                    message: `Connection "${connectionId}" not found in project`,
+                },
+            })
+        }
+        if (!isNil(externalUserId) && connection.externalId !== externalUserId) {
+            throw new ActivepiecesError({
+                code: ErrorCode.ENTITY_NOT_FOUND,
+                params: {
+                    entityType: 'app_connection',
+                    message: `Connection "${connectionId}" does not belong to externalUserId "${externalUserId}"`,
+                },
+            })
+        }
+        if (connection.pieceName !== pieceName) {
+            throw new ActivepiecesError({
+                code: ErrorCode.INVALID_APP_CONNECTION,
+                params: {
+                    error: `Connection "${connectionId}" is for piece "${connection.pieceName}", not "${pieceName}"`,
+                },
+            })
+        }
+        return connection.id
     }
     if (isNil(externalUserId)) {
         throw new ActivepiecesError({

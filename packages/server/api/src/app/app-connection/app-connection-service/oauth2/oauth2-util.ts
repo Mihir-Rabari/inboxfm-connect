@@ -187,12 +187,13 @@ type OAuth2TokenUrlParams = {
     props?: Record<string, unknown>
 }
 
-const resolveSelectedScopes = (requested: string[] | undefined, allowed: string[]): string[] => {
+const resolveSelectedScopes = (requested: string[] | undefined, allowed: string[] | undefined): string[] => {
+    const allowedList = allowed ?? []
     if (requested === undefined) {
-        return allowed
+        return allowedList
     }
-    const allowedSet = new Set(allowed)
-    const invalid = requested.filter(scope => !allowedSet.has(scope))
+    const allowedSet = new Set(allowedList)
+    const invalid = allowedList.length > 0 ? requested.filter(scope => !allowedSet.has(scope)) : []
     if (invalid.length > 0) {
         throw new ActivepiecesError({
             code: ErrorCode.INVALID_APP_CONNECTION,

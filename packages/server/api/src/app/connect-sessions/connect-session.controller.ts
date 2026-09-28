@@ -14,7 +14,7 @@ import {
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
-import { appConnectionService } from '../app-connection/app-connection-service/app-connection-service'
+import { appConnectionService, appConnectionsRepo } from '../app-connection/app-connection-service/app-connection-service'
 import { oauth2Util } from '../app-connection/app-connection-service/oauth2/oauth2-util'
 import { connectOAuthAppService } from '../connect-oauth-apps/connect-oauth-app.service'
 import { ProjectResourceType } from '../core/security/authorization/common'
@@ -110,7 +110,13 @@ export const connectSessionPublicController: FastifyPluginAsyncZod = async (app)
             type: req.body.type,
             value,
         })
-        await connectSessionService.markConsumed(session.id)
+        try {
+            await connectSessionService.markConsumed(session.id)
+        }
+        catch (err) {
+            await appConnectionsRepo().delete({ id: connection.id })
+            throw err
+        }
 
         return res.status(StatusCodes.CREATED).send(connection)
     })

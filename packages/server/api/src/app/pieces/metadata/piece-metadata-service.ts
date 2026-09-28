@@ -403,12 +403,13 @@ async function fetchPieceVersion({ pieceName, version, platformId, log }: FetchP
         return devPiece
     }
 
-    const whereConditions = [
-        { name: pieceName, platformId: platformId ?? IsNull() },
-        { name: `@inboxfm-connect/piece-${cleanName}`, platformId: platformId ?? IsNull() },
-        { name: `@activepieces/piece-${cleanName}`, platformId: platformId ?? IsNull() },
-        { name: cleanName, platformId: platformId ?? IsNull() },
-    ].map((cond) => (isNil(version) ? cond : { ...cond, version }))
+    const platformConditions = isNil(platformId) ? [IsNull()] : [platformId, IsNull()]
+    const whereConditions = platformConditions.flatMap((pId) => [
+        { name: pieceName, platformId: pId },
+        { name: `@inboxfm-connect/piece-${cleanName}`, platformId: pId },
+        { name: `@activepieces/piece-${cleanName}`, platformId: pId },
+        { name: cleanName, platformId: pId },
+    ]).map((cond) => (isNil(version) ? cond : { ...cond, version }))
 
     const foundPiece = await pieceRepos().findOne({
         where: whereConditions,

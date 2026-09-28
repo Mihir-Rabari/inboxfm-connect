@@ -310,3 +310,56 @@ describe('Settings page', () => {
     expect(container.textContent?.includes('Manage in Stripe')).toBe(false)
   })
 })
+
+describe('Settings page neutral empty states (Issue #174)', () => {
+  beforeEach(() => {
+    localStorage.clear()
+    apiClient.setToken(null)
+    apiClient.setProjectId(null)
+    document.body.innerHTML = ''
+    vi.restoreAllMocks()
+  })
+
+  it('renders neutral placeholders when project/user data is missing', async () => {
+    stubApi([])
+    const container = renderSettingsPage()
+
+    await waitFor(() => container.querySelector('input[placeholder="No project selected"]') !== null)
+    expect(container.querySelector('input[placeholder="Not signed in"]')).not.toBeNull()
+    expect(container.textContent).toContain('—')
+  })
+
+  it('never renders fabricated project, email, or role values', async () => {
+    stubApi([])
+    const container = renderSettingsPage()
+
+    await waitFor(() => container.querySelector('input') !== null)
+
+    const text = container.textContent || ''
+    for (const fabricated of ['InboxFM Main Project', 'proj_default', 'developer@inboxfm.local', 'Inspect Security Policies']) {
+      expect(text).not.toContain(fabricated)
+    }
+    const roleInput = Array.from(container.querySelectorAll('input')).find((input) =>
+      input.previousElementSibling?.textContent?.includes('Platform Role')
+    )
+    expect(roleInput).toBeDefined()
+    expect((roleInput as HTMLInputElement).value).toBe('—')
+  })
+
+  it('shows real project and identity values when authenticated', async () => {
+    const project = testProject({ id: 'proj_real', displayName: 'Real Project' })
+    const user = testUser({ email: 'dev@real.co', platformRole: 'MEMBER' })
+    apiClient.setToken('test-token')
+    apiClient.setProjectId(project.id)
+    stubApi([
+      { match: PROJECTS_MATCH, respond: () => ({ body: { data: [project] } }) },
+    ])
+    const container = renderSettingsPage()
+
+    await waitFor(() => container.textContent?.includes('Real Project') === true)
+
+    expect(container.textContent).toContain('proj_real')
+    expect(container.textContent).toContain('dev@real.co')
+    expect(container.textContent).toContain('MEMBER')
+  })
+})

@@ -40,6 +40,13 @@ Use a conventional PR title, such as `fix(api): scope connection lookup to its p
 - Do not copy or relocate Enterprise-licensed implementation into MIT directories, strip notices, or introduce new Enterprise imports. See [LICENSING.md](LICENSING.md).
 - Never commit live credentials, personal data, or production environment files.
 
+## Prerequisites
+
+- **Node.js**: v18, v22, or v24 (see `tools/setup-dev.js`)
+- **Bun**: 1.3.3 (pinned in `package.json`)
+- Linux, macOS, or WSL2 for native dependencies
+- Python and C/C++ toolchain for native dependency builds
+
 ## Validate your change
 
 This monorepo uses **Turborepo**, not Nx. Run the required lint command and the suites relevant to your change:

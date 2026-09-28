@@ -47,7 +47,7 @@ Third-party integrations may require an account, credentials, or a paid service.
 
 ## Start locally
 
-Use **Node.js 24** and **Bun 1.3.3** (pinned in `package.json`). Linux, macOS, or WSL2 is recommended for the native dependencies and shell-based test commands. Native dependency builds may require Python and a C/C++ toolchain.
+Use **Node.js 18, 22, or 24** and **Bun 1.3.3** (pinned in `package.json`). Linux, macOS, or WSL2 is recommended for the native dependencies and shell-based test commands. Native dependency builds may require Python and a C/C++ toolchain.
 
 ```bash
 git clone https://github.com/Mihir-Rabari/inboxfm-connect.git

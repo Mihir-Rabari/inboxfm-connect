@@ -6,6 +6,24 @@ import { executionEventService } from './execution-event.service'
 
 const executionRepo = repoFactory<ExecutionSchema>(ExecutionEntity)
 
+const DEFAULT_LIMIT = 10
+const MAX_LIMIT = 100
+
+function decodeCursor(cursor: string | null): { created: string; id: string } | null {
+    if (!cursor) return null
+    try {
+        const decoded = Buffer.from(cursor, 'base64').toString('utf-8')
+        const [created, id] = decoded.split('|')
+        return { created, id }
+    } catch {
+        return null
+    }
+}
+
+function encodeCursor(created: string, id: string): string {
+    return Buffer.from(`${created}|${id}`, 'utf-8').toString('base64')
+}
+
 const executionService = {
     async create({
         projectId,
@@ -144,12 +162,18 @@ const executionService = {
     async list({
         projectId,
         status,
-        limit = 10,
+        limit = DEFAULT_LIMIT,
+        cursor,
     }: {
         projectId: string
         status?: ExecutionStatus
         limit?: number
+        cursor?: string
     }): Promise<SeekPage<Execution>> {
+        const take = Math.min(Math.max(limit, 1), MAX_LIMIT) + 1 // take one extra to determine if there's a next page
+
+        const decodedCursor = decodeCursor(cursor)
+
         const query = executionRepo()
             .createQueryBuilder('execution')
             .where('execution.projectId = :projectId', { projectId })
@@ -158,13 +182,37 @@ const executionService = {
             query.andWhere('execution.status = :status', { status })
         }
 
-        query.orderBy('execution.created', 'DESC').take(limit)
+        if (decodedCursor) {
+            query.andWhere(
+                '(execution.created < :cursorCreated OR (execution.created = :cursorCreated AND execution.id > :cursorId))',
+                { cursorCreated: decodedCursor.created, cursorId: decodedCursor.id },
+            )
+        }
+
+        query.orderBy('execution.created', 'DESC').addOrderBy('execution.id', 'DESC').take(take)
 
         const items = await query.getMany()
+
+        let next: string | null = null
+        let previous: string | null = null
+
+        if (items.length > take - 1) {
+            const lastItem = items[take - 2] // second to last (since we took one extra)
+            next = encodeCursor(lastItem.created, lastItem.id)
+            items.pop() // remove the extra item
+        }
+
+        if (cursor) {
+            // For previous cursor, we need to get the first item of the current page
+            // and encode a cursor that would return items before it
+            // This is a simplified implementation - in practice, you might want to fetch the previous page
+            previous = encodeCursor(items[0].created, items[0].id)
+        }
+
         return {
             data: items,
-            next: null,
-            previous: null,
+            next,
+            previous,
         }
     },
 }

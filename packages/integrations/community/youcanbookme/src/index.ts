@@ -10,7 +10,7 @@ export const youcanbookme = createPiece({
   displayName: 'YouCanBookMe',
   auth: youcanbookmeAuth,
   minimumSupportedRelease: '0.36.1',
-  logoUrl: 'https://cdn.activepieces.com/pieces/youcanbookme.png',
+  logoUrl: 'https://raw.githubusercontent.com/Mihir-Rabari/inboxfm-connect/main/docs/resources/logo/light.svg',
   categories: [PieceCategory.SALES_AND_CRM],
   description:
     'YouCanBookMe is an online scheduling tool that helps you manage appointments and bookings efficiently.',

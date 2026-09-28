@@ -29,7 +29,7 @@ import { updatedIssueTrigger } from './lib/triggers/updated-issue';
 
 export const youtrackAuth = PieceAuth.CustomAuth({
   displayName: 'YouTrack Connection',
-  description:
+description:
     'Connect your YouTrack instance.\n\n' +
     '**How to get your permanent token:**\n' +
     '1. Log in to your YouTrack instance\n' +
@@ -58,7 +58,7 @@ export const youtrack = createPiece({
   displayName: 'YouTrack',
   description: 'JetBrains project management and issue tracking for agile teams.',
   minimumSupportedRelease: '0.36.1',
-  logoUrl: 'https://cdn.activepieces.com/pieces/youtrack.png',
+  logoUrl: 'https://raw.githubusercontent.com/Mihir-Rabari/inboxfm-connect/main/docs/resources/logo/light.svg',
   categories: [PieceCategory.DEVELOPER_TOOLS],
   auth: youtrackAuth,
   authors: ['cumonvip1'],

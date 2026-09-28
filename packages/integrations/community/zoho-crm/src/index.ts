@@ -14,7 +14,7 @@ export const zohoCrm = createPiece({
   displayName: 'Zoho CRM',
   description: 'Customer relationship management software',
 
-  logoUrl: 'https://cdn.activepieces.com/pieces/zoho-crm.png',
+  logoUrl: 'https://raw.githubusercontent.com/Mihir-Rabari/inboxfm-connect/main/docs/resources/logo/light.svg',
   minimumSupportedRelease: '0.30.0',
   categories: [PieceCategory.SALES_AND_CRM],
   authors: ["kishanprmr","MoShizzle","khaledmashaly","abuaboud","ikus060"],

@@ -5,7 +5,7 @@ import { pubsub } from '../helper/pubsub'
 
 const memorySequences = new Map<string, number>()
 const memoryHistory = new Map<string, ExecutionEvent[]>()
-const memoryListeners = new Map<string, Set<(event: ExecutionEvent) => void>>()
+const memoryListeners = new Map<string, Map<string, (event: ExecutionEvent) => void>>()
 
 const MAX_HISTORY_EVENTS = 1000
 const EVENT_TTL_SECONDS = 3600
@@ -86,11 +86,12 @@ const executionEventService = {
     }: {
         executionId: string
         listener: (event: ExecutionEvent) => void
-    }): Promise<void> {
+    }): Promise<string> {
         if (!memoryListeners.has(executionId)) {
-            memoryListeners.set(executionId, new Set())
+            memoryListeners.set(executionId, new Map())
         }
-        memoryListeners.get(executionId)!.add(listener)
+        const listenerId = `${Date.now()}:${Math.random().toString(36).slice(2)}`
+        memoryListeners.get(executionId)!.set(listenerId, listener)
 
         try {
             await pubsub.subscribe(`execution:${executionId}:events`, (message) => {
@@ -106,19 +107,30 @@ const executionEventService = {
         catch (err) {
             // Pubsub unavailable in offline unit tests
         }
+        return listenerId
     },
 
     async unsubscribe({
         executionId,
+        listenerId,
     }: {
         executionId: string
+        listenerId: string
     }): Promise<void> {
-        memoryListeners.delete(executionId)
-        try {
-            await pubsub.unsubscribe(`execution:${executionId}:events`)
+        const listeners = memoryListeners.get(executionId)
+        if (!listeners) {
+            return
         }
-        catch (err) {
-            // Ignore pubsub failures
+        listeners.delete(listenerId)
+
+        if (listeners.size === 0) {
+            memoryListeners.delete(executionId)
+            try {
+                await pubsub.unsubscribe(`execution:${executionId}:events`)
+            }
+            catch (err) {
+                // Ignore pubsub failures
+            }
         }
     },
 

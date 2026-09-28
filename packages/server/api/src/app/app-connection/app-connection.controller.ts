@@ -1,6 +1,6 @@
 import { ApId, Permission, SeekPage } from '@inboxfm-connect/core-utils'
 import { wideEvent } from '@inboxfm-connect/server-utils'
-import { ActivepiecesError, AppConnectionOwners, AppConnectionScope, AppConnectionStatus, AppConnectionType, AppConnectionWithoutSensitiveData, ApplicationEventName, ErrorCode, GetOAuth2AuthorizationUrlRequestBody, GetOAuth2AuthorizationUrlResponse, ListAppConnectionOwnersRequestQuery, ListAppConnectionsRequestQuery, PLACEHOLDER_CONNECTION_TYPE, PrincipalType, SERVICE_KEY_SECURITY_OPENAPI, UpdateConnectionValueRequestBody, UpsertAppConnectionRequestBody } from '@inboxfm-connect/shared'
+import { ActivepiecesError, AppConnectionOwners, AppConnectionScope, AppConnectionStatus, AppConnectionType, AppConnectionWithoutSensitiveData, ApplicationEventName, ErrorCode, GetOAuth2AuthorizationUrlRequestBody, GetOAuth2AuthorizationUrlResponse, ListAppConnectionOwnersRequestQuery, ListAppConnectionsRequestQuery, PLACEHOLDER_CONNECTION_TYPE, PrincipalType, SERVICE_KEY_SECURITY_OPENAPI, TestConnectionResponse, UpdateConnectionValueRequestBody, UpsertAppConnectionRequestBody } from '@inboxfm-connect/shared'
 import { FastifyPluginCallbackZod } from 'fastify-type-provider-zod'
 import { StatusCodes } from 'http-status-codes'
 import { z } from 'zod'
@@ -145,6 +145,13 @@ export const appConnectionController: FastifyPluginCallbackZod = (app, _opts, do
             },
         })
         await reply.status(StatusCodes.NO_CONTENT).send()
+    })
+    app.post('/:id/test', TestAppConnectionRequest, async (request): Promise<TestConnectionResponse> => {
+        return appConnectionService(request.log).testConnection({
+            id: request.params.id,
+            platformId: request.principal.platform.id,
+            projectId: request.projectId,
+        })
     })
     app.post('/oauth2/authorization-url', GetOAuth2AuthorizationUrlRequest, async (request) => {
         return oauth2Util(request.log).buildAuthorizationUrl({
@@ -293,6 +300,30 @@ const DeleteAppConnectionRequest = {
         }),
         response: {
             [StatusCodes.NO_CONTENT]: z.never(),
+        },
+    },
+}
+
+const TestAppConnectionRequest = {
+    config: {
+        security: securityAccess.project(
+            [PrincipalType.USER, PrincipalType.SERVICE],
+            Permission.READ_APP_CONNECTION,
+            {
+                type: ProjectResourceType.TABLE,
+                tableName: ConnectionEntity,
+            },
+        ),
+    },
+    schema: {
+        tags: ['app-connections'],
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
+        description: 'Test the health and validity of an app connection',
+        params: z.object({
+            id: ApId,
+        }),
+        response: {
+            [StatusCodes.OK]: TestConnectionResponse,
         },
     },
 }

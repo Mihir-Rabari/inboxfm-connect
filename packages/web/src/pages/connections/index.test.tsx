@@ -189,6 +189,43 @@ describe('Connections page', () => {
     expect(deleteCalls).toBe(1)
   }, 15000)
 
+  it('triggers connection test from the table action button', async () => {
+    let testCalled = false
+    global.fetch = vi.fn(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+      const raw = String(input)
+      if (raw.includes('/connections/conn_1/test') && init?.method === 'POST') {
+        testCalled = true
+        return new Response(
+          JSON.stringify({
+            success: true,
+            status: 'HEALTHY',
+            message: 'Connection is healthy and working.',
+            testedAt: '2026-09-27T12:00:00.000Z',
+            responseTimeMs: 110,
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      if (LIST_MATCH(new URL(raw, 'http://localhost'))) {
+        return new Response(
+          JSON.stringify(seekPage([githubConnection('conn_1', 'Mihir GitHub')])),
+          { status: 200, headers: { 'content-type': 'application/json' } }
+        )
+      }
+      return new Response(JSON.stringify({ message: 'unhandled' }), {
+        status: 404,
+        headers: { 'content-type': 'application/json' },
+      })
+    })
+
+    const container = renderConnections()
+    await waitFor(() => container.textContent?.includes('Mihir GitHub') === true)
+
+    await clickButton(container, 'Test Mihir GitHub')
+    await waitFor(() => testCalled === true)
+    expect(testCalled).toBe(true)
+  }, 15000)
+
   it('never renders credential values in the list', async () => {
     stubApi(successRoutes())
     const container = renderConnections()

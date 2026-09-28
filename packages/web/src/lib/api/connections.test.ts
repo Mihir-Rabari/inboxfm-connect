@@ -96,4 +96,30 @@ describe('connectionsApi', () => {
 
     expect(new URL(calls[0]).pathname).toBe('/api/v1/connections/oauth2/authorization-url')
   })
+
+  it('tests connection health by posting to /v1/connections/:id/test', async () => {
+    const { calls, requests } = stubApi([
+      {
+        match: (url) => url.pathname === '/api/v1/connections/conn_1/test',
+        respond: () => ({
+          status: 200,
+          body: {
+            success: true,
+            status: 'HEALTHY',
+            message: 'Connection is healthy and working.',
+            testedAt: '2026-09-27T12:00:00.000Z',
+            responseTimeMs: 145,
+          },
+        }),
+      },
+    ])
+
+    const result = await connectionsApi.test({ id: 'conn_1' })
+
+    expect(new URL(calls[0]).pathname).toBe('/api/v1/connections/conn_1/test')
+    expect(requests[0].method).toBe('POST')
+    expect(result.success).toBe(true)
+    expect(result.status).toBe('HEALTHY')
+    expect(result.responseTimeMs).toBe(145)
+  })
 })

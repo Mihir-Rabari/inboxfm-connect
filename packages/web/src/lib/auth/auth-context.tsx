@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { apiClient } from '../api/client'
 import { Project, User } from '../api/types'
 
@@ -22,6 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [projects, setProjects] = useState<Project[]>([])
   const [currentProject, setCurrentProjectState] = useState<Project | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
+  const navigate = useNavigate()
 
   const setCurrentProject = (project: Project) => {
     setCurrentProjectState(project)
@@ -52,6 +54,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
     setProjects([])
     setCurrentProjectState(null)
+    navigate('/login', { replace: true })
   }
 
   useEffect(() => {

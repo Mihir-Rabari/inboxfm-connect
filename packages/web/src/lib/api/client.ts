@@ -114,6 +114,13 @@ class ApiClient {
     }
 
     if (!response.ok) {
+      // Handle 401 Unauthorized - redirect to login
+      if (response.status === 401) {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login'
+        }
+      }
+
       const errorMessage =
         (responseData as { message?: string })?.message ||
         `Request failed with status ${response.status}`

@@ -5,7 +5,7 @@ import {
   DynamicPropsValue,
 } from '@inboxfm-connect/pieces-framework';
 import { AppConnectionType } from '@inboxfm-connect/pieces-framework';
-import { Client } from '@notionhq/client';
+import { Client, UserObjectResponse } from '@notionhq/client';
 import { NotionFieldMapping } from './models';
 import { notionAuth } from '../auth';
 
@@ -18,6 +18,37 @@ export function getNotionToken(auth: NotionAuthValue): string {
     return auth.props.accessToken;
   }
   return getAccessTokenOrThrow(auth);
+}
+
+/**
+ * Fetches all Notion workspace users with pagination support.
+ * Notion API limits page_size to 100, so we paginate through all pages.
+ */
+async function fetchAllNotionUsers(
+  notion: Client,
+): Promise<UserObjectResponse[]> {
+  const allUsers: UserObjectResponse[] = [];
+  let cursor: string | undefined = undefined;
+
+  while (true) {
+    const response = await notion.users.list({
+      page_size: 100,
+      start_cursor: cursor,
+    });
+
+    const filteredUsers = response.results.filter(
+      (user): user is UserObjectResponse =>
+        user.type === 'person' && user.name !== null,
+    );
+    allUsers.push(...filteredUsers);
+
+    if (!response.has_more || !response.next_cursor) {
+      break;
+    }
+    cursor = response.next_cursor;
+  }
+
+  return allUsers;
 }
 
 export const notionCommon = {
@@ -196,7 +227,7 @@ export const notionCommon = {
               continue;
             }
             if (property.type === 'people') {
-              const { results } = await notion.users.list({ page_size: 100 });
+              const users = await fetchAllNotionUsers(notion);
               fields[property.name] = Property.StaticMultiSelectDropdown({
                 displayName: property.name,
                 required: false,
@@ -277,13 +308,13 @@ export const notionCommon = {
               continue;
             }
             if (property.type === 'people') {
-              const { results } = await notion.users.list({ page_size: 100 });
+              const users = await fetchAllNotionUsers(notion);
               fields[property.name] = Property.StaticDropdown({
                 displayName: property.name,
                 required: false,
                 options: {
                   disabled: false,
-                  options: results
+                  options: users
                     .filter(
                       (user) => user.type === 'person' && user.name !== null
                     )

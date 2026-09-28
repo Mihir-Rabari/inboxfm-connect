@@ -1,3 +1,4 @@
+import { formErrors } from '@inboxfm-connect/shared'
 import { FastifyPluginAsyncZod } from 'fastify-type-provider-zod'
 import { z } from 'zod'
 import { securityAccess } from '../../../core/security/authorization/fastify-security'
@@ -33,7 +34,7 @@ const RegisterRequest = {
             redirect_uris: z.array(z.string().url().refine((uri) => {
                 const scheme = new URL(uri).protocol
                 return scheme === 'http:' || scheme === 'https:' || isPrivateUseScheme(scheme)
-            }, { message: 'Only http, https, or private-use URI schemes (RFC 8252) are allowed' })).min(1),
+            }, { message: formErrors.invalidOAuthRedirectScheme })).min(1),
             client_name: z.string().max(255).optional(),
             grant_types: z.array(z.string()).optional(),
             response_types: z.array(z.string()).optional(),

@@ -83,7 +83,7 @@ export const ConnectSecretManagerRequestSchema = z
             if (!data.projectIds || data.projectIds.length < 1) {
                 ctx.addIssue({
                     code: 'custom',
-                    message: 'Please select at least one project',
+                    message: formErrors.selectAtLeastOneProject,
                     path: ['projectIds'],
                 })
             }

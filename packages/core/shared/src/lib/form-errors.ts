@@ -9,4 +9,12 @@ export const formErrors = {
     apiKeyExpiryMustBeFuture: 'apiKeyExpiryMustBeFuture',
     activeFlowsLimitMin: 'activeFlowsLimitMin',
     activeFlowsLimitMax: 'activeFlowsLimitMax',
+    invalidHexColor: 'invalidHexColor',
+    invalidCustomTabName: 'invalidCustomTabName',
+    selectAtLeastOneProject: 'selectAtLeastOneProject',
+    archivePayloadTooLarge: 'archivePayloadTooLarge',
+    firstValueRequired: 'firstValueRequired',
+    secondValueRequired: 'secondValueRequired',
+    operatorRequired: 'operatorRequired',
+    invalidOAuthRedirectScheme: 'invalidOAuthRedirectScheme',
 } as const

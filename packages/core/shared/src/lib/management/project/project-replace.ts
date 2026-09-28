@@ -1,6 +1,7 @@
 import { AgentOutputField, AgentTool } from '@inboxfm-connect/core-execution'
 import { AIProviderName } from '@inboxfm-connect/core-utils'
 import { z } from 'zod'
+import { formErrors } from '../../form-errors'
 import { AppConnectionType } from '../../automation/app-connection/app-connection'
 import { FieldType } from '../../automation/tables/field'
 import { TableAutomationStatus, TableAutomationTrigger } from '../../automation/tables/table'
@@ -116,7 +117,7 @@ export const RequiredPieceSchema = z.object({
     archiveChecksum: z.string().optional(),
     minimumSupportedRelease: z.string().optional(),
     maximumSupportedRelease: z.string().optional(),
-    archiveFileBase64: z.string().max(MAX_CUSTOM_PIECE_BASE64_LENGTH, 'Archive base64 payload exceeds 15MB limit').optional(),
+    archiveFileBase64: z.string().max(MAX_CUSTOM_PIECE_BASE64_LENGTH, formErrors.archivePayloadTooLarge).optional(),
 })
 export type RequiredPieceSchema = z.infer<typeof RequiredPieceSchema>
 

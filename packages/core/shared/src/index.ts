@@ -19,8 +19,10 @@ export * from './lib/core/feedback-url'
 export * from './lib/core/health'
 // Foundation utilities/types live in @inboxfm-connect/core-utils; shared re-exports the whole
 // surface here once (instead of via per-file `export *` shim files under lib/core/common).
-// The local ./lib/form-errors file remains for internal relative imports only.
 export * from '@inboxfm-connect/core-utils'
+// Validation message keys: AGENTS.md directs server code to `formErrors` from this
+// package, so it is part of the public surface (not internal-only).
+export * from './lib/form-errors'
 
 // management
 export * from './lib/management/platform'

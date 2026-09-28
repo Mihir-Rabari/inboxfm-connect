@@ -169,6 +169,17 @@ export const appConnectionController: FastifyPluginCallbackZod = (app, _opts, do
     done()
 }
 
+export const appConnectionTestAliasController: FastifyPluginCallbackZod = (app, _opts, done) => {
+    app.post('/:id/test', TestAppConnectionRequest, async (request): Promise<TestConnectionResponse> => {
+        return appConnectionService(request.log).testConnection({
+            id: request.params.id,
+            projectId: request.projectId,
+            platformId: request.principal.platform.id,
+        })
+    })
+    done()
+}
+
 const DEFAULT_PAGE_SIZE = 10
 
 

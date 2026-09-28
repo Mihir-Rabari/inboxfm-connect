@@ -188,7 +188,7 @@ describe('Connection detail page', () => {
         return new Response(
           JSON.stringify({
             success: true,
-            status: 'healthy',
+            status: 'HEALTHY',
             message: 'Connection is healthy and working.',
             testedAt: '2026-09-27T12:00:00.000Z',
             responseTimeMs: 120,
@@ -250,7 +250,7 @@ describe('Connection detail page', () => {
         return new Response(
           JSON.stringify({
             success: false,
-            status: 'error',
+            status: 'AUTH_EXPIRED',
             message: 'Authentication has expired. Please reconnect this account.',
             testedAt: '2026-09-27T12:00:00.000Z',
             responseTimeMs: 85,
@@ -297,7 +297,7 @@ describe('Connection detail page', () => {
       testButton?.click()
     })
 
-    await waitFor(() => container.textContent?.includes('Connection test failed') === true)
+    await waitFor(() => container.textContent?.includes('Authentication expired') === true)
     expect(container.textContent).toContain('Authentication has expired. Please reconnect this account.')
     expect(container.textContent).toContain('Reconnect this account')
   }, 15000)

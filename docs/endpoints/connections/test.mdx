@@ -19,12 +19,24 @@ Performs a lightweight, non-destructive health check against the target integrat
 ```json
 {
   "success": true,
-  "status": "healthy",
+  "status": "HEALTHY",
   "message": "Connection is healthy and working.",
-  "testedAt": "2026-09-27T12:00:00.000Z",
+  "testedAt": "2026-09-28T12:00:00.000Z",
   "responseTimeMs": 142
 }
 ```
+
+### Health Status Values
+
+| Status | Description |
+|---|---|
+| `HEALTHY` | Credentials verified and integration is responsive |
+| `AUTH_EXPIRED` | Credentials/tokens expired and automatic refresh was unsuccessful |
+| `AUTH_INVALID` | Invalid or revoked credentials |
+| `INSUFFICIENT_PERMISSION` | Missing scopes or insufficient account permissions |
+| `RATE_LIMITED` | Provider rate limit exceeded |
+| `PROVIDER_ERROR` | Upstream provider outage or 5xx server error |
+| `NETWORK_ERROR` | Network timeout or unreachable host |
 
 ### Security
 

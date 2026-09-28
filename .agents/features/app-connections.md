@@ -151,6 +151,7 @@ Inside piece actions/triggers, `context.auth.access_token` holds the cached toke
 - `GET /v1/app-connections/owners` — list connection owners (platform admins + project members)
 - `POST /v1/app-connections/replace` — replace a source connection with a target across the current project's flows; source may be project-scoped or platform/global, but `deleteSourceConnection` on a platform source is rejected with `403` (platform connections are deleted from the platform admin page)
 - `DELETE /v1/app-connections/:id` — hard delete; rejects `PLATFORM`-scope connections with `403` (delete those via the platform admin `DELETE /v1/global-connections/:id` instead)
+- `POST /v1/app-connections/:id/test` (registered as `POST /v1/connections/:id/test`) — test health and validity of an existing connection; returns structured health check (`HEALTHY`, `AUTH_EXPIRED`, `AUTH_INVALID`, `INSUFFICIENT_PERMISSION`, `RATE_LIMITED`, `PROVIDER_ERROR`, `NETWORK_ERROR`) with token refresh attempt and credentials redaction
 - `POST /v1/app-connections/oauth2/authorization-url` — generate OAuth redirect URL from piece metadata; accepts optional scopes array to restrict the authorization to a user-selected subset of the piece's declared scopes (all piece scopes used when omitted)
 
 ## Connection → Flow Integration

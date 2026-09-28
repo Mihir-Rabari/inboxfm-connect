@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { ApiClientError } from '@/lib/api/client'
-import { TestConnectionResponse } from '@/lib/api/types'
+import { ConnectionHealthStatus, TestConnectionResponse } from '@/lib/api/types'
 import { useConnection, useDeleteConnection, useIntegration, useTestConnection } from '@/lib/query/hooks'
 import { connectionLinks } from '@/lib/utils/connection-links'
 import { connectionFormat } from '@/lib/utils/connection-format'
@@ -66,7 +66,7 @@ export default function ConnectionDetailPage() {
         onError: (testError) => {
           const fallbackResult: TestConnectionResponse = {
             success: false,
-            status: 'error',
+            status: 'NETWORK_ERROR',
             message:
               testError instanceof Error
                 ? testError.message
@@ -133,10 +133,34 @@ export default function ConnectionDetailPage() {
   const isAuthExpired =
     lastTestResult &&
     !lastTestResult.success &&
-    (lastTestResult.message.toLowerCase().includes('expired') ||
+    (lastTestResult.status === 'AUTH_EXPIRED' ||
+      lastTestResult.status === 'AUTH_INVALID' ||
+      lastTestResult.status === 'INSUFFICIENT_PERMISSION' ||
+      lastTestResult.message.toLowerCase().includes('expired') ||
       lastTestResult.message.toLowerCase().includes('reconnect') ||
       lastTestResult.message.toLowerCase().includes('revoked') ||
-      lastTestResult.message.toLowerCase().includes('token'))
+      lastTestResult.message.toLowerCase().includes('token') ||
+      lastTestResult.message.toLowerCase().includes('invalid'))
+
+  const getStatusTitle = (status: ConnectionHealthStatus, success: boolean): string => {
+    if (success) return 'Connection is healthy'
+    switch (status) {
+      case 'AUTH_EXPIRED':
+        return 'Authentication expired'
+      case 'AUTH_INVALID':
+        return 'Invalid or revoked credentials'
+      case 'INSUFFICIENT_PERMISSION':
+        return 'Insufficient permissions or missing scopes'
+      case 'RATE_LIMITED':
+        return 'Provider rate limit exceeded'
+      case 'NETWORK_ERROR':
+        return 'Network connection failed'
+      case 'PROVIDER_ERROR':
+        return 'Third-party provider error'
+      default:
+        return 'Connection test failed'
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -202,19 +226,27 @@ export default function ConnectionDetailPage() {
           className={`rounded-xl border p-4 transition-all duration-200 ${
             lastTestResult.success
               ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-950 dark:text-emerald-100'
-              : 'border-destructive/30 bg-destructive/10 text-destructive'
+              : lastTestResult.status === 'RATE_LIMITED' || lastTestResult.status === 'INSUFFICIENT_PERMISSION'
+                ? 'border-amber-500/30 bg-amber-500/10 text-amber-950 dark:text-amber-100'
+                : 'border-destructive/30 bg-destructive/10 text-destructive'
           }`}
         >
           <div className="flex items-start gap-3">
             {lastTestResult.success ? (
               <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" />
             ) : (
-              <AlertCircle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
+              <AlertCircle
+                className={`mt-0.5 h-5 w-5 shrink-0 ${
+                  lastTestResult.status === 'RATE_LIMITED' || lastTestResult.status === 'INSUFFICIENT_PERMISSION'
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-destructive'
+                }`}
+              />
             )}
             <div className="flex-1 space-y-1">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <h3 className="text-sm font-semibold leading-tight">
-                  {lastTestResult.success ? 'Connection is healthy' : 'Connection test failed'}
+                  {getStatusTitle(lastTestResult.status, lastTestResult.success)}
                 </h3>
                 <span className="text-[11px] opacity-80">
                   {lastTestResult.responseTimeMs > 0 && `${lastTestResult.responseTimeMs}ms • `}

@@ -1,4 +1,4 @@
-import { KeyRound, PencilLine, Plus, Trash2 } from 'lucide-react'
+import { Activity, KeyRound, Loader2, PencilLine, Plus, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -12,7 +12,7 @@ import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
 import { AppConnection } from '@/lib/api/types'
-import { useConnectionsQuery, useDeleteConnection, useIntegrations } from '@/lib/query/hooks'
+import { useConnectionsQuery, useDeleteConnection, useIntegrations, useTestConnection } from '@/lib/query/hooks'
 import { connectionLinks } from '@/lib/utils/connection-links'
 import { connectionFormat } from '@/lib/utils/connection-format'
 
@@ -44,9 +44,43 @@ export default function ConnectionsPage() {
   const pieceLookup = usePieceLookup()
   const { data, isLoading, isError, refetch } = useConnectionsQuery({ limit: 100 })
   const deleteConnection = useDeleteConnection()
+  const testConnection = useTestConnection()
   const [deleteTarget, setDeleteTarget] = useState<AppConnection | null>(null)
+  const [testingId, setTestingId] = useState<string | null>(null)
 
   const connections = data?.data ?? []
+
+  const handleTest = (connection: AppConnection) => {
+    setTestingId(connection.id)
+    testConnection.mutate(
+      { id: connection.id },
+      {
+        onSuccess: (result) => {
+          setTestingId(null)
+          if (result.success) {
+            toast.success(`${connection.displayName} is healthy`, {
+              description: `${result.message} (${result.responseTimeMs}ms)`,
+            })
+          } else {
+            toast.error(`Health check failed for ${connection.displayName}`, {
+              description: result.message,
+            })
+          }
+          void refetch()
+        },
+        onError: (testError) => {
+          setTestingId(null)
+          toast.error(`Health check failed for ${connection.displayName}`, {
+            description:
+              testError instanceof Error
+                ? testError.message
+                : 'Unable to reach server to test connection.',
+          })
+          void refetch()
+        },
+      }
+    )
+  }
 
   const handleDelete = () => {
     if (!deleteTarget) return
@@ -157,6 +191,21 @@ export default function ConnectionsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center justify-end gap-1">
+                          <Button
+                            variant="ghost"
+                            size="xs"
+                            disabled={testingId === connection.id}
+                            onClick={() => handleTest(connection)}
+                            aria-label={`Test ${connection.displayName}`}
+                            className="gap-1 text-muted-foreground hover:text-foreground"
+                          >
+                            {testingId === connection.id ? (
+                              <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                            ) : (
+                              <Activity className="h-3 w-3 text-primary" />
+                            )}
+                            <span>Test</span>
+                          </Button>
                           <Button variant="ghost" size="xs" asChild className="gap-1 text-muted-foreground hover:text-foreground">
                             <Link
                               to={connectionLinks.reconnect({

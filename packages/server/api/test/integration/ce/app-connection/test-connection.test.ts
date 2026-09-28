@@ -75,7 +75,7 @@ describe('Test Connection (Health Check) API', () => {
         expect(rawJson).not.toContain('secret_text')
     })
 
-    it('returns unhealthy status when credentials fail validation', async () => {
+    it('returns AUTH_INVALID status when credentials fail validation', async () => {
         const ctx = await createTestContext(app!)
 
         const mockPieceMetadata = createMockPieceMetadata({
@@ -88,7 +88,7 @@ describe('Test Connection (Health Check) API', () => {
         // Mock engine validation returning valid: false
         userInteractionWatcher.submitAndWaitForResponse = vi.fn().mockResolvedValue({
             status: EngineResponseStatus.OK,
-            response: { valid: false, error: 'Invalid API Key provided' },
+            response: { valid: false, error: 'Invalid API Key or unauthorized 401' },
         })
 
         const createResponse = await ctx.post('/v1/connections', {
@@ -111,15 +111,126 @@ describe('Test Connection (Health Check) API', () => {
         expect(testResponse?.statusCode).toBe(StatusCodes.OK)
         const result = testResponse?.json()
         expect(result.success).toBe(false)
-        expect(result.status).toBe(ConnectionHealthStatus.UNHEALTHY)
-        expect(result.message).toContain('Invalid API Key provided')
+        expect(result.status).toBe(ConnectionHealthStatus.AUTH_INVALID)
+        expect(result.message).toContain('Invalid API Key')
 
         // Connection status in database should be updated to ERROR
         const getConnResponse = await ctx.get(`/v1/connections/${connection.id}`)
         expect(getConnResponse?.json().status).toBe(AppConnectionStatus.ERROR)
     })
 
-    it('returns error status when connection test times out', async () => {
+    it('returns AUTH_EXPIRED status when token is expired', async () => {
+        const ctx = await createTestContext(app!)
+
+        const mockPieceMetadata = createMockPieceMetadata({
+            platformId: ctx.platform.id,
+            packageType: PackageType.REGISTRY,
+        })
+        await db.save('integration_metadata', mockPieceMetadata)
+        pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPieceMetadata)
+
+        userInteractionWatcher.submitAndWaitForResponse = vi.fn().mockResolvedValue({
+            status: EngineResponseStatus.OK,
+            response: { valid: false, error: 'Access token expired' },
+        })
+
+        const createResponse = await ctx.post('/v1/connections', {
+            externalId: 'test-expired-conn',
+            displayName: 'Expired Connection',
+            pieceName: mockPieceMetadata.name,
+            projectId: ctx.project.id,
+            type: AppConnectionType.SECRET_TEXT,
+            value: {
+                type: AppConnectionType.SECRET_TEXT,
+                secret_text: 'expired-token',
+            },
+            pieceVersion: mockPieceMetadata.version,
+        })
+
+        const connection = createResponse?.json()
+        const testResponse = await ctx.post(`/v1/connections/${connection.id}/test`, {})
+
+        expect(testResponse?.statusCode).toBe(StatusCodes.OK)
+        const result = testResponse?.json()
+        expect(result.success).toBe(false)
+        expect(result.status).toBe(ConnectionHealthStatus.AUTH_EXPIRED)
+    })
+
+    it('returns INSUFFICIENT_PERMISSION status when permission or scope is denied', async () => {
+        const ctx = await createTestContext(app!)
+
+        const mockPieceMetadata = createMockPieceMetadata({
+            platformId: ctx.platform.id,
+            packageType: PackageType.REGISTRY,
+        })
+        await db.save('integration_metadata', mockPieceMetadata)
+        pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPieceMetadata)
+
+        userInteractionWatcher.submitAndWaitForResponse = vi.fn().mockResolvedValue({
+            status: EngineResponseStatus.OK,
+            response: { valid: false, error: 'Forbidden 403: insufficient_scope for action' },
+        })
+
+        const createResponse = await ctx.post('/v1/connections', {
+            externalId: 'test-scope-conn',
+            displayName: 'Scope Connection',
+            pieceName: mockPieceMetadata.name,
+            projectId: ctx.project.id,
+            type: AppConnectionType.SECRET_TEXT,
+            value: {
+                type: AppConnectionType.SECRET_TEXT,
+                secret_text: 'token',
+            },
+            pieceVersion: mockPieceMetadata.version,
+        })
+
+        const connection = createResponse?.json()
+        const testResponse = await ctx.post(`/v1/connections/${connection.id}/test`, {})
+
+        expect(testResponse?.statusCode).toBe(StatusCodes.OK)
+        const result = testResponse?.json()
+        expect(result.success).toBe(false)
+        expect(result.status).toBe(ConnectionHealthStatus.INSUFFICIENT_PERMISSION)
+    })
+
+    it('returns RATE_LIMITED status when provider returns rate limit error', async () => {
+        const ctx = await createTestContext(app!)
+
+        const mockPieceMetadata = createMockPieceMetadata({
+            platformId: ctx.platform.id,
+            packageType: PackageType.REGISTRY,
+        })
+        await db.save('integration_metadata', mockPieceMetadata)
+        pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPieceMetadata)
+
+        userInteractionWatcher.submitAndWaitForResponse = vi.fn().mockResolvedValue({
+            status: EngineResponseStatus.OK,
+            response: { valid: false, error: '429 Too Many Requests - rate limit exceeded' },
+        })
+
+        const createResponse = await ctx.post('/v1/connections', {
+            externalId: 'test-ratelimit-conn',
+            displayName: 'Rate Limited Connection',
+            pieceName: mockPieceMetadata.name,
+            projectId: ctx.project.id,
+            type: AppConnectionType.SECRET_TEXT,
+            value: {
+                type: AppConnectionType.SECRET_TEXT,
+                secret_text: 'token',
+            },
+            pieceVersion: mockPieceMetadata.version,
+        })
+
+        const connection = createResponse?.json()
+        const testResponse = await ctx.post(`/v1/connections/${connection.id}/test`, {})
+
+        expect(testResponse?.statusCode).toBe(StatusCodes.OK)
+        const result = testResponse?.json()
+        expect(result.success).toBe(false)
+        expect(result.status).toBe(ConnectionHealthStatus.RATE_LIMITED)
+    })
+
+    it('returns NETWORK_ERROR status when connection test times out', async () => {
         const ctx = await createTestContext(app!)
 
         const mockPieceMetadata = createMockPieceMetadata({
@@ -154,7 +265,7 @@ describe('Test Connection (Health Check) API', () => {
         expect(testResponse?.statusCode).toBe(StatusCodes.OK)
         const result = testResponse?.json()
         expect(result.success).toBe(false)
-        expect(result.status).toBe(ConnectionHealthStatus.ERROR)
+        expect(result.status).toBe(ConnectionHealthStatus.NETWORK_ERROR)
         expect(result.message).toContain('timed out')
     })
 
@@ -197,3 +308,4 @@ describe('Test Connection (Health Check) API', () => {
         expect(result.status).toBe(ConnectionHealthStatus.HEALTHY)
     })
 })
+

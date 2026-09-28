@@ -105,7 +105,7 @@ describe('connectionsApi', () => {
           status: 200,
           body: {
             success: true,
-            status: 'healthy',
+            status: 'HEALTHY',
             message: 'Connection is healthy and working.',
             testedAt: '2026-09-27T12:00:00.000Z',
             responseTimeMs: 145,
@@ -119,7 +119,7 @@ describe('connectionsApi', () => {
     expect(new URL(calls[0]).pathname).toBe('/api/v1/connections/conn_1/test')
     expect(requests[0].method).toBe('POST')
     expect(result.success).toBe(true)
-    expect(result.status).toBe('healthy')
+    expect(result.status).toBe('HEALTHY')
     expect(result.responseTimeMs).toBe(145)
   })
 })

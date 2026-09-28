@@ -3,8 +3,10 @@ import {
     AppConnectionType,
     ConnectionHealthStatus,
     EngineResponseStatus,
+    McpServerType,
     PackageType,
     ProjectScopedMcpServer,
+    TestConnectionResponse,
 } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger, FastifyInstance } from 'fastify'
 import { userInteractionWatcher } from '../../../../src/app/helper/user-interaction/user-interaction-watcher'
@@ -61,7 +63,7 @@ describe('ap_test_connection MCP tool', () => {
             id: apId(),
             projectId: ctx.project.id,
             platformId: ctx.platform.id,
-            type: 'PROJECT' as any,
+            type: McpServerType.PROJECT,
             token: 'test-token',
             disabledTools: [],
             created: new Date().toISOString(),
@@ -72,7 +74,9 @@ describe('ap_test_connection MCP tool', () => {
         const result = await tool.execute({ connectionId: connection.id })
 
         expect(result.content[0].text).toContain('HEALTHY')
-        expect((result.structuredContent as any).success).toBe(true)
-        expect((result.structuredContent as any).status).toBe(ConnectionHealthStatus.HEALTHY)
+        const structured = result.structuredContent as TestConnectionResponse
+        expect(structured.success).toBe(true)
+        expect(structured.status).toBe(ConnectionHealthStatus.HEALTHY)
     })
 })
+

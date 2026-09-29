@@ -33,10 +33,10 @@ import {
 export default function DashboardPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const { data: integrationsData, isLoading: isIntegrationsLoading } = useIntegrations()
-  const { data: connections, isLoading: isConnectionsLoading } = useConnectionsQuery()
-  const { data: triggerBindings, isLoading: isTriggersLoading } = useTriggerBindingsQuery()
-  const { data: scheduledTasks, isLoading: isSchedulesLoading } = useScheduledTasksQuery()
+  const { data: integrationsData, isLoading: isIntegrationsLoading, isError: isIntegrationsError, refetch: refetchIntegrations } = useIntegrations()
+  const { data: connections, isLoading: isConnectionsLoading, isError: isConnectionsError, refetch: refetchConnections } = useConnectionsQuery()
+  const { data: triggerBindings, isLoading: isTriggersLoading, isError: isTriggersError, refetch: refetchTriggerBindings } = useTriggerBindingsQuery()
+  const { data: scheduledTasks, isLoading: isSchedulesLoading, isError: isScheduledTasksError, refetch: refetchScheduledTasks } = useScheduledTasksQuery()
   const {
     data: executionsData,
     isLoading: isExecutionsLoading,
@@ -44,15 +44,18 @@ export default function DashboardPage() {
     refetch: refetchExecutions,
   } = useExecutionsQuery({ limit: 5 })
 
+  // Handle data based on state - empty arrays for loading/error states in calculations
+  const integrationList = integrationsData?.data || []
   const connectionList = connections?.data || []
   const executions = executionsData?.data || []
-  const integrationList = integrationsData?.data || []
+  const triggerBindingsList = triggerBindings?.data || []
+  const scheduledTasksList = scheduledTasks?.data || []
 
   // Count available tools across integrations
   const totalToolsCount = integrationList.reduce((acc, piece) => acc + (piece.actions || 0), 0)
   const activeConnectionsCount = connectionList.filter((c) => c.status === 'ACTIVE').length
-  const activeTriggersCount = triggerBindings?.filter((t) => t.status === 'ENABLED').length || 0
-  const activeSchedulesCount = scheduledTasks?.filter((s) => s.status === 'ENABLED').length || 0
+  const activeTriggersCount = triggerBindingsList.filter((t) => t.status === 'ENABLED').length
+  const activeSchedulesCount = scheduledTasksList.filter((s) => s.status === 'ENABLED').length
 
   return (
     <div className="space-y-6">
@@ -75,90 +78,146 @@ export default function DashboardPage() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Metric 1: Available Tools */}
         <Card className="p-4 border-border/80">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Available Tools</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
-              <Zap className="h-3.5 w-3.5" />
-            </div>
-          </div>
-          <div className="mt-2">
-            {isIntegrationsLoading ? (
+          {isIntegrationsLoading ? (
+            <CardContent className="p-0">
               <Skeleton className="h-7 w-16" />
-            ) : (
-              <div className="text-2xl font-bold tracking-tight text-foreground">
-                {totalToolsCount}
+            </CardContent>
+          ) : isIntegrationsError ? (
+            <CardContent className="p-0">
+              <div className="p-4">
+                <ErrorState
+                  title="Unable to load integrations"
+                  description="Failed to load integrations data. Please retry."
+                  onRetry={() => void refetchIntegrations()}
+                />
               </div>
-            )}
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              Across {integrationList.length} integrations
-            </p>
-          </div>
+            </CardContent>
+          ) : (
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Available Tools</span>
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary/10 text-primary">
+                  <Zap className="h-3.5 w-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="text-2xl font-bold tracking-tight text-foreground">
+                  {totalToolsCount}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Across {integrationList.length} integrations
+                </p>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         {/* Metric 2: Active Connections */}
         <Card className="p-4 border-border/80">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Active Connections</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-              <KeyRound className="h-3.5 w-3.5" />
-            </div>
-          </div>
-          <div className="mt-2">
-            {isConnectionsLoading ? (
+          {isConnectionsLoading ? (
+            <CardContent className="p-0">
               <Skeleton className="h-7 w-16" />
-            ) : (
-              <div className="text-2xl font-bold tracking-tight text-foreground">
-                {activeConnectionsCount}
+            </CardContent>
+          ) : isConnectionsError ? (
+            <CardContent className="p-0">
+              <div className="p-4">
+                <ErrorState
+                  title="Unable to load connections"
+                  description="Failed to load connections data. Please retry."
+                  onRetry={() => void refetchConnections()}
+                />
               </div>
-            )}
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {connectionList.length} total credentials
-            </p>
-          </div>
+            </CardContent>
+          ) : (
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Active Connections</span>
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                  <KeyRound className="h-3.5 w-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="text-2xl font-bold tracking-tight text-foreground">
+                  {activeConnectionsCount}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {connectionList.length} total credentials
+                </p>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         {/* Metric 3: Trigger Bindings */}
         <Card className="p-4 border-border/80">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Trigger Bindings</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
-              <Radio className="h-3.5 w-3.5" />
-            </div>
-          </div>
-          <div className="mt-2">
-            {isTriggersLoading ? (
+          {isTriggersLoading ? (
+            <CardContent className="p-0">
               <Skeleton className="h-7 w-16" />
-            ) : (
-              <div className="text-2xl font-bold tracking-tight text-foreground">
-                {activeTriggersCount}
+            </CardContent>
+          ) : isTriggersError ? (
+            <CardContent className="p-0">
+              <div className="p-4">
+                <ErrorState
+                  title="Unable to load trigger bindings"
+                  description="Failed to load trigger bindings data. Please retry."
+                  onRetry={() => void refetchTriggerBindings()}
+                />
               </div>
-            )}
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {triggerBindings?.length || 0} configured event listeners
-            </p>
-          </div>
+            </CardContent>
+          ) : (
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Trigger Bindings</span>
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400">
+                  <Radio className="h-3.5 w-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="text-2xl font-bold tracking-tight text-foreground">
+                  {activeTriggersCount}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {triggerBindingsList.length} configured event listeners
+                </p>
+              </div>
+            </CardContent>
+          )}
         </Card>
 
         {/* Metric 4: Scheduled Tasks */}
         <Card className="p-4 border-border/80">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-medium text-muted-foreground">Scheduled Tasks</span>
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400">
-              <CalendarClock className="h-3.5 w-3.5" />
-            </div>
-          </div>
-          <div className="mt-2">
-            {isSchedulesLoading ? (
+          {isScheduledTasksLoading ? (
+            <CardContent className="p-0">
               <Skeleton className="h-7 w-16" />
-            ) : (
-              <div className="text-2xl font-bold tracking-tight text-foreground">
-                {activeSchedulesCount}
+            </CardContent>
+          ) : isScheduledTasksError ? (
+            <CardContent className="p-0">
+              <div className="p-4">
+                <ErrorState
+                  title="Unable to load scheduled tasks"
+                  description="Failed to load scheduled tasks data. Please retry."
+                  onRetry={() => void refetchScheduledTasks()}
+                )
               </div>
-            )}
-            <p className="text-[11px] text-muted-foreground mt-0.5">
-              {scheduledTasks?.length || 0} active cron schedules
-            </p>
-          </div>
+            </CardContent>
+          ) : (
+            <CardContent className="p-0">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-medium text-muted-foreground">Scheduled Tasks</span>
+                <div className="flex h-7 w-7 items-center justify-center rounded-md bg-purple-500/10 text-purple-600 dark:text-purple-400">
+                  <CalendarClock className="h-3.5 w-3.5" />
+                </div>
+              </div>
+              <div className="mt-2">
+                <div className="text-2xl font-bold tracking-tight text-foreground">
+                  {activeSchedulesCount}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {scheduledTasksList.length} active cron schedules
+                </p>
+              </div>
+            </CardContent>
+          )}
         </Card>
       </div>
 
@@ -234,21 +293,21 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Recent Activity Table */}
-      <Card className="border-border">
-        <CardHeader className="flex flex-row items-center justify-between pb-3">
-          <div>
-            <CardTitle className="text-sm font-bold">Recent Executions</CardTitle>
-            <CardDescription className="text-xs">
-              Live audit logs from Direct Executions, Trigger Bindings, and Scheduled Tasks.
-            </CardDescription>
+      {/* Recent Executions */}
+      <Card className="p-4 border-border/80">
+        <CardHeader className="p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Activity className="h-4 w-4" />
+              <h3 className="ml-2 text-xs font-bold text-foreground">Recent Executions</h3>
+            </div>
+            <Button variant="outline" size="xs" asChild className="gap-1 text-xs">
+              <Link to="/activity">
+                <span>View all</span>
+                <ExternalLink className="h-3 w-3" />
+              </Link>
+            </Button>
           </div>
-          <Button variant="outline" size="xs" asChild className="gap-1 text-xs">
-            <Link to="/activity">
-              <span>View all</span>
-              <ExternalLink className="h-3 w-3" />
-            </Link>
-          </Button>
         </CardHeader>
         <CardContent className="p-0">
           {isExecutionsLoading ? (
@@ -299,16 +358,13 @@ export default function DashboardPage() {
                       </span>
                     </div>
                   </div>
-
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <Badge
-                      variant={
-                        exec.status === 'COMPLETED'
-                          ? 'success'
-                          : exec.status === 'FAILED'
-                          ? 'destructive'
-                          : 'outline'
-                      }
+                      variant={exec.status === 'COMPLETED'
+                        ? 'success'
+                        : exec.status === 'FAILED'
+                        : 'destructive'
+                        : 'outline'}
                       className="text-[10px]"
                     >
                       {exec.status}

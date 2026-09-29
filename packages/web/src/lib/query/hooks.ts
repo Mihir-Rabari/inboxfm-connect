@@ -40,6 +40,7 @@ export function useIntegrations(params?: IntegrationsListParams) {
     queryKey: ['integrations', params ?? {}],
     queryFn: () => apiClient.get<SeekPage<PieceSummary>>('/integrations', { params }),
     placeholderData: keepPreviousData,
+    meta: { showErrorDialog: true },
   })
 }
 
@@ -104,7 +105,7 @@ export function useProjectApiKeysQuery() {
     queryFn: () => apiKeysApi.list(),
     // `showErrorToast` (not `showErrorDialog`) is the key `query-client.ts` actually
     // checks — this query renders the API Keys page's primary table.
-    meta: { showErrorToast: true },
+    meta: { showErrorToast: true, showErrorDialog: true },
   })
 }
 
@@ -146,7 +147,7 @@ export function usePlatformApiKeysQuery({ enabled }: { enabled: boolean }) {
     queryKey: ['platform-api-keys'],
     queryFn: () => platformApiKeysApi.list(),
     enabled,
-    meta: { showErrorToast: true },
+    meta: { showErrorToast: true, showErrorDialog: true },
   })
 }
 
@@ -196,6 +197,7 @@ export function useKnowledgeSearch(request: KnowledgeSearchRequest, enabled = tr
     queryFn: () => apiClient.post<KnowledgeSearchResponse>('/knowledge-search/query', request),
     enabled,
     placeholderData: keepPreviousData,
+    meta: { showErrorDialog: true },
   })
 }
 
@@ -206,7 +208,7 @@ export function useTriggerBindingsQuery() {
     select: (page) => page.data,
     // Every current call site (Trigger Bindings list, Dashboard summary) renders
     // this as primary data, so a fetch failure should surface a toast.
-    meta: { showErrorToast: true },
+    meta: { showErrorToast: true, showErrorDialog: true },
   })
 }
 
@@ -294,7 +296,7 @@ export function useScheduledTasksQuery() {
     select: (page) => page.data,
     // Every current call site (Scheduled Tasks list, Dashboard summary) renders
     // this as primary data, so a fetch failure should surface a toast.
-    meta: { showErrorToast: true },
+    meta: { showErrorToast: true, showErrorDialog: true },
   })
 }
 
@@ -363,7 +365,7 @@ export function useMcpServerQuery(projectId?: string) {
     enabled: !!effectiveProjectId,
     // Sole call site is the MCP Hub page, where this is the primary data driving
     // the whole page.
-    meta: { showErrorToast: true },
+    meta: { showErrorToast: true, showErrorDialog: true },
   })
 }
 
@@ -418,9 +420,10 @@ export function useExecutionsQuery(params?: { status?: ExecutionStatus; limit?: 
     queryKey: ['executions', params ?? {}, projectId],
     queryFn: () => executionsApi.list({ status: params?.status, limit: params?.limit }),
     placeholderData: keepPreviousData,
+    meta: { showErrorDialog: true },
     // Every current call site (Activity list, Dashboard "Recent Executions") renders
     // this as primary data, so a fetch failure should surface a toast.
-    meta: { showErrorToast: true },
+    meta: { showErrorToast: true, showErrorDialog: true },
   })
 }
 

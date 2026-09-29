@@ -1,3 +1,6 @@
+import { appRouter } from '@/app/router'
+import { ApiClientError } from './api-client-error'
+
 export class ApiClientError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -19,10 +22,10 @@ class ApiClient {
   private projectId: string | null = null
 
   constructor() {
-    if (typeof localStorage !== 'undefined') {
-      this.token = localStorage.getItem('ap-token')
-      this.projectId = localStorage.getItem('ap-project-id')
-    }
+    const storedToken = localStorage.getItem('ap-token')
+    const storedProjectId = localStorage.getItem('ap-project-id')
+    this.token = storedToken
+    this.projectId = storedProjectId
   }
 
   setToken(token: string | null) {
@@ -33,6 +36,13 @@ class ApiClient {
       } else {
         localStorage.removeItem('ap-token')
       }
+      // Dispatch event to notify listeners of token change
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'ap-token',
+        oldValue: token === null ? localStorage.getItem('ap-token') : null,
+        newValue: token,
+        url: window.location.href
+      }))
     }
   }
 
@@ -55,62 +65,37 @@ class ApiClient {
     return this.projectId
   }
 
-  private buildUrl(path: string, params?: RequestOptions['params']): string {
-    const cleanPath = path.startsWith('/') ? path : `/${path}`
-    const baseOrigin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000'
-    const url = new URL(`${this.baseUrl}${cleanPath}`, baseOrigin)
+  private async request<T>(path: string, options: RequestOptions): Promise<T> {
+    const url = `${this.baseUrl}${path}`
 
-    if (params) {
-      Object.entries(params).forEach(([key, val]) => {
-        if (val !== undefined && val !== null) {
-          if (Array.isArray(val)) {
-            val.forEach((item) => url.searchParams.append(key, String(item)))
-          } else {
-            url.searchParams.append(key, String(val))
-          }
-        }
-      })
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
     }
-
-    return url.toString()
-  }
-
-  async request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-    const { params, headers: customHeaders, ...restOptions } = options
-
-    const headers = new Headers(customHeaders)
-    headers.set('Content-Type', 'application/json')
-    headers.set('Accept', 'application/json')
 
     if (this.token) {
-      headers.set('Authorization', `Bearer ${this.token}`)
+      headers.Authorization = `Bearer ${this.token}`
     }
 
-    if (this.projectId) {
-      headers.set('x-project-id', this.projectId)
+    // Merge user-provided headers with default ones
+    const allHeaders = {
+      ...headers,
+      ...(options.headers ?? {}),
     }
-
-    const url = this.buildUrl(path, params)
 
     const response = await fetch(url, {
-      ...restOptions,
-      headers,
+      ...options,
+      headers: allHeaders,
+      credentials: 'include',
     })
 
-    if (response.status === 204) {
-      return undefined as T
-    }
-
-    let responseData: unknown = null
-    const contentType = response.headers.get('content-type')
-    if (contentType && contentType.includes('application/json')) {
-      try {
-        responseData = await response.json()
-      } catch {
-        responseData = null
-      }
-    } else {
-      responseData = await response.text()
+    // Handle 401 Unauthorized - clear token and redirect to login
+    if (response.status === 401) {
+      this.setToken(null)
+      this.setProjectId(null)
+      // Trigger auth state update via localStorage event (already handled in setToken)
+      // The redirect will be handled by RequireAuth component when it detects unauthenticated state
+      // We throw a specific error to prevent further processing
+      throw new ApiClientError(401, 'Unauthorized', await response.json().catch(() => ({})))
     }
 
     if (!response.ok) {
@@ -120,6 +105,7 @@ class ApiClient {
       throw new ApiClientError(response.status, errorMessage, responseData)
     }
 
+    const responseData = await response.json()
     return responseData as T
   }
 
@@ -128,11 +114,15 @@ class ApiClient {
   }
 
   post<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
-    return this.request<T>(path, {
-      ...options,
-      method: 'POST',
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    })
+    return this.request<T>(path, { ...options, method: 'POST', body })
+  }
+
+  put<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    return this.request<T>(path, { ...options, method: 'PUT', body })
+  }
+
+  patch<T>(path: string, body?: unknown, options?: RequestOptions): Promise<T> {
+    return this.request<T>(path, { ...options, method: 'PATCH', body })
   }
 
   delete<T>(path: string, options?: RequestOptions): Promise<T> {

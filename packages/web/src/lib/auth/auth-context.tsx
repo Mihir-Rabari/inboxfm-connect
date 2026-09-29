@@ -52,6 +52,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(null)
     setProjects([])
     setCurrentProjectState(null)
+    // Navigate to login after signing out
+    window.location.href = '/login'
   }
 
   useEffect(() => {
@@ -133,6 +135,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     void loadSession()
+  }, [])
+
+  // Listen for token changes in localStorage (from API client 401 handling or other tabs)
+  useEffect(() => {
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'ap-token') {
+        // Update token state when localStorage changes
+        setToken(e.newValue ?? null)
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange)
+    return () => {
+      window.removeEventListener('storage', handleStorageChange)
+    }
   }, [])
 
   return (

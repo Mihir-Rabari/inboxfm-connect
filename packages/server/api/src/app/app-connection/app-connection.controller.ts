@@ -117,7 +117,6 @@ export const appConnectionController: FastifyPluginCallbackZod = (app, _opts, do
     },
     )
 
-
     app.delete('/:id', DeleteAppConnectionRequest, async (request, reply): Promise<void> => {
         const connection = await appConnectionService(request.log).getOneOrThrowWithoutValue({
             id: request.params.id,
@@ -146,6 +145,15 @@ export const appConnectionController: FastifyPluginCallbackZod = (app, _opts, do
         })
         await reply.status(StatusCodes.NO_CONTENT).send()
     })
+
+    app.post('/:id/test', TestAppConnectionRequest, async (request): Promise<TestConnectionResponse> => {
+        return appConnectionService(request.log).testConnection({
+            id: request.params.id,
+            platformId: request.principal.platform.id,
+            projectId: request.projectId,
+        })
+    })
+
     app.post('/oauth2/authorization-url', GetOAuth2AuthorizationUrlRequest, async (request) => {
         return oauth2Util(request.log).buildAuthorizationUrl({
             platformId: request.principal.platform.id,
@@ -163,6 +171,36 @@ export const appConnectionController: FastifyPluginCallbackZod = (app, _opts, do
 
 const DEFAULT_PAGE_SIZE = 10
 
+const TestConnectionResponse = z.object({
+    success: z.boolean(),
+    error: z.string().optional(),
+})
+
+export type TestConnectionResponse = z.infer<typeof TestConnectionResponse>
+
+const TestAppConnectionRequest = {
+    config: {
+        security: securityAccess.project(
+            [PrincipalType.USER, PrincipalType.SERVICE],
+            Permission.WRITE_APP_CONNECTION,
+            {
+                type: ProjectResourceType.TABLE,
+                tableName: ConnectionEntity,
+            },
+        ),
+    },
+    schema: {
+        tags: ['app-connections'],
+        security: [SERVICE_KEY_SECURITY_OPENAPI],
+        description: 'Test an app connection health',
+        params: z.object({
+            id: ApId,
+        }),
+        response: {
+            [StatusCodes.OK]: TestConnectionResponse,
+        },
+    },
+}
 
 const UpsertAppConnectionRequest = {
     config: {

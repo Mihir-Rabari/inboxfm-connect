@@ -296,6 +296,50 @@ export const appConnectionService = (log: FastifyBaseLogger) => ({
         return oauth2Util(log).removeRefreshTokenAndClientSecret(refreshedConnection)
     },
     async deleteAllProjectConnections(projectId: string) {
+
+    async testConnection(params: TestConnectionParams): Promise<TestConnectionResponse> {
+        const { id, platformId, projectId } = params
+        
+        try {
+            const encryptedConnection = await appConnectionsRepo().findOneBy({
+                id,
+                platformId,
+                ...(projectId ? { projectIds: ArrayContains([projectId]) } : {}),
+            })
+            
+            if (isNil(encryptedConnection)) {
+                return { success: false, error: 'Connection not found' }
+            }
+            
+            const refreshedConnection = await appConnectionHandler(log).lockAndRefreshConnection({
+                platformId,
+                projectId,
+                externalId: encryptedConnection.externalId,
+                log,
+            })
+            
+            if (isNil(refreshedConnection)) {
+                return { success: false, error: 'Failed to refresh connection' }
+            }
+            
+            // Validate the connection works by running engine validation
+            await engineValidateAuth({
+                pieceName: refreshedConnection.pieceName,
+                projectId,
+                platformId,
+                auth: refreshedConnection.value,
+            }, log)
+            
+            // Update connection status to ACTIVE on success
+            await appConnectionsRepo().update({ id }, { status: AppConnectionStatus.ACTIVE })
+            
+            return { success: true }
+        } catch (error) {
+            log.error({ error, connectionId: id }, 'Test connection failed')
+            await appConnectionsRepo().update({ id }, { status: AppConnectionStatus.ERROR })
+            return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+        }
+    },
         await appConnectionsRepo().delete({
             scope: AppConnectionScope.PROJECT,
             projectIds: ArrayContains([projectId]),
@@ -688,3 +732,14 @@ type EngineValidateAuthParams = {
 }
 
 
+
+type TestConnectionParams = {
+    id: AppConnectionId
+    platformId: string
+    projectId: ProjectId | null
+}
+
+type TestConnectionResponse = {
+    success: boolean
+    error?: string
+}

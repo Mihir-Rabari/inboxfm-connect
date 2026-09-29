@@ -1,10 +1,11 @@
-import { AlertTriangle, Building2, CreditCard, ExternalLink, Loader2, Moon, Palette, Shield, Sparkles, Sun, User } from 'lucide-react'
+import { AlertTriangle, Bot, Building2, CreditCard, ExternalLink, Loader2, Moon, Palette, Shield, Sparkles, Sun, User } from 'lucide-react'
 import { PageHeader } from '@/components/layout/page-header'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { useAuth } from '@/lib/auth/auth-context'
+import { AIProviderManagement } from './components/ai-provider-management'
 import {
   useBillingInfoQuery,
   useCreateBillingCheckoutMutation,
@@ -49,7 +50,7 @@ export default function SettingsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Settings"
-        description="Configure project preferences, developer identity, and console appearance."
+        description="Configure project preferences, developer identity, console appearance, and AI providers."
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -163,6 +164,7 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
         {/* Project Info */}
         <Card className="border-border shadow-xs">
           <CardHeader className="pb-3">
@@ -276,8 +278,10 @@ export default function SettingsPage() {
             <Button size="sm" variant="outline" className="text-xs" onClick={() => toast.success('Security policies are active.')}>
               Inspect Security Policies
             </Button>
-          </CardContent>
-        </Card>
+          </CardContent        }
+
+        {/* AI Providers */}
+        <AIProviderManagement />
       </div>
     </div>
   )

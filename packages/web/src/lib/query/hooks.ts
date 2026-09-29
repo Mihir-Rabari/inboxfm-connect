@@ -470,3 +470,69 @@ export function useCreateBillingCheckoutMutation() {
   })
 }
 
+
+// AI Provider hooks
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { apiClient } from '../api/client'
+import type { AIProvider, AIProviderModel, CreateAIProviderRequest, UpdateAIProviderRequest, AIProviderName } from '@inboxfm-connect/shared'
+
+export function useAIProvidersQuery() {
+  const projectId = apiClient.getProjectId()
+  return useQuery({
+    queryKey: ['ai-providers', projectId],
+    queryFn: () => apiClient.get<AIProvider[]>('/ai-providers'),
+  })
+}
+
+export function useAIProviderConfigQuery(provider: AIProviderName) {
+  return useQuery({
+    queryKey: ['ai-provider-config', provider],
+    queryFn: () => apiClient.get(`/ai-providers/${encodeURIComponent(provider)}/config`),
+    enabled: !!provider,
+  })
+}
+
+export function useAIProviderModelsQuery(provider: AIProviderName) {
+  return useQuery({
+    queryKey: ['ai-provider-models', provider],
+    queryFn: () => apiClient.get<AIProviderModel[]>(`/ai-providers/${encodeURIComponent(provider)}/models`),
+    enabled: !!provider,
+  })
+}
+
+export function useCreateAIProvider() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (request: CreateAIProviderRequest) => apiClient.post<AIProvider>('/ai-providers', request),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['ai-providers'] })
+    },
+  })
+}
+
+export function useUpdateAIProvider() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, request }: { id: string; request: UpdateAIProviderRequest }) =>
+      apiClient.post<AIProvider>(`/ai-providers/${encodeURIComponent(id)}`, request),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['ai-providers'] })
+    },
+  })
+}
+
+export function useDeleteAIProvider() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id }: { id: string }) => apiClient.delete<void>(`/ai-providers/${encodeURIComponent(id)}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['ai-providers'] })
+    },
+  })
+}
+
+export function useValidateAIProvider() {
+  return useMutation({
+    mutationFn: (request: CreateAIProviderRequest) => apiClient.post<AIProvider>('/ai-providers', request),
+  })
+}

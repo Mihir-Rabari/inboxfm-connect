@@ -64,6 +64,40 @@ describe('Cron Parser & Validator', () => {
         })
     })
 
+    describe('validateCronExpression fireability probe (issue #389)', () => {
+        it('rejects a dom/month combo that can never denote a real date', () => {
+            // 31 Feb and 30 Feb never produce a tick within the 1-year search
+            // window (no month has a 31st or 30th in a single non-leap
+            // February); 31 Apr / 30 Jun are likewise unreachable in their
+            // single short months.
+            expect(cronParser.validateCronExpression('0 0 31 2 *')).toBe(false)
+            expect(cronParser.validateCronExpression('0 0 30 2 *')).toBe(false)
+            expect(cronParser.validateCronExpression('0 0 31 4 *')).toBe(false)
+            expect(cronParser.validateCronExpression('0 0 31 6 *')).toBe(false)
+        })
+
+        it('keeps a single short month\'s last day (30 Apr) and leap-year February 29', () => {
+            // April has 30 days (so 30 Apr is a real recurring date) and 29 Feb
+            // still fires in the next leap year (2028), so both schedules must
+            // survive the probe.
+            expect(cronParser.validateCronExpression('0 0 30 4 *')).toBe(true)
+            expect(cronParser.validateCronExpression('0 0 29 2 *', )).toBe(true)
+        })
+
+        it('keeps wildcard-dom schedules that roll to a shorter month\'s 31st', () => {
+            // dom is not pinned to a single short month: April 1 2026 -> May 31
+            // (April has 30 days), so the validator keeps the schedule.
+            expect(cronParser.validateCronExpression('0 0 31 * *')).toBe(true)
+            expect(cronParser.validateCronExpression('0 0 30 * *')).toBe(true)
+        })
+
+        it('rejects when only an unreachable dom is requested in a single month', () => {
+            // Only the 31st is requested and the only month is one that never
+            // has a 31st (e.g. a single non-leap February), so no tick exists.
+            expect(cronParser.validateCronExpression('0 0 31 FEB *')).toBe(false)
+        })
+    })
+
     describe('parseCronExpression', () => {
         it('correctly maps month and day names', () => {
             const parsed = cronParser.parseCronExpression('0 0 1 JAN MON')

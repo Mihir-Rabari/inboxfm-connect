@@ -131,3 +131,33 @@ export class SSRFBlockedError extends ExecutionError {
         )
     }
 }
+
+/**
+ * Raised when a piece's declared props fail validation.
+ *
+ * Previously this was `throw new Error(JSON.stringify(errors, null, 2))`, which
+ * lost the error type: everything surfaced to the engine and the user as a
+ * generic internal failure, and the machine-readable per-field errors were only
+ * recoverable by string-parsing the message. This keeps them structured on
+ * `errors` while still rendering a readable message.
+ */
+export class PropsValidationError extends ExecutionError {
+    public readonly errors: Record<string, string>
+
+    constructor(errors: Record<string, string>, cause?: unknown) {
+        const summary = Object.entries(errors)
+            .map(([field, message]) => `${field}: ${message}`)
+            .join('; ')
+        super(
+            'PropsValidationError',
+            formatMessage(
+                summary.length > 0
+                    ? `Validation failed: ${summary}`
+                    : 'Validation failed',
+            ),
+            ExecutionErrorType.USER,
+            cause,
+        )
+        this.errors = errors
+    }
+}

@@ -238,10 +238,14 @@ const RenewTriggerBindingRouteOptions = {
  * no `projectId` in the params, query or body for a caller to influence. The console
  * also calls this route for "Run / Test" with its bearer token, which the public
  * config simply ignores.
+ *
+ * Body limit of 1MB prevents a single oversized request from exhausting memory
+ * or triggering costly LLM executions (issue #351).
  */
 const RunTriggerBindingRouteOptions = {
     config: {
         security: securityAccess.public(),
+        bodyLimit: 1024 * 1024,
     },
     schema: {
         params: z.object({

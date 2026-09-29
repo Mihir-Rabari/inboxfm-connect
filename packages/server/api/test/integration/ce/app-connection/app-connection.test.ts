@@ -288,6 +288,67 @@ describe('AppConnection CE API', () => {
 
             expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
         })
+
+        /**
+         * The authorization layer already 404s a wholly unknown id, so the
+         * `findOneByOrFail` -> `findOneBy` + nil-guard change in
+         * app-connection.service.ts is only observable for a connection that
+         * exists but falls outside the caller's tenant filter (other project /
+         * other platform). Before the fix those requests surfaced a TypeORM
+         * EntityNotFoundError, which the global error handler maps to 500.
+         */
+        it('should return 404 (not 500) for a connection owned by another project', async () => {
+            const ctx = await setup()
+
+            const mockPiece = createMockPieceMetadata({
+                platformId: ctx.platform.id,
+                packageType: PackageType.REGISTRY,
+                pieceType: PieceType.OFFICIAL,
+            })
+            await db.save('integration_metadata', mockPiece)
+            pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
+
+            // Create the connection inside a *second* project on the same platform.
+            const otherCtx = await createTestContext(app!)
+            const createResponse = await ctx.post('/v1/connections', {
+                externalId: 'cross-project-connection',
+                displayName: 'Owned Elsewhere',
+                pieceName: mockPiece.name,
+                projectId: otherCtx.project.id,
+                type: AppConnectionType.SECRET_TEXT,
+                value: {
+                    type: AppConnectionType.SECRET_TEXT,
+                    secret_text: 'my-secret',
+                },
+                pieceVersion: mockPiece.version,
+            })
+            expect(createResponse?.statusCode).toBe(StatusCodes.CREATED)
+            const connectionId = createResponse?.json().id
+
+            // Call it with the original context -> out of scope
+            const response = await ctx.post(`/v1/connections/${connectionId}`, {
+                displayName: 'Hijacked',
+            })
+
+            expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
+            expect(response?.statusCode).not.toBe(StatusCodes.INTERNAL_SERVER_ERROR)
+        })
+
+        it('should not leak connection details when the update 404s', async () => {
+            const ctx = await setup()
+
+            const nonExistentId = apId()
+            const response = await ctx.post(`/v1/connections/${nonExistentId}`, {
+                displayName: 'Updated Name',
+            })
+
+            const body = response?.json()
+            expect(body.displayName).toBeUndefined()
+            expect(body.value).toBeUndefined()
+            expect(body.metadata).toBeUndefined()
+            // entityId may echo the caller-supplied id, nothing else
+            expect(JSON.stringify(body)).not.toContain('secret_text')
+        })
     })
 
     describeWithAuth('GET /v1/connections (List)', () => app!, (setup) => {

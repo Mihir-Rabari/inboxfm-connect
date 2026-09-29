@@ -309,4 +309,85 @@ describe('Settings page', () => {
     expect(container.textContent?.includes('Upgrade to Paid Tier')).toBe(false)
     expect(container.textContent?.includes('Manage in Stripe')).toBe(false)
   })
+
+  /**
+   * #174: every unset field fell back to a plausible-looking value, so a blank
+   * project name rendered as "InboxFM Main Project", a missing role as "ADMIN"
+   * and a missing email as "developer@inboxfm.local". None of those are real
+   * data, and they are indistinguishable from real data on screen. They are
+   * replaced with a neutral em dash.
+   */
+  it('renders neutral placeholders instead of fabricated values when session data is missing', async () => {
+    // No persisted user and no stored project id: every identity field is unset.
+    localStorage.clear()
+    apiClient.setToken('test-token')
+    apiClient.setProjectId(null)
+
+    stubApi([
+      { match: PROJECTS_MATCH, respond: () => ({ status: 200, body: { data: [] } }) },
+      { match: BILLING_INFO_MATCH, respond: () => ({ status: 200, body: { stripeBillingEnabled: false } }) },
+      {
+        match: (url: URL) => url.pathname === '/api/v1/ai-providers',
+        respond: () => ({ status: 200, body: [] }),
+      },
+    ])
+
+    const container = renderSettingsPage()
+
+    await waitFor(() => container.textContent?.includes('Project Display Name') === true)
+    const text = container.textContent || ''
+
+    // Fabricated stand-ins must not come back.
+    expect(text).not.toContain('InboxFM Main Project')
+    expect(text).not.toContain('proj_default')
+    expect(text).not.toContain('developer@inboxfm.local')
+    // ...and the neutral marker must be present in their place.
+    expect(text).toContain('\u2014')
+  }, 20000)
+
+  it('never renders a fabricated platform role', async () => {
+    localStorage.clear()
+    apiClient.setToken('test-token')
+    apiClient.setProjectId(PROJECT.id)
+    localStorage.setItem('ap-user', JSON.stringify(testUser({ platformRole: '' })))
+
+    stubApi([
+      { match: PROJECTS_MATCH, respond: () => ({ status: 200, body: { data: [PROJECT] } }) },
+      { match: BILLING_INFO_MATCH, respond: () => ({ status: 200, body: { stripeBillingEnabled: false } }) },
+      {
+        match: (url: URL) => url.pathname === '/api/v1/ai-providers',
+        respond: () => ({ status: 200, body: [] }),
+      },
+    ])
+
+    const container = renderSettingsPage()
+    await waitFor(() => container.textContent?.includes('Platform Role') === true)
+
+    // An empty role must not be backfilled with a real-looking privilege.
+    const roleInput = Array.from(container.querySelectorAll('label')).find((label) =>
+      label.textContent?.includes('Platform Role')
+    )
+    expect(roleInput).toBeDefined()
+    const value = container.querySelector<HTMLInputElement>('input[readonly][value="ADMIN"]')
+    expect(value).toBeNull()
+  }, 20000)
+
+  it('states the security controls instead of offering a placebo action', async () => {
+    stubApi([
+      { match: PROJECTS_MATCH, respond: () => ({ status: 200, body: { data: [PROJECT] } }) },
+      { match: BILLING_INFO_MATCH, respond: () => ({ status: 200, body: { stripeBillingEnabled: false } }) },
+      {
+        match: (url: URL) => url.pathname === '/api/v1/ai-providers',
+        respond: () => ({ status: 200, body: [] }),
+      },
+    ])
+
+    const container = renderSettingsPage()
+    await waitFor(() => container.textContent?.includes('Security & Isolation') === true)
+
+    // There is no policy-inspection endpoint, so the old button could only ever
+    // fire a canned toast while implying a real check had run.
+    expect(container.textContent).not.toContain('Inspect Security Policies')
+    expect(container.textContent).toContain('enforced server-side')
+  }, 20000)
 })

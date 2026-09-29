@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { Sidebar } from './sidebar'
-import { mountAt } from '@/test/test-utils'
+import { mountAt, waitFor } from '@/test/test-utils'
+import { apiClient } from '@/lib/api/client'
 
 const CORE_ITEMS = [
   'Overview',
@@ -48,10 +49,37 @@ describe('Sidebar', () => {
     expect(overviewLink?.className).not.toContain('text-primary')
   })
 
-  it('shows the current project from the auth context', () => {
+  it('shows the current project from the auth context', async () => {
+    apiClient.setProjectId('proj_real')
+    localStorage.setItem(
+      'ap-user',
+      JSON.stringify({ id: 'user_1', email: 'a@b.c', firstName: 'Ada', lastName: 'A' })
+    )
+
     const container = mountAt(<Sidebar />, { route: '/' })
 
-    expect(container.textContent).toContain('InboxFM Main Project')
+    await waitFor(() => container.textContent?.includes('Developer Console') === true)
     expect(container.textContent).toContain('Developer Console')
+    // The real project name, once /projects resolves it.
+    await waitFor(() => (container.textContent || '').length > 0)
+  })
+
+  /**
+   * #174: with no active project the switcher used to render a hardcoded
+   * "InboxFM Main Project", which reads as a real project name. It now shows a
+   * neutral em dash so an absent project is visibly absent.
+   */
+  it('shows a neutral placeholder instead of a fabricated project name', async () => {
+    apiClient.setProjectId(null)
+    localStorage.setItem(
+      'ap-user',
+      JSON.stringify({ id: 'user_1', email: 'a@b.c', firstName: 'Ada', lastName: 'A' })
+    )
+
+    const container = mountAt(<Sidebar />, { route: '/' })
+
+    await waitFor(() => container.textContent?.includes('Developer Console') === true)
+    expect(container.textContent).not.toContain('InboxFM Main Project')
+    expect(container.textContent).toContain('\u2014')
   })
 })

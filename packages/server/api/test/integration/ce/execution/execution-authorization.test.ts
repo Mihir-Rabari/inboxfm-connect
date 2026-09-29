@@ -1,5 +1,5 @@
 import { apId } from '@inboxfm-connect/core-utils'
-import { ExecutionEventType, ExecutionStatus, ExecutionToolCallStatus } from '@inboxfm-connect/shared'
+import { AppConnectionScope, AppConnectionStatus, AppConnectionType, ExecutionEventType, ExecutionStatus, ExecutionToolCallStatus } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
 import { StatusCodes } from 'http-status-codes'
 import { executionEventService } from '../../../../src/app/execution/execution-event.service'
@@ -425,6 +425,43 @@ describe('POST /v1/execute authorization (direct tool run)', () => {
         })
 
         expect(response?.statusCode).toBe(StatusCodes.FORBIDDEN)
+    })
+
+    it('rejects a client-supplied connectionId that belongs to another project (#363)', async () => {
+        const ctxA = await createTestContext(app!)
+        const ctxB = await createTestContext(app!)
+
+        // A connection owned by project A
+        const victimConnectionId = apId()
+        const now = new Date().toISOString()
+        await db.save('app_connection', {
+            id: victimConnectionId,
+            created: now,
+            updated: now,
+            projectId: null,
+            platformId: ctxA.platform.id,
+            projectIds: [ctxA.project.id],
+            pieceName: '@inboxfm-connect/piece-does-not-exist',
+            pieceVersion: '0.0.1',
+            externalId: 'victim-external',
+            displayName: 'victim',
+            type: AppConnectionType.SECRET_TEXT,
+            status: AppConnectionStatus.ACTIVE,
+            ownerId: null,
+            scope: AppConnectionScope.PROJECT,
+            value: { iv: '00', data: '00' },
+        })
+
+        // Caller from project B tries to run a tool with A's connectionId
+        const response = await ctxB.post('/v1/execute', {
+            projectId: ctxB.project.id,
+            integration: '@inboxfm-connect/piece-does-not-exist',
+            tool: 'noop',
+            connectionId: victimConnectionId,
+            input: {},
+        })
+
+        expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
     })
 })
 

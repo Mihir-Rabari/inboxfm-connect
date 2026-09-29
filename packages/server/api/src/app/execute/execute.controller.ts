@@ -94,7 +94,24 @@ export const executeController: FastifyPluginAsyncZod = async (fastify) => {
 
 async function resolveConnectionId({ projectId, connectionId, externalUserId, pieceName }: ResolveConnectionIdParams): Promise<string> {
     if (!isNil(connectionId)) {
-        return connectionId
+        // Never trust a client-supplied connectionId: without this scoping the
+        // runtime would decrypt ANY connection by id, letting a caller use another
+        // project's credentials as the auth for their own tool run (issue #363).
+        const connection = await appConnectionsRepo().findOneBy({
+            id: connectionId,
+            projectIds: ArrayContains([projectId]),
+        })
+        if (isNil(connection)) {
+            throw new ActivepiecesError({
+                code: ErrorCode.ENTITY_NOT_FOUND,
+                params: {
+                    entityType: 'app_connection',
+                    entityId: connectionId,
+                    message: `No connection with id "${connectionId}" in this project`,
+                },
+            })
+        }
+        return connection.id
     }
     if (isNil(externalUserId)) {
         throw new ActivepiecesError({

@@ -378,12 +378,20 @@ export const reduceContextSize = async (
 ) => {
   // TODO: Summarize context instead of cutoff
   // Cut from the front (oldest first) without mutating the caller's array, and
-  // keep cutting while the remaining history still exceeds the budget.
+  // keep cutting while the remaining history still exceeds the history budget
+  // (what the model can accept alongside the completion). The budget is the
+  // full window-derived budget, not the completion maxTokens alone: reducing
+  // to maxTokens/1.5 would throw away valid history on large-window models
+  // (review #387, item 2). The loop runs down to the last message so a single
+  // oversized entry that alone exceeds the window is still dropped, storing an
+  // empty history and letting a wedged memoryKey recover next run (review
+  // #387, item 3).
+  const budget = historyBudget(model, maxTokens);
   let currentMessages = [...messages];
   while (
-    currentMessages.length > 1 &&
+    currentMessages.length >= 1 &&
     (await calculateMessagesTokenSize(currentMessages, model)) >
-      maxTokens / 1.5 - rolesTokenLength
+      budget - rolesTokenLength
   ) {
     const cutoffSize = Math.max(1, Math.round(currentMessages.length * 0.1));
     currentMessages = currentMessages.slice(cutoffSize);
@@ -396,10 +404,12 @@ export const reduceContextSize = async (
 // context window minus the completion budget, capped by the platform's 32k
 // system limit, with the /1.1 safety margin. Previously a fixed message-count
 // cap (30) alone bounded growth, so long chats still exceeded the model's
-// context window regardless of actual token size.
+// context window regardless of actual token size. The budget is floored at 0
+// so a completion budget that exceeds the window never turns the guard into
+// an aggressive pre-truncator (review #387, item 1).
 export const historyBudget = (model: string, maxTokens: number): number => {
   const byModelWindow = (modelTokenLimit(model) - maxTokens) / 1.1;
-  return Math.min(tokenLimit / 1.1, byModelWindow);
+  return Math.max(0, Math.min(tokenLimit / 1.1, byModelWindow));
 };
 
 export const exceedsHistoryLimit = (
@@ -407,7 +417,11 @@ export const exceedsHistoryLimit = (
   model: string,
   maxTokens: number
 ) => {
-  return tokenLength >= historyBudget(model, maxTokens);
+  // When the budget is 0 (completion alone exceeds the window), the provider
+  // will reject regardless and there is no history we can sensibly trim, so
+  // do not preemptively discard the stored history.
+  const budget = historyBudget(model, maxTokens);
+  return budget > 0 && tokenLength >= budget;
 };
 
 export const tokenLimit = 32000;

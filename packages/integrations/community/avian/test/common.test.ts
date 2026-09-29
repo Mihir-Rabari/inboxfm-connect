@@ -42,25 +42,27 @@ describe('reduceContextSize (production shape)', () => {
     expect(messages).toEqual(snapshot);
   });
 
-  it('reduces long histories until they fit maxTokens / 1.5', async () => {
-    const messages = buildMessages(20, 40);
+  it('reduces long histories until they fit the history budget', async () => {
+    // MODEL '' (unset model) -> 2048 default window; maxTokens 100 reserves a
+    // completion budget, leaving (2048-100)/1.1 ~ 1770 tokens of history.
+    const messages = buildMessages(180, 40); // 1800 tokens
     const maxTokens = 100;
     const result = await reduceContextSize(messages, MODEL, maxTokens);
     const tokens = await calculateMessagesTokenSize(result, MODEL);
-    expect(tokens).toBeLessThanOrEqual(maxTokens / 1.5);
+    expect(tokens).toBeLessThanOrEqual(historyBudget(MODEL, maxTokens));
   });
 
   it('keeps cutting while a single cutoff is not enough', async () => {
-    const messages = buildMessages(100, 40);
+    const messages = buildMessages(180, 40);
     const maxTokens = 100;
     const result = await reduceContextSize(messages, MODEL, maxTokens);
     const tokens = await calculateMessagesTokenSize(result, MODEL);
-    expect(tokens).toBeLessThanOrEqual(maxTokens / 1.5);
+    expect(tokens).toBeLessThanOrEqual(historyBudget(MODEL, maxTokens));
     expect(result.length).toBeGreaterThanOrEqual(1);
   });
 
   it('preserves relative order of the surviving messages', async () => {
-    const messages = buildMessages(50, 40);
+    const messages = buildMessages(180, 40);
     const result = await reduceContextSize(messages, MODEL, 100);
     const allContents = messages.map((m) => m.content);
     const firstIndex = allContents.indexOf(result[0].content);

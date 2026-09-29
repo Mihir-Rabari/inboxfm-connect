@@ -11,6 +11,7 @@ import { Card } from '@/components/ui/card'
 import { EmptyState } from '@/components/ui/empty-state'
 import { ErrorState } from '@/components/ui/error-state'
 import { Skeleton } from '@/components/ui/skeleton'
+import { apiClient } from '@/lib/api/client'
 import { AppConnection } from '@/lib/api/types'
 import { useConnectionsQuery, useDeleteConnection, useIntegrations } from '@/lib/query/hooks'
 import { connectionLinks } from '@/lib/utils/connection-links'
@@ -39,10 +40,25 @@ function ListSkeleton() {
   )
 }
 
+const CONNECTIONS_PAGE_LIMIT = 100
+
 export default function ConnectionsPage() {
   const navigate = useNavigate()
   const pieceLookup = usePieceLookup()
-  const { data, isLoading, isError, refetch } = useConnectionsQuery({ limit: 100 })
+  // A cursor belongs to one project's list: the sidebar switcher swaps the
+  // active project without remounting this page, so reset to page 1 on change
+  // (adjusted during render, before the query below runs, so the stale cursor
+  // is never sent for the new project).
+  const activeProjectId = apiClient.getProjectId()
+  const [page, setPage] = useState({ projectId: activeProjectId, cursor: undefined as string | undefined })
+  if (page.projectId !== activeProjectId) {
+    setPage({ projectId: activeProjectId, cursor: undefined })
+  }
+  const cursor = page.projectId === activeProjectId ? page.cursor : undefined
+  const setCursor = (next: string | undefined) => setPage({ projectId: activeProjectId, cursor: next })
+  const { data, isLoading, isError, isFetching, refetch } = useConnectionsQuery(
+    cursor === undefined ? { limit: CONNECTIONS_PAGE_LIMIT } : { limit: CONNECTIONS_PAGE_LIMIT, cursor },
+  )
   const deleteConnection = useDeleteConnection()
   const [deleteTarget, setDeleteTarget] = useState<AppConnection | null>(null)
 
@@ -96,10 +112,20 @@ export default function ConnectionsPage() {
       ) : connections.length === 0 ? (
         <EmptyState
           icon={KeyRound}
-          title="No connections yet"
-          description="Connect an account from the integrations catalog so authenticated tools can execute for this project."
-          actionLabel="Browse Integrations"
-          onAction={() => navigate('/integrations')}
+          title={cursor === undefined ? 'No connections yet' : 'No connections on this page'}
+          description={
+            cursor === undefined
+              ? 'Connect an account from the integrations catalog so authenticated tools can execute for this project.'
+              : 'This page came back empty. Your connections are still there — go back to keep browsing.'
+          }
+          actionLabel={cursor === undefined ? 'Browse Integrations' : 'Previous page'}
+          onAction={
+            cursor === undefined
+              ? () => navigate('/integrations')
+              // A missing previous cursor means page 1 (servers may omit it
+              // there instead of echoing the first cursor back).
+              : () => setCursor(data?.previous ?? undefined)
+          }
         />
       ) : (
         <Card className="overflow-hidden rounded-xl shadow-xs">
@@ -188,6 +214,33 @@ export default function ConnectionsPage() {
             </table>
           </div>
         </Card>
+      )}
+
+      {!isLoading && !isError && connections.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-3" data-testid="connections-pager">
+          <p className="text-[11px] text-muted-foreground" aria-live="polite">
+            Showing {connections.length} connection{connections.length === 1 ? '' : 's'}
+            {data?.next ? ' · more results available' : ''}
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="xs"
+              disabled={isFetching || (cursor === undefined && !data?.previous)}
+              onClick={() => setCursor(data?.previous ?? undefined)}
+            >
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="xs"
+              disabled={isFetching || !data?.next}
+              onClick={() => setCursor(data?.next ?? undefined)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
       )}
 
       <DeleteConnectionDialog

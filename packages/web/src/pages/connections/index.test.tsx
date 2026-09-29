@@ -1,8 +1,9 @@
-import { act } from 'react'
+import { act, useState } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import ConnectionsPage from './index'
+import { apiClient } from '@/lib/api/client'
 import { StubRoute, stubApi } from '@/test/api-stub'
 import {
   githubConnection,
@@ -76,6 +77,7 @@ async function clickTextButton(label: string): Promise<void> {
 describe('Connections page', () => {
   beforeEach(() => {
     localStorage.clear()
+    apiClient.setProjectId(null)
     document.body.innerHTML = ''
     vi.restoreAllMocks()
   })
@@ -187,6 +189,162 @@ describe('Connections page', () => {
     await clickTextButton('Delete')
     await waitFor(() => deleteCalls === 1)
     expect(deleteCalls).toBe(1)
+  }, 15000)
+
+  it('drives cursor pagination with Next/Previous and shows a row-count indicator', async () => {
+    stubApi([
+      {
+        match: LIST_MATCH,
+        respond: (url) => {
+          if (url.searchParams.get('cursor') === 'cursor_page_2') {
+            return {
+              status: 200,
+              body: {
+                ...seekPage([slackConnection('conn_2', 'VedLabs Workspace')]),
+                previous: 'cursor_page_1',
+              },
+            }
+          }
+          return {
+            status: 200,
+            body: {
+              ...seekPage([githubConnection('conn_1', 'Mihir GitHub')]),
+              next: 'cursor_page_2',
+            },
+          }
+        },
+      },
+      {
+        match: (url) => url.pathname === '/api/v1/integrations',
+        respond: () => ({
+          status: 200,
+          body: seekPage([githubSummary(), slackSummary()]),
+        }),
+      },
+    ])
+    const container = renderConnections()
+
+    await waitFor(() => container.textContent?.includes('Mihir GitHub') === true)
+    expect(container.textContent).toContain('Showing 1 connection')
+    expect(container.textContent).toContain('more results available')
+
+    await clickTextButton('Next')
+    await waitFor(() => container.textContent?.includes('VedLabs Workspace') === true)
+    expect(container.textContent).toContain('Showing 1 connection')
+  }, 15000)
+
+  it('shows a page-specific empty state instead of No connections yet past the first page', async () => {
+    stubApi([
+      {
+        match: LIST_MATCH,
+        respond: (url) => {
+          if (url.searchParams.get('cursor') === 'cursor_page_2') {
+            return {
+              status: 200,
+              body: { ...seekPage([]), previous: 'cursor_page_1' },
+            }
+          }
+          return {
+            status: 200,
+            body: {
+              ...seekPage([githubConnection('conn_1', 'Mihir GitHub')]),
+              next: 'cursor_page_2',
+            },
+          }
+        },
+      },
+      {
+        match: (url) => url.pathname === '/api/v1/integrations',
+        respond: () => ({
+          status: 200,
+          body: seekPage([githubSummary(), slackSummary()]),
+        }),
+      },
+    ])
+    const container = renderConnections()
+
+    await waitFor(() => container.textContent?.includes('Mihir GitHub') === true)
+    await clickTextButton('Next')
+    await waitFor(() => container.textContent?.includes('No connections on this page') === true)
+    expect(container.textContent).not.toContain('No connections yet')
+
+    await clickTextButton('Previous page')
+    await waitFor(() => container.textContent?.includes('Mihir GitHub') === true)
+  }, 15000)
+
+  it('resets to page 1 when the active project changes', async () => {
+    const projectA = 'proj_A'
+    const projectB = 'proj_B'
+    apiClient.setProjectId(projectA)
+    stubApi([
+      {
+        match: LIST_MATCH,
+        respond: (url) => {
+          const projectId = url.searchParams.get('projectId')
+          const cursor = url.searchParams.get('cursor')
+          if (projectId === projectB) {
+            return { status: 200, body: seekPage([slackConnection('conn_b1', 'ProjB Conn')]) }
+          }
+          if (cursor === 'cursor_a2') {
+            return {
+              status: 200,
+              body: { ...seekPage([slackConnection('conn_2', 'VedLabs Workspace')]), previous: 'cursor_a1' },
+            }
+          }
+          return {
+            status: 200,
+            body: { ...seekPage([githubConnection('conn_1', 'Mihir GitHub')]), next: 'cursor_a2' },
+          }
+        },
+      },
+      {
+        match: (url) => url.pathname === '/api/v1/integrations',
+        respond: () => ({
+          status: 200,
+          body: seekPage([githubSummary(), slackSummary()]),
+        }),
+      },
+    ])
+
+    function Harness() {
+      const [, setSwitched] = useState(false)
+      return (
+        <QueryClientProvider client={createTestQueryClient()}>
+          <MemoryRouter initialEntries={['/connections']}>
+            <button
+              onClick={() => {
+                apiClient.setProjectId(projectB)
+                setSwitched(true)
+              }}
+            >
+              switch-project
+            </button>
+            <Routes>
+              <Route path="/connections" element={<ConnectionsPage />} />
+              <Route path="/connections/:id" element={<div>detail</div>} />
+              <Route path="*" element={<div>other</div>} />
+            </Routes>
+          </MemoryRouter>
+        </QueryClientProvider>
+      )
+    }
+    const container = mount(<Harness />)
+
+    await waitFor(() => container.textContent?.includes('Mihir GitHub') === true)
+    await clickTextButton('Next')
+    await waitFor(() => container.textContent?.includes('VedLabs Workspace') === true)
+
+    await clickTextButton('switch-project')
+    await waitFor(() => container.textContent?.includes('ProjB Conn') === true)
+
+    expect(container.textContent).not.toContain('Mihir GitHub')
+    expect(container.textContent).not.toContain('VedLabs Workspace')
+    expect(container.textContent).toContain('Showing 1 connection')
+    const nextButton = Array.from(container.querySelectorAll('button')).find(
+      (candidate) => candidate.textContent?.trim() === 'Next',
+    )
+    expect(nextButton?.disabled).toBe(true)
+    apiClient.setProjectId(null)
   }, 15000)
 
   it('never renders credential values in the list', async () => {

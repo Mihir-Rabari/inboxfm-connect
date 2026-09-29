@@ -69,8 +69,31 @@ export function useConnectionsQuery(params?: ConnectionsListParams) {
   return useQuery({
     queryKey: ['connections', params ?? {}, projectId],
     queryFn: () => connectionsApi.list(params),
+    // Keep the previous page visible only while paging the same filtered
+    // list: a project or filter change must render a loading state, never
+    // another integration's or project's credentials.
+    placeholderData: (previousData, previousQuery) =>
+      isSameConnectionList(previousQuery.queryKey[1], previousQuery.queryKey[2], params ?? {}, projectId)
+        ? previousData
+        : undefined,
     meta: { showErrorDialog: true },
   })
+}
+
+function isSameConnectionList(
+  previousParams: unknown,
+  previousProjectId: unknown,
+  params: ConnectionsListParams,
+  projectId: string | null,
+): boolean {
+  if (previousProjectId !== projectId) {
+    return false
+  }
+  if (typeof previousParams !== 'object' || previousParams === null) {
+    return false
+  }
+  const keys: (keyof ConnectionsListParams)[] = ['projectId', 'pieceName', 'displayName', 'status', 'limit']
+  return keys.every((key) => key in previousParams && previousParams[key] === params[key])
 }
 
 export function useConnection(id?: string) {

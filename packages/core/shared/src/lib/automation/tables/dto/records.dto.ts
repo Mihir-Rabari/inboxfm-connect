@@ -67,7 +67,7 @@ export type Filter = z.infer<typeof Filter>
 
 export const ListRecordsRequest = z.object({
     tableId: z.string(),
-    limit: z.coerce.number().optional(),
+    limit: z.coerce.number().max(500).optional(),
     cursor: z.string().optional(),
     filters: OptionalArrayFromQuery(Filter),
 })

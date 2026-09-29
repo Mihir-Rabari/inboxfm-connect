@@ -1,7 +1,7 @@
 import { ActivepiecesError, apId, chunk, Cursor, ErrorCode, isNil, SeekPage } from '@inboxfm-connect/core-utils'
 import { Cell, CreateRecordsRequest, Field, Filter, FilterOperator, PopulatedRecord, TableWebhookEventType, UpdateRecordRequest } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
-import { EntityManager, In } from 'typeorm'
+import { EntityManager, In, MoreThan } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
 import { transaction } from '../../core/db/transaction'
 import { system } from '../../helper/system/system'
@@ -12,8 +12,27 @@ import { CellEntity } from './cell.entity'
 import { RecordEntity, RecordSchema } from './record.entity'
 
 const MAX_BATCH_SIZE = 50
+const MAX_PAGE_SIZE = 500
+const DEFAULT_PAGE_SIZE = 10
 
 const recordRepo = repoFactory(RecordEntity)
+
+function decodeCursor(cursor: Cursor): { created: string; id: string } | null {
+    if (!cursor) return null
+    try {
+        const decoded = Buffer.from(cursor, 'base64').toString('utf-8')
+        const [created, id] = decoded.split(':')
+        if (!created || !id) return null
+        return { created, id }
+    } catch {
+        return null
+    }
+}
+
+function encodeCursor(created: string, id: string): Cursor {
+    return Buffer.from(`${created}:${id}`).toString('base64')
+}
+
 const cellsRepo = repoFactory(CellEntity)
 
 export const recordService = {
@@ -43,6 +62,7 @@ export const recordService = {
             for (const batch of batches) {
                 const now = new Date(new Date().getTime() + records.length)
                 const recordInsertions = prepareRecordInsertions(batch, request.tableId, projectId, now)
+
                 await entityManager.getRepository(RecordEntity).insert(recordInsertions)
 
                 const cellInsertions = prepareCellInsertions(batch, recordInsertions, projectId)
@@ -67,61 +87,111 @@ export const recordService = {
     async list({
         tableId,
         projectId,
-        filters,
+        cursorRequest,
         limit,
+        filters,
         fields: prefetchedFields,
     }: ListParams): Promise<SeekPage<PopulatedRecord>> {
+        const clampedLimit = Math.min(Math.max(1, limit ?? DEFAULT_PAGE_SIZE), MAX_PAGE_SIZE)
+        
         const fields = prefetchedFields ?? await fieldService.getAll({
             tableId,
             projectId,
         })
+
+        // Build the base query conditions
+        const whereBase: Record<string, any> = {
+            projectId,
+            tableId,
+        }
+
+        // Decode cursor for pagination
+        const cursor = decodeCursor(cursorRequest)
+        
+        // Build the query with cursor-based pagination
+        let where = { ...whereBase }
+        if (cursor) {
+            where = {
+                ...whereBase,
+                created: MoreThan(cursor.created),
+                id: MoreThan(cursor.id),
+            }
+        }
+
+        // Fetch one extra record to determine if there's a next page
         const records = await recordRepo().find({
-            where: {
-                projectId,
-                tableId,
-            },
+            where,
             order: {
                 created: 'ASC',
+                id: 'ASC',
             },
+            take: clampedLimit + 1,
         })
 
-        const cells = await cellsRepo().find({
-            where: {
-                projectId,
-                fieldId: In(fields.map((field) => field.id)),
-                recordId: In(records.map((record) => record.id)),
-            },
-        })
-        const cellsByRecordId = new Map<string, typeof cells>()
-        for (const cell of cells) {
-            const group = cellsByRecordId.get(cell.recordId)
-            if (group) {
-                group.push(cell)
-            }
-            else {
-                cellsByRecordId.set(cell.recordId, [cell])
-            }
-        }
-        for (const record of records) {
-            record.cells = cellsByRecordId.get(record.id) ?? []
-        }
-        const filteredOutRecords = records.filter((record) => {
-            if (!filters || filters.length === 0) {
-                return true
-            }
-            return filters.every((filter) => {
-                const cell = record.cells.find(c => c.fieldId === filter.fieldId)
-                    ?? { fieldId: filter.fieldId, value: '' }
-                return doesCellValueMatchFilters(cell, [filter])
+        // Determine if there's a next page
+        const hasNextPage = records.length > clampedLimit
+        const pagedRecords = hasNextPage ? records.slice(0, clampedLimit) : records
+
+        // Extract record IDs for cell fetching
+        const recordIds = pagedRecords.map((r) => r.id)
+
+        // Fetch cells only for the paged records
+        let cellsByRecordId = new Map<string, Cell[]>()
+        if (recordIds.length > 0) {
+            const cells = await cellsRepo().find({
+                where: {
+                    projectId,
+                    fieldId: In(fields.map((field) => field.id)),
+                    recordId: In(recordIds),
+                },
             })
-        })
+            const cellsByRecordIdMap = new Map<string, Cell[]>()
+            for (const cell of cells) {
+                const group = cellsByRecordIdMap.get(cell.recordId)
+                if (group) {
+                    group.push(cell)
+                } else {
+                    cellsByRecordIdMap.set(cell.recordId, [cell])
+                }
+            }
+            cellsByRecordId = cellsByRecordIdMap
+        }
 
-        const populatedRecords = await formatRecordsAndFetchField({ records: filteredOutRecords, tableId, projectId, fields })
+        // Attach cells to records
+        const recordsWithCells = records.map((record) => ({
+            ...record,
+            cells: cellsByRecordId.get(record.id) ?? [],
+        }))
+
+        // Apply filters if present
+        const filteredRecords = filters && filters.length > 0
+            ? records.filter((record) => {
+                if (!filters || filters.length === 0) return true
+                return filters.every((filter) => {
+                    const cell = record.cells.find(c => c.fieldId === filter.fieldId)
+                        ?? { fieldId: filter.fieldId, value: '' }
+                    return doesCellValueMatchFilters(cell, [filter])
+                })
+            })
+            : records
+
+        // Apply limit after filtering (in-memory filtering may reduce count)
+        const finalRecords = filteredRecords.slice(0, clampedLimit)
+
+        const populatedRecords = await formatRecordsAndFetchField({ records: finalRecords, tableId, projectId, fields })
+
+        // Determine next cursor
+        const nextCursor = hasNextPage && pagedRecords.length > 0
+            ? encodeCursor(pagedRecords[pagedRecords.length - 1].created, pagedRecords[pagedRecords.length - 1].id)
+            : null
+
+        // Determine previous cursor (for reverse pagination)
+        const previousCursor = cursorRequest ? encodeCursor(records[0].created, records[0].id) : null
 
         return {
-            data: populatedRecords.slice(0, limit),
-            next: null,
-            previous: null,
+            data: populatedRecords.slice(0, clampedLimit),
+            next: nextCursor,
+            previous: previousCursor,
         }
     },
 
@@ -138,8 +208,7 @@ export const recordService = {
             throw new ActivepiecesError({
                 code: ErrorCode.ENTITY_NOT_FOUND,
                 params: {
-                    entityType: 'Record',
-                    entityId: id,
+                    message: `Record ${id} not found`,
                 },
             })
         }
@@ -175,7 +244,7 @@ export const recordService = {
                     .find({
                         where: { projectId, tableId },
                     })
-
+            
                 // Filter out cells with non-existing fields
                 const validCells = request.cells.filter((cellData) =>
                     existingFields.some((field) => field.id === cellData.fieldId),
@@ -234,7 +303,10 @@ export const recordService = {
         if (isNil(firstRecord)) {
             throw new ActivepiecesError({
                 code: ErrorCode.ENTITY_NOT_FOUND,
-                params: { entityType: 'Record', entityId: ids[0] },
+                params: {
+                    entityType: 'Record',
+                    entityId: ids[0],
+                },
             })
         }
 
@@ -302,6 +374,7 @@ export const recordService = {
             where: { projectId, tableId },
         })
     },
+
     async validateCount(params: CountParams, insertCount: number): Promise<void> {
         const countRes = await this.count(params)
         if (countRes + insertCount > system.getNumberOrThrow(AppSystemProp.MAX_RECORDS_PER_TABLE)) {
@@ -313,7 +386,7 @@ export const recordService = {
             })
         }
     },
-}
+};
 
 type CreateParams = {
     request: CreateRecordsRequest
@@ -360,6 +433,7 @@ type TriggerWebhooksParams = {
     logger: FastifyBaseLogger
     authorization: string
 }
+
 type CountParams = {
     projectId: string
     tableId: string
@@ -411,7 +485,7 @@ function prepareCellInsertions(
                 value: cellData.value ?? '',
                 id: apId(),
             }
-        }),
+        })
     )
 }
 
@@ -496,7 +570,6 @@ function doesCellValueMatchFilters(cell: Pick<Cell, 'fieldId' | 'value'>, filter
             }
         }
     })
-
 }
 
 const numberFilterValidator = ({ cellValue, filterValue, cb }: { cellValue: unknown, filterValue: string, cb: ({ cellValue, filterValue }: { cellValue: number, filterValue: number }) => boolean }) => {
@@ -510,5 +583,3 @@ const numberFilterValidator = ({ cellValue, filterValue, cb }: { cellValue: unkn
     }
     return false
 }
-
-

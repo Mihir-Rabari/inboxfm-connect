@@ -463,6 +463,42 @@ describe('POST /v1/execute authorization (direct tool run)', () => {
 
         expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
     })
+
+    it('rejects a same-project connectionId minted for a different piece (#364 review)', async () => {
+        const ctx = await createTestContext(app!)
+
+        // A connection owned by this project, but for piece A
+        const otherPieceConnectionId = apId()
+        const now = new Date().toISOString()
+        await db.save('app_connection', {
+            id: otherPieceConnectionId,
+            created: now,
+            updated: now,
+            projectId: null,
+            platformId: ctx.platform.id,
+            projectIds: [ctx.project.id],
+            pieceName: '@inboxfm-connect/piece-alpha',
+            pieceVersion: '0.0.1',
+            externalId: 'alpha-external',
+            displayName: 'alpha',
+            type: AppConnectionType.SECRET_TEXT,
+            status: AppConnectionStatus.ACTIVE,
+            ownerId: null,
+            scope: AppConnectionScope.PROJECT,
+            value: { iv: '00', data: '00' },
+        })
+
+        // Caller invokes piece B's tool while passing piece A's connectionId
+        const response = await ctx.post('/v1/execute', {
+            projectId: ctx.project.id,
+            integration: '@inboxfm-connect/piece-beta',
+            tool: 'noop',
+            connectionId: otherPieceConnectionId,
+            input: {},
+        })
+
+        expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
+    })
 })
 
 describe('Automation list/create authorization (projectId is mandatory)', () => {

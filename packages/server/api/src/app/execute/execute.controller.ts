@@ -97,8 +97,12 @@ async function resolveConnectionId({ projectId, connectionId, externalUserId, pi
         // Never trust a client-supplied connectionId: without this scoping the
         // runtime would decrypt ANY connection by id, letting a caller use another
         // project's credentials as the auth for their own tool run (issue #363).
+        // Filter on pieceName as well: within one project a connection minted for
+        // integration A must not authorize integration B's tool run — the
+        // externalUserId branch below already scopes this way (review #364).
         const connection = await appConnectionsRepo().findOneBy({
             id: connectionId,
+            pieceName,
             projectIds: ArrayContains([projectId]),
         })
         if (isNil(connection)) {

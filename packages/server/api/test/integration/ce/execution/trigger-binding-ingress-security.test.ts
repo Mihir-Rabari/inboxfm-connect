@@ -1,3 +1,4 @@
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { apId } from '@inboxfm-connect/core-utils'
 import { TriggerBindingStatus } from '@inboxfm-connect/shared'
 import { FastifyInstance } from 'fastify'
@@ -158,6 +159,39 @@ describe('POST /v1/trigger-bindings/:id/run — public ingress security', () => 
         expect(created).toHaveLength(3)
         expect(created.every((e: { projectId: string }) => e.projectId === ctx.project.id)).toBe(true)
         expect(await executionsIn(ctx.project.id)).toHaveLength(3)
+    })
+
+    it('rejects a payload exceeding 1MB with 413 Payload Too Large (Issue #351)', async () => {
+        const ctx = await createTestContext(app!)
+        const binding = await saveBinding(ctx, TriggerBindingStatus.ENABLED)
+        const engineHook = vi.spyOn(userInteractionWatcher, 'submitAndWaitForResponse')
+
+        const oversizedData = 'x'.repeat(1024 * 1024 + 4096)
+        const response = await app!.inject({
+            method: 'POST',
+            url: `/api/v1/trigger-bindings/${binding.id}/run`,
+            payload: { data: oversizedData },
+        })
+
+        expect(response.statusCode).toBe(StatusCodes.REQUEST_TOO_LONG)
+        expect(engineHook).not.toHaveBeenCalled()
+        expect(await executionsIn(ctx.project.id)).toHaveLength(0)
+    })
+
+    it('accepts a valid payload under 1MB (Issue #351)', async () => {
+        const ctx = await createTestContext(app!)
+        const binding = await saveBinding(ctx, TriggerBindingStatus.ENABLED)
+        stubEngineRunHook([{ message: 'large valid event' }])
+
+        const validLargeData = 'x'.repeat(512 * 1024)
+        const response = await app!.inject({
+            method: 'POST',
+            url: `/api/v1/trigger-bindings/${binding.id}/run`,
+            payload: { data: validLargeData },
+        })
+
+        expect(response.statusCode, response.payload).toBe(StatusCodes.OK)
+        expect(await executionsIn(ctx.project.id)).toHaveLength(1)
     })
 })
 

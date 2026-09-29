@@ -245,8 +245,8 @@ const RenewTriggerBindingRouteOptions = {
 const RunTriggerBindingRouteOptions = {
     config: {
         security: securityAccess.public(),
-        bodyLimit: 1024 * 1024,
     },
+    bodyLimit: 1024 * 1024,
     schema: {
         params: z.object({
             id: z.string(),

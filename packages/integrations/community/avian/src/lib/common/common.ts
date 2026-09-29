@@ -93,12 +93,11 @@ export const exceedsHistoryLimit = (
 
 export const tokenLimit = 32000;
 
-// Context windows for the OpenAI-compatible models this piece's deployments
-// run, aligned with the openai piece's sibling table: base gpt-3.5-turbo is
-// 4096 — only the -16k variants are 16k. Unknown models keep the conservative
-// 2048 fallback so deployments we cannot resolve to a known model never
-// over-admit history.
+// Context windows for Avian models — aligned with the Avian model catalog.
+// Unknown models keep the conservative 2048 fallback so deployments we cannot
+// resolve to a known model never over-admit history.
 export const modelTokenLimit = (model: string): number => {
+  // Avian's model catalog includes GPT-compatible models
   switch (model) {
     case 'gpt-4o':
     case 'gpt-4o-mini':
@@ -117,6 +116,7 @@ export const modelTokenLimit = (model: string): number => {
     case 'gpt-4':
       return 8192;
     default:
+      // For truly unknown models, fall back to 2048
       return 2048;
   }
 };

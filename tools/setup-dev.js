@@ -2,7 +2,6 @@
 
 const { execSync } = require('child_process');
 const fs = require('fs');
-const path = require('path');
 
 // Check Node.js version
 const nodeVersion = execSync('node --version').toString().trim();
@@ -41,22 +40,7 @@ execSync('bun install --frozen-lockfile', {
   env: { ...process.env, REDISMS_VERSION: process.env.REDISMS_VERSION || '7.4.0' },
 });
 
-const IGNORED_DIRS = new Set(['node_modules', 'dist', 'framework', 'common']);
-
-const findAllPieceFolders = (folderPath) => {
-  const results = [];
-  for (const entry of fs.readdirSync(folderPath)) {
-    if (IGNORED_DIRS.has(entry)) continue;
-    const full = path.join(folderPath, entry);
-    if (!fs.statSync(full).isDirectory()) continue;
-    if (fs.existsSync(path.join(full, 'package.json'))) {
-      results.push(full);
-    } else {
-      results.push(...findAllPieceFolders(full));
-    }
-  }
-  return results;
-};
+const { devPieces: devPieceUtils } = require('./dev-pieces');
 
 // Pre-build dev pieces so dist/ exists before the server starts
 const dotenv = require('dotenv');
@@ -67,19 +51,9 @@ try {
 
 const devPieces = process.env.AP_DEV_PIECES || envConfig.AP_DEV_PIECES;
 
-if (devPieces) {
-  const pieceNames = [...new Set(devPieces.split(',').map(n => n.trim()))];
-  const allFolders = findAllPieceFolders(path.resolve('packages', 'integrations'));
+const pieceFilters = devPieceUtils.resolveDevPieceFilters({ apDevPieces: devPieces }).join(' ');
 
-  const pieceFilters = pieceNames.map(name => {
-    const dir = allFolders.find(p => p.endsWith(path.sep + name));
-    if (!dir) {
-      throw new Error(`❌ Piece folder not found for: "${name}".`);
-    }
-    const packageName = JSON.parse(fs.readFileSync(path.join(dir, 'package.json'), 'utf-8')).name;
-    return `--filter=${packageName}`;
-  }).join(' ');
-
+if (pieceFilters) {
   console.log(`Building dev pieces: ${devPieces}`);
   execSync(`npx turbo run build ${pieceFilters}`, { stdio: 'inherit' });
 }

@@ -84,13 +84,60 @@ export const streamToBuffer = (stream: any) => {
   });
 };
 
-export const calculateTokensFromString = (string: string, model: string) => {
-  try {
-    const encoder = encoding_for_model(model as any);
-    const tokens = encoder.encode(string);
-    encoder.free();
+function isTiktokenModel(model: string): model is Parameters<typeof encoding_for_model>[0] {
+  return typeof model === 'string';
+}
 
-    return tokens.length;
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null;
+}
+
+function getRole(message: unknown): string | undefined {
+  if (isRecord(message) && typeof message['role'] === 'string') {
+    return message['role'];
+  }
+  return undefined;
+}
+
+function extractMessageText(message: unknown): string {
+  if (typeof message === 'string') {
+    return message;
+  }
+  if (isRecord(message)) {
+    const content = message['content'];
+    if (typeof content === 'string') {
+      return content;
+    }
+    if (Array.isArray(content)) {
+      return content
+        .map((part: unknown) => {
+          if (typeof part === 'string') {
+            return part;
+          }
+          if (isRecord(part) && typeof part['text'] === 'string') {
+            return part['text'];
+          }
+          return '';
+        })
+        .join(' ');
+    }
+    if (content !== undefined && content !== null) {
+      return String(content);
+    }
+  }
+  return '';
+}
+
+export const calculateTokensFromString = (string: string, model: string): number => {
+  try {
+    if (isTiktokenModel(model)) {
+      const encoder = encoding_for_model(model);
+      const tokens = encoder.encode(string);
+      encoder.free();
+
+      return tokens.length;
+    }
+    return Math.round(string.length / 4);
   } catch (e) {
     // Model not supported by tiktoken, every 4 chars is a token
     return Math.round(string.length / 4);
@@ -98,33 +145,20 @@ export const calculateTokensFromString = (string: string, model: string) => {
 };
 
 export const calculateMessagesTokenSize = async (
-  messages: any[],
+  messages: readonly unknown[],
   model: string
 ): Promise<number> => {
   let tokenLength = 0;
   for (const message of messages) {
-    let text = '';
-    if (typeof message === 'string') {
-      text = message;
-    } else if (message && typeof message === 'object') {
-      if (typeof message.content === 'string') {
-        text = message.content;
-      } else if (Array.isArray(message.content)) {
-        text = message.content
-          .map((part: any) => (typeof part === 'string' ? part : part?.text ?? ''))
-          .join(' ');
-      } else if (message.content !== undefined && message.content !== null) {
-        text = String(message.content);
-      }
-    }
+    const text = extractMessageText(message);
     tokenLength += calculateTokensFromString(text, model);
   }
 
   return tokenLength;
 };
 
-export const reduceContextSize = async <T = any>(
-  messages: T[],
+export const reduceContextSize = async <T = unknown>(
+  messages: readonly T[],
   model: string,
   maxTokens: number
 ): Promise<T[]> => {
@@ -148,7 +182,7 @@ export const reduceContextSize = async <T = any>(
     // Advance cutoff to the next user message boundary so exchanges stay paired (avoid orphaned leading assistant)
     while (
       cutoffCount < currentMessages.length &&
-      (currentMessages[cutoffCount] as any)?.role === 'assistant'
+      getRole(currentMessages[cutoffCount]) === 'assistant'
     ) {
       cutoffCount++;
     }

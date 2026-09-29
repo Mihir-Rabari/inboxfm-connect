@@ -1,5 +1,5 @@
-import { timingSafeEqual } from 'node:crypto'
 import { isNil } from '@inboxfm-connect/core-utils'
+import { timingSafeEqual } from 'crypto'
 import { AiMetadata, Audience, ErrorHandlingOptionsParam, type OutputSchema, PieceMetadata, PieceMetadataModel, WebhookRenewConfiguration } from '@inboxfm-connect/pieces-framework'
 import { ApplyLicenseKeyByEmailRequestBody, ExactVersionType, IncreaseAICreditsForPlatformRequestBody, PackageType, PieceCategory, PieceType, TriggerStrategy, TriggerTestStrategy, WebhookHandshakeConfiguration } from '@inboxfm-connect/shared'
 import { FastifyReply, FastifyRequest } from 'fastify'

@@ -96,6 +96,14 @@ describe('Cron Parser & Validator', () => {
             // has a 31st (e.g. a single non-leap February), so no tick exists.
             expect(cronParser.validateCronExpression('0 0 31 FEB *')).toBe(false)
         })
+
+        it("keeps OR'd dom/dow schedules even when a requested dom is unreachable", () => {
+            // computeNextTick ORs a restricted dom and dow, so 31 Feb + MON
+            // still fires on February Mondays (the dom never matches, the
+            // weekday does). The probe must keep it (review #391).
+            expect(cronParser.validateCronExpression('0 0 31 2 MON')).toBe(true)
+            expect(cronParser.validateCronExpression('0 0 30 2 MON')).toBe(true)
+        })
     })
 
     describe('parseCronExpression', () => {

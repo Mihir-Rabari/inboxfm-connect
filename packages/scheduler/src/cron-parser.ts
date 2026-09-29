@@ -176,20 +176,33 @@ function parseCronExpression(expression: string): ParsedCronSchedule {
 // fire — a dom/month combo that never denotes a real date (e.g. `0 0 31 2 *`)
 // parses in-bounds but produces no tick. The tick search that proves it is
 // expensive (it scans the whole window and throws only after MAX_ITERATIONS),
-// so prove fireability directly from the parsed fields instead of running it:
-// for every month in the schedule, a possible dom must exist in a month that
-// can actually have that day (leap-year-aware for 29 Feb).
+// so prove fireability directly from the parsed fields instead of running it.
+// The day-match rule is the exact OR/dom-only/dow-only branching `computeNextTick`
+// uses (line 264-276): a restricted dom AND dow pair is OR'd, so `0 0 31 2 MON`
+// fires on February Mondays (review #391).
+function dayMatches({ dom, dow, day, weekday }: DayMatchParams): boolean {
+    if (dom.wildcard && dow.wildcard) return true
+    if (!dom.wildcard && !dow.wildcard) {
+        return dom.values.has(day) || dow.values.has(weekday)
+    }
+    if (!dom.wildcard) return dom.values.has(day)
+    return dow.values.has(weekday)
+}
+
+// Reference year for weekday lookup — any fixed year is a valid fireability
+// probe: if dom/dow matches some day in that year's month, `computeNextTick`
+// finds a tick within the window; using one year avoids per-call Intl costs.
+const REFERENCE_YEAR = 2000
+
 function scheduleIsFireable(parsed: ParsedCronSchedule): boolean {
     const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
     for (const month of parsed.months.values) {
         const maxDay = DAYS_IN_MONTH[month - 1]
-        // 29 Feb is reachable on leap years, so a 29-dom schedule is kept; the
-        // scheduler will fire it whenever the next leap year arrives. Months
-        // that can never host any requested dom (e.g. 30/31 in a single non-leap
-        // February) yield no candidate and are rejected.
-        for (const dom of parsed.daysOfMonth.values) {
-            if (dom === 29 && month === 2) return true
-            if (dom <= maxDay) return true
+        for (let day = 1; day <= maxDay; day++) {
+            const weekday = new Date(Date.UTC(REFERENCE_YEAR, month - 1, day)).getUTCDay()
+            if (dayMatches({ dom: parsed.daysOfMonth, dow: parsed.daysOfWeek, day, weekday })) {
+                return true
+            }
         }
     }
     return false
@@ -347,3 +360,4 @@ export const cronParser = { parseCronExpression, validateCronExpression, compute
 type ParseValueParams = { valStr: string, min: number, max: number, names?: Record<string, number> }
 type ParseFieldParams = Omit<ParseValueParams, 'valStr'> & { rawField: string, isDayOfWeek?: boolean }
 type CalendarDay = { year: number, month: number, day: number }
+type DayMatchParams = { dom: ParsedCronField, dow: ParsedCronField, day: number, weekday: number }

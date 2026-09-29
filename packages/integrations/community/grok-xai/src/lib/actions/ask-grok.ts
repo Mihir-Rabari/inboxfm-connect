@@ -13,6 +13,9 @@ import {
   createTokenProperty,
   makeXaiRequest,
   validateResponse,
+  calculateMessagesTokenSize,
+  exceedsHistoryLimit,
+  reduceContextSize,
   XaiResponse,
   AskGrokResult
 } from '../common/utils';
@@ -346,13 +349,45 @@ export const askGrok = createAction({
       const assistantMessage = choice.message;
 
       if (memoryKey) {
-        const newHistory = [
+        let newHistory = [
           ...messageHistory,
           ...conversationMessages.slice(messageHistory.length),
           assistantMessage,
         ];
-        const trimmedHistory = newHistory.slice(-30);
-        await store.put(memoryKey, trimmedHistory, StoreScope.PROJECT);
+
+        // Budget history against what the model can actually accept as input.
+        // The stored history holds { role, content } objects and the system
+        // message is sent on every request, so its tokens count toward the
+        // guard too. Previously a fixed message-count cap (30) alone bounded
+        // growth, so long chats still exceeded the model's context window
+        // regardless of actual token size (issue #385). When the completion
+        // budget is unset, keep the conservative 2048-token history budget so
+        // the guard never over-truncates to a single message.
+        const modelValue = model ?? '';
+        const completionBudget = maxCompletionTokens ?? 2048;
+        const systemTokenLength = await calculateMessagesTokenSize(
+          [{ role: 'system', content: systemMessage ?? '' }],
+          modelValue
+        );
+        const newHistoryTokenLength = await calculateMessagesTokenSize(
+          newHistory,
+          modelValue
+        );
+        if (
+          exceedsHistoryLimit(
+            newHistoryTokenLength + systemTokenLength,
+            modelValue,
+            completionBudget
+          )
+        ) {
+          newHistory = await reduceContextSize(
+            newHistory,
+            modelValue,
+            completionBudget,
+            systemTokenLength
+          );
+        }
+        await store.put(memoryKey, newHistory, StoreScope.PROJECT);
       }
 
       const result = {

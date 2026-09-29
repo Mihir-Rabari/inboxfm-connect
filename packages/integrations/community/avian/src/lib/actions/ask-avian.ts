@@ -1,7 +1,12 @@
 import { avianAuth } from '../auth';
 import { createAction, Property, StoreScope } from '@inboxfm-connect/pieces-framework';
 import OpenAI from 'openai';
-import { baseUrl } from '../common/common';
+import {
+  baseUrl,
+  calculateMessagesTokenSize,
+  exceedsHistoryLimit,
+  reduceContextSize,
+} from '../common/common';
 import * as z from 'zod/mini'
 import { propsValidation, httpClient, HttpMethod, AuthenticationType } from '@inboxfm-connect/pieces-common';
 
@@ -189,12 +194,33 @@ export const askAvian = createAction({
     messageHistory = [...messageHistory, completion.choices[0].message];
 
     if (memoryKey) {
-      // Prevent unbounded memory growth that would exceed the context window.
-      // Keep the most recent messages, dropping the oldest ones first.
-      const MAX_HISTORY_MESSAGES = 50;
-      if (messageHistory.length > MAX_HISTORY_MESSAGES) {
-        messageHistory = messageHistory.slice(
-          messageHistory.length - MAX_HISTORY_MESSAGES
+      // Budget history against what the model can actually accept as input.
+      // The stored history holds { role, content } objects and the roles/system
+      // messages ride along on every call ([...roles, ...messageHistory]), so
+      // their tokens must count toward the guard too. Previously a fixed
+      // message-count cap (50) alone bounded growth, so long chats still
+      // exceeded the model's context window regardless of actual token size.
+      const modelValue = model ?? '';
+      const rolesTokenLength = await calculateMessagesTokenSize(
+        roles,
+        modelValue
+      );
+      const tokenLength = await calculateMessagesTokenSize(
+        messageHistory,
+        modelValue
+      );
+      if (
+        exceedsHistoryLimit(
+          tokenLength + rolesTokenLength,
+          modelValue,
+          maxTokens
+        )
+      ) {
+        messageHistory = await reduceContextSize(
+          messageHistory,
+          modelValue,
+          maxTokens,
+          rolesTokenLength
         );
       }
       await store.put(memoryKey, messageHistory, StoreScope.PROJECT);

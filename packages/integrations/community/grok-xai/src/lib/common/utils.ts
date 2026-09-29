@@ -1,5 +1,6 @@
 import { AppConnectionValueForAuthProperty, Property } from '@inboxfm-connect/pieces-framework';
 import { httpClient, HttpMethod, AuthenticationType } from '@inboxfm-connect/pieces-common';
+import { encoding_for_model } from 'tiktoken';
 import { XAI_BASE_URL } from './constants';
 import { grokAuth } from './auth';
 
@@ -334,5 +335,106 @@ export const parseJsonResponse = (content: string, operation: string) => {
     return JSON.parse(content);
   } catch (parseError) {
     throw new Error(`Failed to parse ${operation.toLowerCase()} result: ${parseError}`);
+  }
+}; 
+
+// The stored chat history holds { role, content } message objects (see
+// ask-grok.ts), not plain strings, so the estimator must read the message
+// content. Estimating the whole object (e.g. via String(message).length)
+// silently returns NaN and disables the context guard entirely.
+export const calculateTokensFromString = (string: string, model: string) => {
+  try {
+    const encoder = encoding_for_model(model as any);
+    const tokens = encoder.encode(string);
+    encoder.free();
+
+    return tokens.length;
+  } catch (e) {
+    // Model not supported by tiktoken, every 4 chars is a token
+    return Math.round(string.length / 4);
+  }
+};
+
+export const calculateMessagesTokenSize = async (
+  messages: { role: string; content: string }[],
+  model: string
+) => {
+  let tokenLength = 0;
+  for (const message of messages) {
+    tokenLength += calculateTokensFromString(message.content, model);
+  }
+
+  return tokenLength;
+};
+
+export const reduceContextSize = async (
+  messages: { role: string; content: string }[],
+  model: string,
+  maxTokens: number,
+  // Roles/system messages ride along on every request but are not part of the
+  // history being reduced; subtract their tokens from the budget so what
+  // remains actually fits alongside the system prompt.
+  rolesTokenLength = 0
+) => {
+  // TODO: Summarize context instead of cutoff
+  // Cut from the front (oldest first) without mutating the caller's array, and
+  // keep cutting while the remaining history still exceeds the budget.
+  let currentMessages = [...messages];
+  while (
+    currentMessages.length > 1 &&
+    (await calculateMessagesTokenSize(currentMessages, model)) >
+      maxTokens / 1.5 - rolesTokenLength
+  ) {
+    const cutoffSize = Math.max(1, Math.round(currentMessages.length * 0.1));
+    currentMessages = currentMessages.slice(cutoffSize);
+  }
+
+  return currentMessages;
+};
+
+// The history budget is what the model can actually accept as input: its
+// context window minus the completion budget, capped by the platform's 32k
+// system limit, with the /1.1 safety margin. Previously a fixed message-count
+// cap (30) alone bounded growth, so long chats still exceeded the model's
+// context window regardless of actual token size.
+export const historyBudget = (model: string, maxTokens: number): number => {
+  const byModelWindow = (modelTokenLimit(model) - maxTokens) / 1.1;
+  return Math.min(tokenLimit / 1.1, byModelWindow);
+};
+
+export const exceedsHistoryLimit = (
+  tokenLength: number,
+  model: string,
+  maxTokens: number
+) => {
+  return tokenLength >= historyBudget(model, maxTokens);
+};
+
+export const tokenLimit = 32000;
+
+// Context windows for the xAI models this piece's deployments run: grok-4
+// carries a 1M-token window, the beta grok-3 line 256k, and the older fast
+// mini 128k — aligned with the openai piece's sibling table conventions.
+// Unknown models keep the conservative 2048 fallback so deployments we cannot
+// resolve to a known model never over-admit history.
+export const modelTokenLimit = (model: string): number => {
+  switch (model) {
+    case 'grok-4':
+    case 'grok-4-fast':
+    case 'grok-4-1':
+    case 'grok-4.1':
+      return 1000000;
+    case 'grok-3-beta':
+    case 'grok-3-fast-beta':
+    case 'grok-3-mini-beta':
+    case 'grok-3.1':
+    case 'grok-3.2':
+      return 256000;
+    case 'grok-2-image-1212':
+    case 'grok-2-vision-1212':
+    case 'grok-3-mini':
+      return 128000;
+    default:
+      return 2048;
   }
 }; 

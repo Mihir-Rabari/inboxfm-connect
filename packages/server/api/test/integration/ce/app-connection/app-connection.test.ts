@@ -297,7 +297,7 @@ describe('AppConnection CE API', () => {
          * other platform). Before the fix those requests surfaced a TypeORM
          * EntityNotFoundError, which the global error handler maps to 500.
          */
-        it('should return 404 (not 500) for a connection owned by another project', async () => {
+        it('should return 404 (not 500) for a platform-scoped connection updated via project route', async () => {
             const ctx = await setup()
 
             const mockPiece = createMockPieceMetadata({
@@ -308,30 +308,26 @@ describe('AppConnection CE API', () => {
             await db.save('integration_metadata', mockPiece)
             pieceMetadataService(mockLog).getOrThrow = vi.fn().mockResolvedValue(mockPiece)
 
-            // Create the connection inside a *second* project on the same platform.
-            const otherCtx = await createTestContext(app!)
-            const createResponse = await ctx.post('/v1/connections', {
-                externalId: 'cross-project-connection',
-                displayName: 'Owned Elsewhere',
-                pieceName: mockPiece.name,
-                projectId: otherCtx.project.id,
-                type: AppConnectionType.SECRET_TEXT,
-                value: {
-                    type: AppConnectionType.SECRET_TEXT,
-                    secret_text: 'my-secret',
-                },
-                pieceVersion: mockPiece.version,
-            })
-            expect(createResponse?.statusCode).toBe(StatusCodes.CREATED)
-            const connectionId = createResponse?.json().id
+            // Create a PLATFORM-scoped connection accessible to the project's platform.
+            const platformConnection = {
+                ...createMockConnection({
+                    platformId: ctx.platform.id,
+                    projectIds: [ctx.project.id],
+                    externalId: 'platform-update-test',
+                    pieceName: mockPiece.name,
+                }, ctx.user?.id),
+                scope: AppConnectionScope.PLATFORM,
+            }
+            await db.save('app_connection', platformConnection)
 
-            // Call it with the original context -> out of scope
-            const response = await ctx.post(`/v1/connections/${connectionId}`, {
+            // Update through the project route (which enforces scope: PROJECT) -> out of scope
+            const response = await ctx.post(`/v1/connections/${platformConnection.id}`, {
                 displayName: 'Hijacked',
             })
 
             expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
             expect(response?.statusCode).not.toBe(StatusCodes.INTERNAL_SERVER_ERROR)
+            expect(response?.json().code).toBe('ENTITY_NOT_FOUND')
         })
 
         it('should not leak connection details when the update 404s', async () => {

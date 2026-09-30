@@ -65,8 +65,10 @@ describe('OpenAI common - context reduction', () => {
     it('reduceContextSize uses loop not recursion (no stack overflow on large arrays)', async () => {
         // Create many small messages
         const messages = Array.from({ length: 100 }, (_, i) => ({ content: `message ${i}` }))
-        const result = await reduceContextSize(messages, 'gpt-4', 10000)
-        // Should not throw and should return valid result
+        const result = await reduceContextSize(messages, 'gpt-4', 200)
         expect(Array.isArray(result)).toBe(true)
+        expect(result.length).toBeLessThan(100)
+        const finalTokens = await calculateMessagesTokenSize(result, 'gpt-4')
+        expect(finalTokens).toBeLessThanOrEqual(200 / 1.5)
     })
 })

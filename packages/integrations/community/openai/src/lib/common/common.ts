@@ -1,4 +1,4 @@
-import { encoding_for_model } from 'tiktoken';
+import { encoding_for_model, Tiktoken } from 'tiktoken';
 
 export const baseUrl = 'https://api.openai.com/v1';
 
@@ -77,20 +77,78 @@ export const sleep = (ms: number) => {
 
 export const streamToBuffer = (stream: any) => {
   const chunks: any[] = [];
-  return new Promise((resolve, reject) => {
-    stream.on('data', (chunk: any) => chunks.push(Buffer.from(chunk)));
-    stream.on('error', (err: any) => reject(err));
+  return new Promise<Buffer>((resolve, reject) => {
+    stream.on('data', (chunk: Buffer | string) => chunks.push(Buffer.from(chunk)));
+    stream.on('error', (err: Error) => reject(err));
     stream.on('end', () => resolve(Buffer.concat(chunks)));
   });
 };
 
-export const calculateTokensFromString = (string: string, model: string) => {
-  try {
-    const encoder = encoding_for_model(model as any);
-    const tokens = encoder.encode(string);
-    encoder.free();
+const encoderCache = new Map<string, Tiktoken>();
 
-    return tokens.length;
+function getEncoder(model: string): Tiktoken | null {
+  if (!encoderCache.has(model)) {
+    try {
+      const enc = encoding_for_model(model as Parameters<typeof encoding_for_model>[0]);
+      encoderCache.set(model, enc);
+    } catch {
+      return null;
+    }
+  }
+  return encoderCache.get(model) ?? null;
+}
+
+function isTiktokenModel(model: string): model is Parameters<typeof encoding_for_model>[0] {
+  return typeof model === 'string';
+}
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null;
+}
+
+function getRole(message: unknown): string | undefined {
+  if (isRecord(message) && typeof message['role'] === 'string') {
+    return message['role'];
+  }
+  return undefined;
+}
+
+function extractMessageText(message: unknown): string {
+  if (typeof message === 'string') {
+    return message;
+  }
+  if (isRecord(message)) {
+    const content = message['content'];
+    if (typeof content === 'string') {
+      return content;
+    }
+    if (Array.isArray(content)) {
+      return content
+        .map((part: unknown) => {
+          if (typeof part === 'string') {
+            return part;
+          }
+          if (isRecord(part) && typeof part['text'] === 'string') {
+            return part['text'];
+          }
+          return '';
+        })
+        .join(' ');
+    }
+    if (content !== undefined && content !== null) {
+      return String(content);
+    }
+  }
+  return '';
+}
+
+export const calculateTokensFromString = (string: string, model: string): number => {
+  try {
+    const encoder = getEncoder(model);
+    if (encoder) {
+      return encoder.encode(string).length;
+    }
+    return Math.round(string.length / 4);
   } catch (e) {
     // Model not supported by tiktoken, every 4 chars is a token
     return Math.round(string.length / 4);
@@ -98,43 +156,49 @@ export const calculateTokensFromString = (string: string, model: string) => {
 };
 
 export const calculateMessagesTokenSize = async (
-  messages: any[],
+  messages: readonly unknown[],
   model: string
-) => {
+): Promise<number> => {
   let tokenLength = 0;
-  await Promise.all(
-    messages.map((message: any) => {
-      return new Promise((resolve) => {
-        tokenLength += calculateTokensFromString(message.content, model);
-        resolve(tokenLength);
-      });
-    })
-  );
+  for (const message of messages) {
+    const text = extractMessageText(message);
+    tokenLength += calculateTokensFromString(text, model);
+  }
 
   return tokenLength;
 };
 
-export const reduceContextSize = async (
-  messages: any[],
+export const reduceContextSize = async <T = unknown>(
+  messages: readonly T[],
   model: string,
   maxTokens: number
-) => {
-  // Summarize context instead of cutoff: iteratively remove oldest messages
-  // until the remaining messages fit within maxTokens / 1.5
-  // Does not mutate the input array.
-  const messagesCopy = [...messages];
-  let totalTokens = await calculateMessagesTokenSize(messagesCopy, model);
-  const limit = maxTokens / 1.5;
-
-  while (totalTokens > limit && messagesCopy.length > 0) {
-    // Remove the oldest message (first in array) to reduce token count
-    const removed = messagesCopy.shift();
-    if (!removed) break;
-    const removedTokens = calculateTokensFromString(removed.content || '', model);
-    totalTokens -= removedTokens;
+): Promise<T[]> => {
+  if (maxTokens <= 0 || messages.length === 0) {
+    return [];
   }
 
-  return messagesCopy;
+  // Shallow defensive copy: outer array is copied so caller array is not mutated; message objects are shared.
+  const currentMessages = [...messages];
+  const targetTokenLimit = maxTokens / 1.5;
+  let totalTokens = await calculateMessagesTokenSize(currentMessages, model);
+
+  while (totalTokens > targetTokenLimit && currentMessages.length > 0) {
+    const removed = currentMessages.shift();
+    if (!removed) break;
+    totalTokens -= calculateTokensFromString(extractMessageText(removed), model);
+
+    // If removing this message left an orphaned leading assistant turn, advance past it
+    while (
+      currentMessages.length > 0 &&
+      getRole(currentMessages[0]) === 'assistant'
+    ) {
+      const extra = currentMessages.shift();
+      if (!extra) break;
+      totalTokens -= calculateTokensFromString(extractMessageText(extra), model);
+    }
+  }
+
+  return currentMessages;
 };
 
 export const exceedsHistoryLimit = (

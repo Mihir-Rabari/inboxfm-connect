@@ -1,12 +1,13 @@
-import path from 'path'
-import { defineConfig } from 'vitest/config'
+import path from 'path';
+import { defineConfig } from 'vitest/config';
 
-const repoRoot = path.resolve(__dirname, '../../../..')
+const repoRoot = path.resolve(__dirname, '../../../..');
 
 export default defineConfig({
   test: {
     globals: true,
     environment: 'node',
+    include: ['src/**/*.test.ts', 'test/**/*.test.ts'],
   },
   resolve: {
     alias: {
@@ -15,5 +16,4 @@ export default defineConfig({
       '@inboxfm-connect/pieces-common': path.resolve(repoRoot, 'packages/pieces/common/src/index.ts'),
     },
   },
-})
-
+});

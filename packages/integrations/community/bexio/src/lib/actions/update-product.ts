@@ -345,7 +345,10 @@ export const updateProductAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          const stocks = await client.get<Array<{ id: number; name: string }>>('/2.0/stock').catch(() => []);
+          // Bexio API v2: GET /2.0/stock — fetch a list of stocks.
+          // Errors propagate to the outer catch so the field shows a diagnostic
+          // placeholder instead of silently rendering an empty dropdown (issue #185).
+          const stocks = await client.get<Array<{ id: number; name: string }>>('/2.0/stock');
 
           return {
             disabled: false,
@@ -380,7 +383,11 @@ export const updateProductAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          const stockPlaces = await client.get<Array<{ id: number; name: string }>>('/2.0/stock_place').catch(() => []);
+          // Bexio API v2: GET /2.0/stock_places — fetch a list of stock places
+          // (plural; the singular /2.0/stock_place is not a documented endpoint).
+          // Errors propagate to the outer catch so the field shows a diagnostic
+          // placeholder instead of silently rendering an empty dropdown (issue #185).
+          const stockPlaces = await client.get<Array<{ id: number; name: string }>>('/2.0/stock_places');
 
           return {
             disabled: false,
@@ -455,7 +462,10 @@ export const updateProductAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          const groups = await client.get<Array<{ id: number; name: string }>>('/2.0/article_group').catch(() => []);
+          // Bexio API v2: GET /2.0/article_group — fetch a list of article groups.
+          // Errors propagate to the outer catch so the field shows a diagnostic
+          // placeholder instead of silently rendering an empty dropdown (issue #185).
+          const groups = await client.get<Array<{ id: number; name: string }>>('/2.0/article_group');
 
           return {
             disabled: false,

@@ -72,8 +72,10 @@ export const createTimeTrackingAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          // TODO: Need to confirm endpoint - assuming /2.0/timesheet_status
-          const statuses = await client.get<Array<{ id: number; name: string }>>('/2.0/timesheet_status').catch(() => []);
+          // Bexio API v2: GET /2.0/timesheet_status — fetch available timesheet statuses.
+          // Errors propagate to the outer catch so the field shows a diagnostic
+          // placeholder instead of silently rendering an empty dropdown (issue #185).
+          const statuses = await client.get<Array<{ id: number; name: string }>>('/2.0/timesheet_status');
 
           return {
             disabled: false,
@@ -108,8 +110,10 @@ export const createTimeTrackingAction = createAction({
 
         try {
           const client = new BexioClient(auth);
-          // TODO: Need to confirm endpoint - assuming /2.0/client_service
-          const services = await client.get<Array<{ id: number; name: string }>>('/2.0/client_service').catch(() => []);
+          // Bexio API v2: GET /2.0/client_service — fetch business activities/services.
+          // Errors propagate to the outer catch so the field shows a diagnostic
+          // placeholder instead of silently rendering an empty dropdown (issue #185).
+          const services = await client.get<Array<{ id: number; name: string }>>('/2.0/client_service');
 
           return {
             disabled: false,

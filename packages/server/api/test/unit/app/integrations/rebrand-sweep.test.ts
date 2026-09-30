@@ -14,7 +14,18 @@ import { describe, expect, it } from 'vitest'
  * string reappears, so the rebrand cannot silently rot as pieces are added.
  */
 
-const REPO_ROOT = path.resolve(__dirname, '../../../../../..')
+function findRepoRoot(startDir: string): string {
+    let current = startDir
+    while (current !== path.dirname(current)) {
+        if (fs.existsSync(path.join(current, 'package.json')) && fs.existsSync(path.join(current, 'packages'))) {
+            return current
+        }
+        current = path.dirname(current)
+    }
+    throw new Error('Could not find repo root')
+}
+
+const REPO_ROOT = findRepoRoot(__dirname)
 
 /**
  * Scoped to the packages this sweep actually covers. A repo-wide scan currently
@@ -31,19 +42,9 @@ const SCAN_ROOTS = [
 
 /**
  * Occurrences that must keep the old name, each with the reason.
- *
- * Currently one: a multipart delimiter in the YouTrack attachment upload. It is
- * an internal token, never rendered to a user, and regenerated per request, so
- * renaming it buys nothing while a collision with a user-supplied filename
- * would corrupt an upload.
+ * Currently empty: all 4 packages have been fully rebranded with zero exceptions.
  */
-const ALLOWED: ReadonlyArray<{ file: string, contains: string, reason: string }> = [
-    {
-        file: 'packages/integrations/community/youtrack/src/lib/actions/upload-attachment.ts',
-        contains: 'Boundary',
-        reason: 'multipart delimiter; internal and regenerated per request, never user-visible',
-    },
-]
+const ALLOWED: ReadonlyArray<{ file: string, contains: string, reason: string }> = []
 
 function walk(dir: string, out: string[] = []): string[] {
     if (!fs.existsSync(dir)) {

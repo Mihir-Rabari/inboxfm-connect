@@ -28,7 +28,7 @@ export const newContact = createTrigger({
     Owner: {
       name: 'Inboxfm Connect Apps',
       id: '560094000000343001',
-      email: 'apps@activepieces.com',
+      email: 'apps@inboxfm-connect.com',
     },
     Email: 'capla-paprocki@yahoo.com',
     Description: null,
@@ -60,7 +60,7 @@ export const newContact = createTrigger({
     Modified_By: {
       name: 'Inboxfm Connect Apps',
       id: '560094000000343001',
-      email: 'apps@activepieces.com',
+      email: 'apps@inboxfm-connect.com',
     },
     $review: null,
     $state: 'save',
@@ -87,7 +87,7 @@ export const newContact = createTrigger({
     Created_By: {
       name: 'Inboxfm Connect Apps',
       id: '560094000000343001',
-      email: 'apps@activepieces.com',
+      email: 'apps@inboxfm-connect.com',
     },
     $zia_owner_assignment: 'owner_recommendation_unavailable',
     Secondary_Email: null,

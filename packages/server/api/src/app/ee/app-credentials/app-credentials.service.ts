@@ -28,13 +28,13 @@ export const appCredentialService = {
             .createQueryBuilder('app_credential')
             .where({ projectId })
         if (appName !== undefined) {
-            queryBuilder = queryBuilder.where({ appName })
+            queryBuilder = queryBuilder.andWhere({ appName })
         }
         const { data, cursor } = await paginator.paginate(queryBuilder)
         return paginationHelper.createPage<AppCredential>(data, cursor)
     },
-    async getOneOrThrow(id: AppCredentialId): Promise<AppCredential> {
-        return appCredentialRepo().findOneByOrFail({ id })
+    async getOneOrThrow(id: AppCredentialId, projectId?: ProjectId): Promise<AppCredential> {
+        return appCredentialRepo().findOneByOrFail({ id, ...(projectId ? { projectId } : {}) })
     },
     async upsert({
         projectId,

@@ -118,19 +118,23 @@ export const reduceContextSize = async (
   messages: any[],
   model: string,
   maxTokens: number
-) => {
+): Promise<any[]> => {
   // TODO: Summarize context instead of cutoff
-  const cutoffSize = Math.round(messages.length * 0.1);
-  const cutoffMessages = messages.splice(cutoffSize, messages.length - 1);
-
-  if (
-    (await calculateMessagesTokenSize(cutoffMessages, model)) >
-    maxTokens / 1.5
+  // Issue #184: the previous version mutated the caller's array via splice()
+  // and discarded the recursive call's result, so an over-budget history was
+  // returned to the API anyway (400 context_length_exceeded). This mirrors the
+  // azure-openai sibling (src/lib/common/index.ts): pure loop, no mutation,
+  // keeps cutting the oldest 10% until the retained tail fits the budget.
+  let retained = [...messages];
+  while (
+    retained.length > 1 &&
+    (await calculateMessagesTokenSize(retained, model)) > maxTokens / 1.5
   ) {
-    reduceContextSize(cutoffMessages, model, maxTokens);
+    const cutoffSize = Math.max(1, Math.round(retained.length * 0.1));
+    retained = retained.slice(cutoffSize);
   }
 
-  return cutoffMessages;
+  return retained;
 };
 
 export const exceedsHistoryLimit = (

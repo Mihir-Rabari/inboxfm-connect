@@ -19,6 +19,35 @@ const MAX_BATCH_SIZE = 50
 const recordRepo = repoFactory(RecordEntity)
 const cellsRepo = repoFactory(CellEntity)
 
+
+/**
+ * Bounds the client-supplied record list page size.
+ *
+ * `limit` arrives as `z.coerce.number().optional()` from the querystring, so
+ * any numeric value (including `Number.MAX_SAFE_INTEGER`, `NaN` or
+ * `Infinity` after coercion of malformed strings) reaches the paginator,
+ * which does `.take(limit + 1)` — an unbounded response-size DoS vector
+ * (issue #400). The follow-up cell fetch also binds one param per returned
+ * row, so an oversized page can additionally blow past PostgreSQL's
+ * 65,535 bind-parameter ceiling.
+ *
+ * Security: clamps to [1, MAX_RECORD_LIST_LIMIT] (500); non-finite or
+ * non-integer input falls back to the default page size.
+ * @param limit raw request value, possibly undefined / NaN / fractional
+ * @returns bounded integer page size
+ */
+export const clampRecordListLimit = (limit: number | undefined): number => {
+    const DEFAULT_RECORD_LIST_LIMIT = 10
+    const MAX_RECORD_LIST_LIMIT = 500
+    if (isNil(limit) || !Number.isFinite(limit)) {
+        return DEFAULT_RECORD_LIST_LIMIT
+    }
+    if (limit < 1) {
+        return 1
+    }
+    return Math.min(Math.floor(limit), MAX_RECORD_LIST_LIMIT)
+}
+
 export const recordService = {
     async create({
         request,
@@ -77,10 +106,12 @@ export const recordService = {
     }: ListParams): Promise<SeekPage<PopulatedRecord>> {
         const decodedCursor = paginationHelper.decodeCursor(cursorRequest)
 
+        const boundedLimit = clampRecordListLimit(limit)
+
         const paginator = buildPaginator({
             entity: RecordEntity,
             query: {
-                limit,
+                limit: boundedLimit,
                 order: 'ASC',
                 afterCursor: decodedCursor.nextCursor,
                 beforeCursor: decodedCursor.previousCursor,

@@ -183,6 +183,21 @@ export const appConnectionService = (log: FastifyBaseLogger) => ({
             ...(projectIds ? { projectIds: ArrayContains(projectIds) } : {}),
         }
 
+        // Issue #155: repo().update() on a missing row is a silent no-op and the
+        // follow-up findOneByOrFail throws TypeORM's EntityNotFoundError, which the
+        // error handler maps to 500. Check existence first so a missing row is a
+        // domain 404 (ActivepiecesError ENTITY_NOT_FOUND), not a server fault.
+        const existingConnection = await appConnectionsRepo().findOneBy(filter)
+        if (isNil(existingConnection)) {
+            throw new ActivepiecesError({
+                code: ErrorCode.ENTITY_NOT_FOUND,
+                params: {
+                    entityType: 'AppConnection',
+                    entityId: id,
+                },
+            })
+        }
+
         await appConnectionsRepo().update(filter, {
             displayName: request.displayName,
             ...spreadIfDefined('projectIds', request.projectIds),

@@ -1,4 +1,7 @@
 import {
+    apId,
+} from '@inboxfm-connect/core-utils'
+import {
     AppConnectionType,
     DefaultProjectRole,
     PackageType,
@@ -65,6 +68,20 @@ describe('AppConnection API', () => {
             expect(updateResponse?.statusCode).toBe(StatusCodes.OK)
             const updatedResponseBody = updateResponse?.json()
             expect(updatedResponseBody.metadata).toEqual({ foo: 'baz' })
+        })
+
+        it('returns 404 (not 500) when updating a non-existent connection', async () => {
+            // Issue #155: repo().update() is a silent no-op on a missing row and the
+            // follow-up findOneByOrFail threw TypeORM's EntityNotFoundError, which
+            // mapped to 500. A missing target must be a domain 404.
+            const ctx = await createTestContext(app!)
+
+            const response = await ctx.post(`/v1/connections/${apId()}`, {
+                displayName: 'Does Not Exist',
+            })
+
+            expect(response?.statusCode).toBe(StatusCodes.NOT_FOUND)
+            expect(response?.json().code).toBe('ENTITY_NOT_FOUND')
         })
 
         describeRolePermissions({

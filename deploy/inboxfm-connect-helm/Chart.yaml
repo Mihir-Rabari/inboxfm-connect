@@ -1,6 +1,10 @@
 apiVersion: v2
 name: inboxfm-connect
 description: A Helm chart for Inboxfm Connect
+# Brand icon shown by `helm repo index` and artifact hubs. This URL is a plain
+# literal, not an env var or template value - Helm does not expand either here.
+# To re-skin it, edit this line directly; there is no override to set. Searching
+# for "activepieces" elsewhere will not surface this field.
 icon: https://cdn.inboxfm-connect.com/brand/logo.svg
 
 # A chart can be either an 'application' or a 'library' chart.

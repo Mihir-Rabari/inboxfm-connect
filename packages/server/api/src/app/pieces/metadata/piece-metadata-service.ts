@@ -7,6 +7,7 @@ import { FastifyBaseLogger } from 'fastify'
 import semVer from 'semver'
 import { EntityManager, In, IsNull } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
+import { fileService } from '../../file/file.service'
 import { pieceTagService } from '../tags/pieces/piece-tag.service'
 import { localPieceCatalog } from './local-piece-catalog'
 import { pieceCache, PieceRegistryEntry } from './piece-cache'
@@ -129,6 +130,15 @@ export const pieceMetadataService = (log: FastifyBaseLogger) => {
                 platformId: platformId ?? IsNull(),
             })
             if (!isNil(existingMetadata)) {
+                // The caller (installPiece) uploads the archive BEFORE create()
+                // runs, so reaching this branch means the freshly uploaded file
+                // is unreachable — delete it instead of leaking it in storage,
+                // exactly like the lost-race path below.
+                if (!isNil(archiveId)) {
+                    await fileService(log).delete({ fileId: archiveId }).catch((deleteError) => {
+                        log.warn({ error: deleteError, fileId: archiveId }, '[pieceMetadataService#create] failed to clean up archive file for an already-existing piece')
+                    })
+                }
                 throw new ActivepiecesError({
                     code: ErrorCode.VALIDATION,
                     params: {
@@ -140,15 +150,47 @@ export const pieceMetadataService = (log: FastifyBaseLogger) => {
                 name: pieceMetadata.name,
                 platformId,
             })
-            const savedPiece = await pieceRepos().save({
-                id: apId(),
-                packageType,
-                pieceType,
-                archiveId,
-                platformId,
-                created: createdDate,
-                ...pieceMetadata,
-            })
+            let savedPiece: PieceMetadataSchema
+            try {
+                savedPiece = await pieceRepos().save({
+                    id: apId(),
+                    packageType,
+                    pieceType,
+                    archiveId,
+                    platformId,
+                    created: createdDate,
+                    ...pieceMetadata,
+                })
+            }
+            catch (error) {
+                // The fast-path find above can miss a concurrent install of the
+                // same (name, version, platformId) — the unique index
+                // idx_piece_metadata_name_platform_id_version is the only
+                // remaining arbiter between the two inserts. On losing that
+                // race, answer with the same documented VALIDATION conflict a
+                // sequential duplicate gets, so the caller sees an actionable
+                // "already exists" instead of a raw driver error that
+                // installPiece would mislabel as an engine failure. Gate on the
+                // SQLSTATE 23505 driver code (top-level OR driverError, same as
+                // the approved #460 helper); anything else propagates untouched.
+                if (!isUniqueConstraintViolation(error)) {
+                    throw error
+                }
+                // This request's archive upload is unreachable now: the winner's
+                // archiveId owns the (name, version) slot, so delete the freshly
+                // uploaded file instead of leaking it in storage.
+                if (!isNil(archiveId)) {
+                    await fileService(log).delete({ fileId: archiveId }).catch((deleteError) => {
+                        log.warn({ error: deleteError, fileId: archiveId }, '[pieceMetadataService#create] failed to clean up archive file after losing a concurrent install race')
+                    })
+                }
+                throw new ActivepiecesError({
+                    code: ErrorCode.VALIDATION,
+                    params: {
+                        message: `piece_metadata_already_exists name=${pieceMetadata.name} version=${pieceMetadata.version}`,
+                    },
+                })
+            }
             if (publishCacheRefresh) {
                 await pieceCache(log).invalidate()
             }
@@ -249,6 +291,16 @@ export function toPieceMetadataModelSummary<T extends PieceMetadataSchema | Piec
                 Object.values(pieceMetadataEntity.triggers) : undefined,
         }
     })
+}
+
+// Postgres unique-violation driver code (SQLSTATE 23505). The two drivers pinned
+// in this repo (pg 8.11.3, @electric-sql/pglite 0.3.14) do not always surface the
+// code on the same property, so match both the top-level error and the wrapped
+// driverError. Any other failure must propagate raw (same gate as the approved
+// #460 helper).
+function isUniqueConstraintViolation(error: unknown): boolean {
+    const candidate = error as { code?: string, driverError?: { code?: string } } | null | undefined
+    return candidate?.code === '23505' || candidate?.driverError?.code === '23505'
 }
 
 const findOldestCreatedDate = async ({ name, platformId }: { name: string, platformId?: string }): Promise<string> => {

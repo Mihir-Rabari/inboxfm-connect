@@ -336,11 +336,15 @@ export async function runProjectReplace(
                     return code
                 }
 
-                if (options.dryRun) {
-                    if (options.json) {
-                        log(JSON.stringify(artifact, null, 2))
+if (options.dryRun) {
+                if (options.json) {
+                    const sanitized = {
+                        ...artifact,
+                        snapshot: undefined,
                     }
-                    else {
+                    log(JSON.stringify(sanitized, null, 2))
+                }
+                else {
                         log(`Plan ID: ${artifact.plan.planId}`)
                         log(`Checksum: ${artifact.plan.checksum}`)
                         log(`Signature: ${artifact.plan.signature} (Verified)`)
@@ -551,7 +555,11 @@ export async function runProjectReplace(
 
             if (options.inspectOnly && artifact) {
                 if (options.json) {
-                    log(JSON.stringify(artifact, null, 2))
+                    const sanitized = {
+                        ...artifact,
+                        snapshot: undefined,
+                    }
+                    log(JSON.stringify(sanitized, null, 2))
                 }
                 else {
                     log('Inspect-only mode: no mutations applied.')
@@ -624,7 +632,13 @@ export async function runProjectReplace(
         }
 
         if (options.json) {
-            log(JSON.stringify(applyRes.data, null, 2))
+            const sanitized = {
+                ...applyRes.data,
+                mcpCredentials: applyRes.data.mcpCredentials
+                    ? { ...applyRes.data.mcpCredentials, token: '[REDACTED — use --mcp-credentials-file]' }
+                    : undefined,
+            }
+            log(JSON.stringify(sanitized, null, 2))
         }
         else {
             log('Project replacement apply finished:')

@@ -44,8 +44,8 @@ afterAll(async () => {
 
 beforeEach(async () => {
     const redis = await redisConnections.useExisting()
+    // redlock:* covers every live lock key (redlock prefixes resources)
     await deleteKeysByPattern(redis, 'redlock:*')
-    await deleteKeysByPattern(redis, 'ai-provider:list-auto-create:*')
 })
 
 async function testSetupWithToken(): Promise<{ mockPlatform: { id: string }, mockUserToken: string }> {

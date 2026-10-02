@@ -27,7 +27,7 @@ APPS=""
 if [ "$AP_CONTAINER_TYPE" = "APP" ] || [ "$AP_CONTAINER_TYPE" = "WORKER_AND_APP" ]; then
     APPS="${APPS}
     {
-        name: 'activepieces-app',
+        name: 'inboxfm-connect-app',
         script: 'packages/server/api/dist/src/bootstrap.js',
         node_args: '--enable-source-maps',
         instances: 1,
@@ -39,7 +39,7 @@ fi
 if [ "$AP_CONTAINER_TYPE" = "WORKER" ] || [ "$AP_CONTAINER_TYPE" = "WORKER_AND_APP" ]; then
     APPS="${APPS}
     {
-        name: 'activepieces-worker',
+        name: 'inboxfm-connect-worker',
         script: 'packages/server/worker/dist/src/bootstrap.js',
         node_args: '--enable-source-maps',
         instances: 1,
@@ -54,5 +54,5 @@ module.exports = {
 };
 ENDOFFILE
 
-echo "Starting Activepieces with PM2 (${AP_CONTAINER_TYPE} mode)"
+echo "Starting Inboxfm Connect with PM2 (${AP_CONTAINER_TYPE} mode)"
 pm2-runtime start /tmp/ecosystem.config.js

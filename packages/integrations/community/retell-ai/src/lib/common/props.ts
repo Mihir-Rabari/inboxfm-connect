@@ -69,7 +69,11 @@ interface RetellAiAgent {
   };
 }
 
-type RetellAiAgentListResponse = RetellAiAgent[];
+interface RetellAiAgentListResponse {
+  items: RetellAiAgent[];
+  has_more?: boolean;
+  pagination_key?: string;
+}
 
 interface RetellAiCall {
   call_id: string;
@@ -90,7 +94,7 @@ interface RetellAiVoice {
 }
 
 // --- Agent Dropdown ---
-export const agentIdDropdown = (displayName:string,required=false)=>  Property.Dropdown({
+export const agentIdDropdown = (displayName: string, required = false) => Property.Dropdown({
   auth: retellAiAuth,
   displayName,
   description: 'Select the Retell AI agent.',
@@ -105,15 +109,21 @@ export const agentIdDropdown = (displayName:string,required=false)=>  Property.D
       };
     }
     try {
-      const agents = await retellAiApiCall<RetellAiAgentListResponse>({
-       auth,
-        method: HttpMethod.GET,
-        url: '/list-agents',
+      const response = await retellAiApiCall<RetellAiAgentListResponse>({
+        auth,
+        method: HttpMethod.POST,
+        url: '/v2/list-agents?limit=100',
         body: {
-          limit: 100,
-        }
+          filter_criteria: {
+            channel: {
+              type: 'string',
+              op: 'eq',
+              value: 'voice',
+            },
+          },
+        },
       });
-      const agentList = Array.isArray(agents) ? agents : [];
+      const agentList = Array.isArray(response?.items) ? response.items : [];
       if (agentList.length === 0) {
         return {
           disabled: true,

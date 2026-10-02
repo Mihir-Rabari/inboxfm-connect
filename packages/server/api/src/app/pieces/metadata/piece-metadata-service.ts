@@ -285,9 +285,11 @@ const ARCHIVE_CONTROLLED_METADATA_KEYS = [
 export function pickArchiveControlledMetadata(metadata: PieceMetadata): Pick<PieceMetadata, typeof ARCHIVE_CONTROLLED_METADATA_KEYS[number]> {
     const picked: Record<string, unknown> = {}
     for (const key of ARCHIVE_CONTROLLED_METADATA_KEYS) {
-        const value = metadata[key]
-        if (!isNil(value)) {
-            picked[key] = value
+        // Preserve explicit nulls (an archive legitimately declaring "no auth"
+        // persists NULL the same way dev's raw spread did) — only absent keys
+        // are dropped. The whitelist is key-selection, not value-filtering.
+        if (metadata[key] !== undefined) {
+            picked[key] = metadata[key]
         }
     }
     return picked as Pick<PieceMetadata, typeof ARCHIVE_CONTROLLED_METADATA_KEYS[number]>

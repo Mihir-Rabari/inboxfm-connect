@@ -1,5 +1,5 @@
 import { ExecutionType } from '@inboxfm-connect/core-piece-types';
-import { ActionContext, ToolContext } from '../context';
+import { ToolContext } from '../context';
 import { InputPropertyMap, StaticPropsValue } from '../property';
 
 /**
@@ -8,16 +8,19 @@ import { InputPropertyMap, StaticPropsValue } from '../property';
  * Mirrors createMockToolContext: every collaborator is stubbed, so an action's
  * `run` can be invoked directly without a flow run, auth or a real store.
  * The auth slot stays undefined - pass `auth` to exercise an authed action.
+ *
+ * `ActionContext` is the public alias for `ToolContext` (re-exported from
+ * ../index), so one context type backs both actions and tools.
  */
 export function createMockActionContext<
   Props extends InputPropertyMap
 >(params: {
   propsValue: StaticPropsValue<Props>;
-  auth?: ActionContext<undefined, Props>['auth'];
-}): ActionContext<undefined, Props> {
+  auth?: ToolContext<undefined, Props>['auth'];
+}): ToolContext<undefined, Props> {
   return {
     executionType: ExecutionType.BEGIN,
-    auth: params.auth as ActionContext<undefined, Props>['auth'],
+    auth: params.auth as ToolContext<undefined, Props>['auth'],
     propsValue: params.propsValue,
     store: {
       put: async <T>(key: string, value: T) => value,
@@ -79,7 +82,7 @@ export function createMockActionContext<
       name: 'test-step',
     },
     generateResumeUrl: () => 'http://localhost:3000/resume',
-  } as unknown as ActionContext<undefined, Props>;
+  } as unknown as ToolContext<undefined, Props>;
 }
 
 export function createMockToolContext<

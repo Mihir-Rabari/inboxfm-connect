@@ -130,6 +130,15 @@ export const pieceMetadataService = (log: FastifyBaseLogger) => {
                 platformId: platformId ?? IsNull(),
             })
             if (!isNil(existingMetadata)) {
+                // The caller (installPiece) uploads the archive BEFORE create()
+                // runs, so reaching this branch means the freshly uploaded file
+                // is unreachable — delete it instead of leaking it in storage,
+                // exactly like the lost-race path below.
+                if (!isNil(archiveId)) {
+                    await fileService(log).delete({ fileId: archiveId }).catch((deleteError) => {
+                        log.warn({ error: deleteError, fileId: archiveId }, '[pieceMetadataService#create] failed to clean up archive file for an already-existing piece')
+                    })
+                }
                 throw new ActivepiecesError({
                     code: ErrorCode.VALIDATION,
                     params: {

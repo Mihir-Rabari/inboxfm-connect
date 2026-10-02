@@ -51,6 +51,13 @@ afterAll(async () => {
 
 beforeEach(async () => {
     await databaseConnection().getRepository('integration_metadata').createQueryBuilder().delete().execute()
+    // Isolate the archive-leak assertions from any PACKAGE_ARCHIVE rows left by
+    // earlier files in this suite run.
+    await databaseConnection().getRepository('file')
+        .createQueryBuilder('file')
+        .delete()
+        .where('file.type = :type', { type: FileType.PACKAGE_ARCHIVE })
+        .execute()
     interactionSpy = vi.spyOn(userInteractionWatcher, 'submitAndWaitForResponse').mockResolvedValue({
         status: EngineResponseStatus.OK,
         response: mockPieceMetadata,
@@ -148,6 +155,7 @@ describe('POST /v1/integrations — concurrent duplicate install', () => {
         const archiveRows = await databaseConnection().getRepository('file')
             .createQueryBuilder('file')
             .where('file.type = :type', { type: FileType.PACKAGE_ARCHIVE })
+            .andWhere('file.platformId = :platformId', { platformId: ctx.platform.id })
             .getMany()
         expect(archiveRows.length).toBe(1)
     })

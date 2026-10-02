@@ -501,7 +501,11 @@ if (options.dryRun) {
 
             if (options.dryRun && artifact) {
                 if (options.json) {
-                    log(JSON.stringify(artifact, null, 2))
+                    const sanitized = {
+                        ...artifact,
+                        snapshot: undefined,
+                    }
+                    log(JSON.stringify(sanitized, null, 2))
                 }
                 else {
                     log(`Plan ID: ${artifact.plan.planId}`)
@@ -631,38 +635,41 @@ if (options.dryRun) {
             return code
         }
 
+        // Persist rotated credentials before the output branch so `--json` consumers keep a
+        // secure retrieval path; the token is redacted on stdout in both output modes.
+        const mcpCreds = applyRes.data.mcpCredentials
+        const credPath = options.mcpCredentialsFile ? path.resolve(options.mcpCredentialsFile) : undefined
+        if (mcpCreds?.token && credPath) {
+            fs.mkdirSync(path.dirname(credPath), { recursive: true })
+            fs.writeFileSync(credPath, JSON.stringify(mcpCreds, null, 2), {
+                encoding: 'utf-8',
+                mode: 0o600,
+            })
+        }
+
         if (options.json) {
             const sanitized = {
                 ...applyRes.data,
-                mcpCredentials: applyRes.data.mcpCredentials
-                    ? { ...applyRes.data.mcpCredentials, token: '[REDACTED — use --mcp-credentials-file]' }
+                mcpCredentials: mcpCreds
+                    ? { ...mcpCreds, token: '[REDACTED — use --mcp-credentials-file]' }
                     : undefined,
+                mcpCredentialsFile: credPath,
             }
             log(JSON.stringify(sanitized, null, 2))
         }
         else {
             log('Project replacement apply finished:')
             log(JSON.stringify(applyRes.data.applied, null, 2))
-            if (applyRes.data.mcpCredentials?.token) {
-                if (options.mcpCredentialsFile) {
-                    const credPath = path.resolve(options.mcpCredentialsFile)
-                    fs.mkdirSync(path.dirname(credPath), { recursive: true })
-                    fs.writeFileSync(credPath, JSON.stringify(applyRes.data.mcpCredentials, null, 2), {
-                        encoding: 'utf-8',
-                        mode: 0o600,
-                    })
-                    log('\nDestination MCP Server Credentials:')
+            if (mcpCreds?.token) {
+                log('\nDestination MCP Server Credentials:')
+                if (credPath) {
                     log(`  Token: [REDACTED] (saved with 0600 permissions to ${options.mcpCredentialsFile})`)
-                    if (applyRes.data.mcpCredentials.serverUrl) {
-                        log(`  Server URL: ${applyRes.data.mcpCredentials.serverUrl}`)
-                    }
                 }
                 else {
-                    log('\nDestination MCP Server Credentials:')
-                    log('  Token: [REDACTED] (use --mcp-credentials-file <path> to save securely or --json)')
-                    if (applyRes.data.mcpCredentials.serverUrl) {
-                        log(`  Server URL: ${applyRes.data.mcpCredentials.serverUrl}`)
-                    }
+                    log('  Token: [REDACTED] (use --mcp-credentials-file <path> to save securely)')
+                }
+                if (mcpCreds.serverUrl) {
+                    log(`  Server URL: ${mcpCreds.serverUrl}`)
                 }
             }
             if (applyRes.data.failed.length > 0) {

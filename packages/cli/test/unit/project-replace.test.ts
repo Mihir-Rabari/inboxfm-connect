@@ -709,6 +709,103 @@ describe('CLI project-replace Command', () => {
             expect(allLoggedOutput).not.toContain(sensitiveToken)
             expect(allLoggedOutput).toContain(`[REDACTED] (saved with 0600 permissions to ${credsFilePath})`)
         })
+
+        it('redacts the token in --json output and still writes full creds to --mcp-credentials-file', async () => {
+            const credsFilePath = path.join(tmpDir, 'json-mode', 'mcp-credentials.json')
+            const logs: string[] = []
+
+            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+                if (url.includes('/export')) {
+                    return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
+                }
+                if (url.includes('/plan')) {
+                    return new Response(JSON.stringify(sampleArtifact), { status: 200 })
+                }
+                if (url.includes('/apply')) {
+                    return new Response(
+                        JSON.stringify({
+                            applied: { mcpCreated: 1 },
+                            failed: [],
+                            mcpCredentials: {
+                                token: sensitiveToken,
+                                serverUrl: 'http://dest.local/api/v1/mcp',
+                            },
+                        }),
+                        { status: 200 },
+                    )
+                }
+                return new Response('Not found', { status: 404 })
+            })
+
+            await runProjectReplace(
+                {
+                    sourceUrl: 'http://source.local',
+                    sourceToken: 'src-tok',
+                    sourceProject: 'src-p1',
+                    destUrl: 'http://dest.local',
+                    destToken: 'dest-tok',
+                    destProject: 'dest-p1',
+                    rotateMcpToken: true,
+                    mcpCredentialsFile: credsFilePath,
+                    json: true,
+                },
+                {
+                    exitFn: () => {},
+                    logFn: (...args) => { logs.push(args.join(' ')) },
+                    fetchFn: mockFetch as unknown as typeof fetch,
+                },
+            )
+
+            const allLoggedOutput = logs.join('\n')
+            // The rotated token must never reach stdout in machine-readable mode
+            expect(allLoggedOutput).not.toContain(sensitiveToken)
+            expect(allLoggedOutput).toContain('[REDACTED — use --mcp-credentials-file]')
+
+            // The secure retrieval path must still work: full creds land on disk
+            expect(fs.existsSync(credsFilePath)).toBe(true)
+            const fileContent = JSON.parse(fs.readFileSync(credsFilePath, 'utf-8'))
+            expect(fileContent).toEqual({
+                token: sensitiveToken,
+                serverUrl: 'http://dest.local/api/v1/mcp',
+            })
+        })
+
+        it('omits snapshot from --json dry-run stdout', async () => {
+            const logs: string[] = []
+
+            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+                if (url.includes('/export')) {
+                    return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
+                }
+                if (url.includes('/plan')) {
+                    return new Response(JSON.stringify(sampleArtifact), { status: 200 })
+                }
+                return new Response('Not found', { status: 404 })
+            })
+
+            await runProjectReplace(
+                {
+                    sourceUrl: 'http://source.local',
+                    sourceToken: 'src-tok',
+                    sourceProject: 'src-p1',
+                    destUrl: 'http://dest.local',
+                    destToken: 'dest-tok',
+                    destProject: 'dest-p1',
+                    dryRun: true,
+                    json: true,
+                },
+                {
+                    exitFn: () => {},
+                    logFn: (...args) => { logs.push(args.join(' ')) },
+                    fetchFn: mockFetch as unknown as typeof fetch,
+                },
+            )
+
+            const allLoggedOutput = logs.join('\n')
+            expect(allLoggedOutput).not.toContain('snapshot')
+            // Plan data must survive the strip
+            expect(allLoggedOutput).toContain(sampleArtifact.plan.planId)
+        })
     })
 
     describe('Provider Mappings Payload Propagation', () => {

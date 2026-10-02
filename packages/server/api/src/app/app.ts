@@ -17,6 +17,7 @@ import { appConnectionModule } from './app-connection/app-connection.module'
 import { platformAppConnectionModule } from './app-connection/platform-app-connection.module'
 import { authenticationModule } from './authentication/authentication.module'
 import { connectApiKeyModule } from './connect-api-keys/connect-api-key.module'
+import { connectMcpModule } from './connect-mcp/connect-mcp.module'
 import { connectOAuthAppModule } from './connect-oauth-apps/connect-oauth-app.module'
 import { connectProxyModule } from './connect-proxy/connect-proxy.module'
 import { connectSessionModule } from './connect-sessions/connect-session.module'
@@ -224,6 +225,7 @@ export const setupApp = async (app: FastifyInstance): Promise<FastifyInstance> =
     await app.register(connectOAuthAppModule)
     await app.register(connectSessionModule)
     await app.register(connectProxyModule)
+    await app.register(connectMcpModule)
     await app.register(executionModule)
     await app.register(knowledgeSearchModule)
     // await app.register(humanInputModule)

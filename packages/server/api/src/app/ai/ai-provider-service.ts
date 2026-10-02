@@ -29,7 +29,7 @@ export const aiProviderService = (log: FastifyBaseLogger) => ({
         })
 
         if (flagService(log).aiCreditsEnabled() && !activepiecesExists) {
-            await runManagedProviderAutoCreateExclusiveOrWithoutLock({
+            await runProvisionExclusiveOrWithoutLock({
                 platformId,
                 log,
                 fn: async () => {
@@ -152,9 +152,15 @@ export const aiProviderService = (log: FastifyBaseLogger) => ({
 
         if (aiProvider.provider === AIProviderName.ACTIVEPIECES) {
             if (request.enabledForChat === true) {
-                await aiProviderRepo().manager.transaction(async (manager) => {
-                    await manager.update(AIProviderEntity, { platformId }, { enabledForChat: false })
-                    await manager.update(AIProviderEntity, providerId, { enabledForChat: true })
+                await runProvisionExclusiveOrWithoutLock({
+                    platformId,
+                    log,
+                    fn: async () => {
+                        await aiProviderRepo().manager.transaction(async (manager) => {
+                            await manager.update(AIProviderEntity, { platformId }, { enabledForChat: false })
+                            await manager.update(AIProviderEntity, providerId, { enabledForChat: true })
+                        })
+                    },
                 })
             }
             return
@@ -178,9 +184,15 @@ export const aiProviderService = (log: FastifyBaseLogger) => ({
         }
 
         if (request.enabledForChat === true) {
-            await aiProviderRepo().manager.transaction(async (manager) => {
-                await manager.update(AIProviderEntity, { platformId }, { enabledForChat: false })
-                await manager.update(AIProviderEntity, providerId, updates)
+            await runProvisionExclusiveOrWithoutLock({
+                platformId,
+                log,
+                fn: async () => {
+                    await aiProviderRepo().manager.transaction(async (manager) => {
+                        await manager.update(AIProviderEntity, { platformId }, { enabledForChat: false })
+                        await manager.update(AIProviderEntity, providerId, updates)
+                    })
+                },
             })
         }
         else {
@@ -256,12 +268,21 @@ export const aiProviderService = (log: FastifyBaseLogger) => ({
 // whole check-then-insert on a per-platform key removes the race in-process
 // and cross-process (Redis-backed lock); the fail-open path keeps the list
 // working when the lock infrastructure itself is unavailable.
-async function runManagedProviderAutoCreateExclusiveOrWithoutLock({ platformId, fn, log }: {
+//
+// The same lock also serializes the auto-create against update()'s
+// enabledForChat assignment: the auto-create reads hasChatProvider and then
+// inserts with enabledForChat when no chat provider exists, while update()
+// flips every provider off and the chosen one on inside a transaction. Without
+// a shared lock the two interleave and leave TWO providers enabled for chat,
+// breaking the never-create-a-second-chat-provider invariant. update() takes
+// this lock around ONLY its chat-assignment transaction - the credential
+// validation (a slow upstream HTTP call) runs before the lock is acquired.
+async function runProvisionExclusiveOrWithoutLock({ platformId, fn, log }: {
     platformId: PlatformId
     fn: () => Promise<void>
     log: FastifyBaseLogger
 }): Promise<void> {
-    const key = ['ai-provider', 'list-auto-create', platformId].join(':')
+    const key = ['ai-provider', 'provision', platformId].join(':')
     let fnSettled = false
     try {
         await distributedLock(log).runExclusive({

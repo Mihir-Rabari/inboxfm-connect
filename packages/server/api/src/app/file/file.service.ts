@@ -291,10 +291,14 @@ export const fileService = (log: FastifyBaseLogger) => ({
             fileName: file.fileName ?? undefined,
         }
     },
-    async delete(params: { projectId: ProjectId, fileId: FileId }): Promise<void> {
+    async delete(params: { projectId?: ProjectId, fileId: FileId }): Promise<void> {
+        // Platform-scoped files (e.g. piece archives) carry no projectId; scope the
+        // lookup by fileId + whatever owner id is provided so the delete stays
+        // inside the caller's tenant, and a no-match is a no-op (never a 404 path
+        // for a cleanup call).
         const file = await fileRepo().findOneBy({
             id: params.fileId,
-            projectId: params.projectId,
+            ...(isNil(params.projectId) ? {} : { projectId: params.projectId }),
         })
         if (isNil(file)) {
             return

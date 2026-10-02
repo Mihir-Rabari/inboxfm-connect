@@ -141,13 +141,13 @@ export const pieceMetadataService = (log: FastifyBaseLogger) => {
                 platformId,
             })
             const savedPiece = await pieceRepos().save({
+                ...pickArchiveControlledMetadata(pieceMetadata),
                 id: apId(),
                 packageType,
                 pieceType,
                 archiveId,
                 platformId,
                 created: createdDate,
-                ...pieceMetadata,
             })
             if (publishCacheRefresh) {
                 await pieceCache(log).invalidate()
@@ -249,6 +249,48 @@ export function toPieceMetadataModelSummary<T extends PieceMetadataSchema | Piec
                 Object.values(pieceMetadataEntity.triggers) : undefined,
         }
     })
+}
+
+/**
+ * Whitelist of piece-metadata keys an installed archive may control.
+ *
+ * `create()` persists whatever the caller hands it, and for archive installs
+ * that object comes from the engine running attacker-supplied JavaScript
+ * (`piece.metadata()` — `extractPieceFromModule` only checks the exported
+ * constructor's name before trusting it). Spreading that object last let a
+ * crafted archive override the server-pinned columns (platformId, pieceType,
+ * packageType, id, created) and plant a NULL-platformId OFFICIAL row in the
+ * global catalog — visible to every platform and impossible to delete
+ * (`delete()` only removes CUSTOM rows for the caller's platformId).
+ *
+ * Only piece-content keys are taken from the archive; every server-pinned
+ * column is assigned by `create()` itself after the spread.
+ */
+const ARCHIVE_CONTROLLED_METADATA_KEYS = [
+    'name',
+    'version',
+    'displayName',
+    'logoUrl',
+    'description',
+    'authors',
+    'categories',
+    'auth',
+    'actions',
+    'triggers',
+    'i18n',
+    'minimumSupportedRelease',
+    'maximumSupportedRelease',
+] as const
+
+export function pickArchiveControlledMetadata(metadata: PieceMetadata): Pick<PieceMetadata, typeof ARCHIVE_CONTROLLED_METADATA_KEYS[number]> {
+    const picked: Record<string, unknown> = {}
+    for (const key of ARCHIVE_CONTROLLED_METADATA_KEYS) {
+        const value = metadata[key]
+        if (!isNil(value)) {
+            picked[key] = value
+        }
+    }
+    return picked as Pick<PieceMetadata, typeof ARCHIVE_CONTROLLED_METADATA_KEYS[number]>
 }
 
 const findOldestCreatedDate = async ({ name, platformId }: { name: string, platformId?: string }): Promise<string> => {

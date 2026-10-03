@@ -192,4 +192,74 @@ describe('agentIdDropdown (Issue #477)', () => {
       placeholder: 'Connect your Retell AI account first',
     });
   });
+
+  // choksi2212 on #485: the MAX_AGENT_PAGES bound silently truncated the list, and a short
+  // dropdown is indistinguishable from a workspace that genuinely has few agents. These pin
+  // that the truncation is reported - and, just as importantly, that it is NOT reported on
+  // the ordinary paths, so the warning stays meaningful instead of becoming noise.
+  describe('pagination bound reporting', () => {
+    it('warns when the page bound is hit while the API still reports more', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      // Distinct cursor every page, has_more always true: the loop can only end at the bound.
+      let call = 0;
+      const apiSpy = vi.spyOn(clientModule, 'retellAiApiCall').mockImplementation(async () => {
+        call += 1;
+        return { items: [AGENT], has_more: true, pagination_key: `cursor_${call}` } as never;
+      });
+
+      const dropdown = agentIdDropdown('Agent');
+      const result = await dropdown.options({ auth: 'retell_api_key' as never }, {} as never);
+
+      // Bounded, not runaway.
+      expect(apiSpy).toHaveBeenCalledTimes(20);
+      // Truncated rather than empty - the bound does not break the dropdown.
+      expect(result.options).toHaveLength(20);
+      expect(warnSpy).toHaveBeenCalledTimes(1);
+      const [message] = warnSpy.mock.calls[0] as [string];
+      expect(message).toContain('20-page bound');
+      expect(message).toContain('20 agents loaded');
+      expect(message).toContain('MAX_AGENT_PAGES');
+    });
+
+    it('does not warn when the last page reports no more', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      let call = 0;
+      vi.spyOn(clientModule, 'retellAiApiCall').mockImplementation(async () => {
+        call += 1;
+        return call < 3
+          ? ({ items: [AGENT], has_more: true, pagination_key: `cursor_${call}` } as never)
+          : ({ items: [AGENT], has_more: false } as never);
+      });
+
+      const dropdown = agentIdDropdown('Agent');
+      await dropdown.options({ auth: 'retell_api_key' as never }, {} as never);
+
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not warn when the repeat-cursor guard breaks the walk early', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      vi.spyOn(clientModule, 'retellAiApiCall').mockResolvedValue({
+        items: [AGENT],
+        has_more: true,
+        pagination_key: 'same',
+      } as never);
+
+      const dropdown = agentIdDropdown('Agent');
+      await dropdown.options({ auth: 'retell_api_key' as never }, {} as never);
+
+      // Stopping on a repeated cursor is a correctness escape, not truncation.
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not warn for a single-page workspace', async () => {
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      mockAgents({ items: [AGENT], has_more: false });
+
+      const dropdown = agentIdDropdown('Agent');
+      await dropdown.options({ auth: 'retell_api_key' as never }, {} as never);
+
+      expect(warnSpy).not.toHaveBeenCalled();
+    });
+  });
 });

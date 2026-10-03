@@ -126,6 +126,7 @@ export const agentIdDropdown = (displayName:string,required=false)=>  Property.D
       // still select them. Bounded so a malformed cursor can never spin.
       const agentList: RetellAiAgent[] = [];
       let paginationKey: string | undefined
+      let exhaustedBound = false
       for (let page = 0; page < MAX_AGENT_PAGES; page++) {
         const query = paginationKey
           ? `?limit=${AGENT_PAGE_SIZE}&pagination_key=${encodeURIComponent(paginationKey)}`
@@ -153,6 +154,19 @@ export const agentIdDropdown = (displayName:string,required=false)=>  Property.D
           break
         }
         paginationKey = response.pagination_key
+        // The API still had more after the final permitted page, so the dropdown
+        // is showing a truncated list. Say so - a silently short dropdown is
+        // indistinguishable from a workspace that genuinely has few agents.
+        if (page === MAX_AGENT_PAGES - 1) {
+          exhaustedBound = true
+        }
+      }
+      if (exhaustedBound) {
+        console.warn(
+          `[retell-ai] agent dropdown stopped at the ${MAX_AGENT_PAGES}-page bound `
+          + `(${agentList.length} agents loaded); more voice agents exist. `
+          + 'Raise MAX_AGENT_PAGES if this workspace needs them.',
+        )
       }
       if (agentList.length === 0) {
         return {

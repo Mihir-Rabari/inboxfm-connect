@@ -19,6 +19,52 @@ import { pieceFilteringHooks } from './utils/piece-filtering-hooks'
 
 export const pieceRepos = repoFactory(PieceMetadataEntity)
 
+/**
+ * The keys an uploaded archive is allowed to set on its own metadata row. Everything else on
+ * `piece_metadata` is server-owned: `id`, `platformId`, `pieceType`, `packageType`,
+ * `archiveId` and `created` in particular.
+ *
+ * The engine's `extractPieceMetadata` answer crosses a process boundary and is typed with a
+ * generic assertion, not validated - `extractPieceFromModule` only checks that some exported
+ * value's `constructor.name` is 'Integration'/'Piece'. So a crafted archive controls every key
+ * of that object. Spreading it over the pinned columns let `platformId: null` persist a
+ * NULL-platformId OFFICIAL row: the shared global catalog every tenant's listing and version
+ * resolution picks up, and unremovable through the API because `delete()` requires the row's
+ * platformId to equal the caller's (issue #478).
+ *
+ * Built by explicit pick rather than a spread, so adding a column to the entity does not
+ * silently widen what an archive can control.
+ */
+const ARCHIVE_CONTROLLED_METADATA_KEYS = [
+    'name',
+    'version',
+    'displayName',
+    'logoUrl',
+    'description',
+    'authors',
+    'categories',
+    'auth',
+    'actions',
+    'triggers',
+    'i18n',
+    'minimumSupportedRelease',
+    'maximumSupportedRelease',
+] as const satisfies readonly (keyof PieceMetadata)[]
+
+
+const spreadArchiveControlledMetadata = (metadata: PieceMetadata): Partial<PieceMetadata> => {
+    const allowed: Partial<PieceMetadata> = {}
+    for (const key of ARCHIVE_CONTROLLED_METADATA_KEYS) {
+        const value = metadata[key]
+        if (!isNil(value)) {
+            // Each key is written through a computed member so the assignment stays typed
+            // without a cast: the loop key is narrowed to the allowed set above.
+            Object.assign(allowed, { [key]: value })
+        }
+    }
+    return allowed
+}
+
 export const pieceMetadataService = (log: FastifyBaseLogger) => {
     return {
         async setup(): Promise<void> {
@@ -163,14 +209,23 @@ export const pieceMetadataService = (log: FastifyBaseLogger) => {
                         name: pieceMetadata.name,
                         platformId,
                     })
+                    // Only these keys are archive-controlled; everything else on the row is
+                    // decided by the server. The engine answer is a type assertion, not a
+                    // validated payload (`extractPieceFromModule` only checks the exported
+                    // value's constructor name), so a crafted archive can return any object
+                    // at all. Spreading it wholesale let `platformId: null` land a
+                    // NULL-platformId OFFICIAL row - the shared global catalog every tenant
+                    // resolves against, and one delete() can never match (issue #478).
                     const savedPiece = await pieceRepos().save({
+                        // Server-pinned columns are assigned after the spread so an
+                        // archive-supplied value for any of them cannot take effect.
+                        ...spreadArchiveControlledMetadata(pieceMetadata),
                         id: apId(),
                         packageType,
                         pieceType,
                         archiveId,
                         platformId,
                         created: createdDate,
-                        ...pieceMetadata,
                     })
                     if (publishCacheRefresh) {
                         // The row is already committed at this point, so a cache refresh

@@ -93,6 +93,16 @@ function awaitedQueriesInLoopBody(loop, sourceFile) {
     // Start at the body, never at the loop node itself: an initializer or condition of
     // `for (const x = await repo().findOne(); ...)` runs once, so a query there is not
     // an N+1 and reporting it would send a contributor to the wrong loop.
+    //
+    // Two asymmetries to keep in mind before changing this (choksi2212 on #501):
+    //
+    // 1. `while (true)` and `do {} while` are deliberately not loops here - they are the
+    //    drain-loop control-flow exception (see isLoop). So a genuine per-row query inside
+    //    a do-while drain loop stays unflagged by design.
+    // 2. Because of that, do NOT extend this body-only rule to a do-while branch. There
+    //    the body runs *before* the condition, so the semantics invert: skipping the
+    //    condition there would be right, but for the opposite reason than it is here.
+    //    Copying this rule across without inverting it would hide real work.
     visit(loop.statement)
     return found
 }

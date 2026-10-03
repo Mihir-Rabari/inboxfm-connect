@@ -110,6 +110,25 @@ describe('check-n-plus-one', () => {
         assert.match(sites[0].snippet, /findOneBy/)
     })
 
+    // The do-while drain loop is the documented control-flow exception: `isLoop` matches
+    // for/for-of/for-in/while only, so a per-row query in a do-while body is NOT reported.
+    // This test freezes that gap deliberately. If do-while ever gains support, this test
+    // turning red is the signal to revisit the rule above it - which is the point. Note the
+    // inversion the comment warns about: a do-while body runs *before* its condition, so
+    // extending the body-only rule there unchanged would hide real work.
+    it('does not flag a query in a do-while drain loop body (documented exception)', () => {
+        const sites = scan(`
+            async function drain(queue) {
+                let item
+                do {
+                    item = await thingRepo().findOne({ next: true })
+                    process(item)
+                } while (item)
+            }
+        `)
+        assert.equal(sites.length, 0)
+    })
+
     it('flags a query nested deeper inside the loop body', () => {
         const sites = scan(`
             async function load(ids) {

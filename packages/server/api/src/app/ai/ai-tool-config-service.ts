@@ -15,6 +15,14 @@ export const aiToolConfigService = (_log: FastifyBaseLogger) => ({
 
     async upsert(platformId: PlatformId, request: CreateAiToolConfigRequest): Promise<void> {
         const encryptedAuth = await encryptUtils.encryptObject(request.auth)
+        // `config` joins the DO UPDATE column set only when the request carries one:
+        // `CreateAiToolConfigRequest.config` is `.optional()`, and the update() route treats
+        // an omitted config as "keep the stored value" (spreadIfDefined). Listing `config`
+        // unconditionally would make a re-POST that only flips `enabled` null out the stored
+        // provider config, since EXCLUDED.config is null for a request that omitted it.
+        const overwriteColumns = isNil(request.config)
+            ? ['provider', 'auth', 'enabled']
+            : ['provider', 'auth', 'config', 'enabled']
         // Two concurrent first-time requests for the same capability both read no existing
         // row before either save lands, so both insert and the loser violates
         // idx_ai_tool_config_platform_capability, surfacing a raw driver error as a 500 on a
@@ -36,14 +44,14 @@ export const aiToolConfigService = (_log: FastifyBaseLogger) => ({
                 capability: request.capability,
                 provider: request.provider,
                 auth: encryptedAuth,
-                // `config` is a nullable JSON column, and TypeORM types an insert value as
-                // _QueryDeepPartialEntity, which rejects a bare JSON scalar or null. Passing
-                // it as a bound parameter keeps the type check honest instead of casting.
-                config: () => ':config',
+                // Nullable JSON column. Omitting the key entirely (rather than passing null)
+                // is what satisfies TypeORM's _QueryDeepPartialEntity type AND is what keeps
+                // the stored value when the request omits it - EXCLUDED.config would be null
+                // otherwise, silently erasing the provider config.
+                ...spreadIfDefined('config', request.config),
                 enabled: request.enabled ?? true,
             })
-            .setParameter('config', JSON.stringify(request.config ?? null))
-            .orUpdate(['provider', 'auth', 'config', 'enabled'], ['platformId', 'capability'])
+            .orUpdate(overwriteColumns, ['platformId', 'capability'])
             .execute()
     },
 

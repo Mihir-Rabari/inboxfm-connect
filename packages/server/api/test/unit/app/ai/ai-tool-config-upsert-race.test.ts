@@ -32,7 +32,6 @@ const mockValues = vi.fn()
 const mockOrUpdate = vi.fn()
 const mockInto = vi.fn()
 const mockCreateQueryBuilder = vi.fn()
-const mockSetParameter = vi.fn()
 
 vi.mock('../../../../src/app/core/db/repo-factory', () => ({
     repoFactory: () => () => ({
@@ -80,15 +79,26 @@ const request = {
     auth: { apiKey: 'sk-test' },
 } as unknown as Parameters<AiToolConfigService['upsert']>[1]
 
+// The same request with `config` explicitly supplied, and with it omitted entirely -
+// `CreateAiToolConfigRequest.config` is `.optional()`.
+const requestWithConfig = {
+    ...request,
+    config: { temperature: 0.2 },
+} as unknown as Parameters<AiToolConfigService['upsert']>[1]
+
+const requestWithoutConfig = {
+    ...request,
+    config: undefined,
+} as unknown as Parameters<AiToolConfigService['upsert']>[1]
+
 describe('aiToolConfigService.upsert — concurrent first-write race (#473)', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        // Chain: createQueryBuilder().insert().into().values().setParameter().orUpdate().execute()
+        // Chain: createQueryBuilder().insert().into().values().orUpdate().execute()
         mockCreateQueryBuilder.mockReturnValue({ insert: mockInsert })
         mockInsert.mockReturnValue({ into: mockInto })
         mockInto.mockReturnValue({ values: mockValues })
-        mockValues.mockReturnValue({ setParameter: mockSetParameter })
-        mockSetParameter.mockReturnValue({ orUpdate: mockOrUpdate })
+        mockValues.mockReturnValue({ orUpdate: mockOrUpdate })
         mockOrUpdate.mockReturnValue({ execute: mockExecute })
         mockExecute.mockResolvedValue({ identifiers: [{ id: 'generated-id' }] })
         mockFindOneBy.mockResolvedValue(null)
@@ -104,8 +114,10 @@ describe('aiToolConfigService.upsert — concurrent first-write race (#473)', ()
         expect(mockFindOneBy).not.toHaveBeenCalled()
         expect(mockSave).not.toHaveBeenCalled()
 
+        // `request` omits config, so it is not in the DO UPDATE set - see the
+        // keeps-config-out test below for the other half of that contract.
         expect(mockOrUpdate).toHaveBeenCalledWith(
-            ['provider', 'auth', 'config', 'enabled'],
+            ['provider', 'auth', 'enabled'],
             ['platformId', 'capability'],
         )
     })
@@ -136,11 +148,43 @@ describe('aiToolConfigService.upsert — concurrent first-write race (#473)', ()
             enabled: true,
         })
         expect(inserted.id).toBeTruthy()
-        // `config` is a nullable JSON column, so it is bound as a parameter rather than
-        // inlined - that is also what satisfies TypeORM's _QueryDeepPartialEntity type.
-        expect(typeof inserted.config).toBe('function')
-        expect(inserted.config()).toBe(':config')
-        expect(mockSetParameter).toHaveBeenCalledWith('config', 'null')
+    })
+
+    // Choksi2212 on #489: `config` is `.optional()`, and the update() route treats an
+    // omitted config as "keep the stored value". If `config` sits unconditionally in the
+    // DO UPDATE set, a re-POST that only flips `enabled` nulls out the stored provider
+    // config, because EXCLUDED.config is null for a request that omitted it.
+    it('keeps `config` out of the DO UPDATE set when the request omits it', async () => {
+        const service = await loadService()
+        await service.upsert('platform-1', requestWithoutConfig)
+
+        const [updateColumns] = mockOrUpdate.mock.calls[0]
+        expect(updateColumns).not.toContain('config')
+        expect(updateColumns).toEqual(['provider', 'auth', 'enabled'])
+
+        // And the key is omitted from the insert values, so EXCLUDED.config is not null.
+        const [inserted] = mockValues.mock.calls[0]
+        expect('config' in inserted).toBe(false)
+    })
+
+    it('includes `config` in the DO UPDATE set when the request supplies one', async () => {
+        const service = await loadService()
+        await service.upsert('platform-1', requestWithConfig)
+
+        const [updateColumns] = mockOrUpdate.mock.calls[0]
+        expect(updateColumns).toEqual(['provider', 'auth', 'config', 'enabled'])
+
+        const [inserted] = mockValues.mock.calls[0]
+        expect(inserted.config).toEqual({ temperature: 0.2 })
+    })
+
+    it('never puts the primary key in the DO UPDATE set, with or without config', async () => {
+        const service = await loadService()
+        await service.upsert('platform-1', requestWithConfig)
+        expect(mockOrUpdate.mock.calls[0][0]).not.toContain('id')
+
+        await service.upsert('platform-1', requestWithoutConfig)
+        expect(mockOrUpdate.mock.calls[1][0]).not.toContain('id')
     })
 
     it('does not throw when a concurrent writer has already inserted the row', async () => {

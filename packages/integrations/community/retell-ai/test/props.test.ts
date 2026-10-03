@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { HttpMethod } from '@inboxfm-connect/pieces-common';
-import { agentIdDropdown } from './props';
-import * as clientModule from './client';
+import { agentIdDropdown } from '../src/lib/common/props';
+import * as clientModule from '../src/lib/common/client';
 
 /**
  * Issue #477 — Retell removed `GET /list-agents` on 2026-07-31. The replacement is

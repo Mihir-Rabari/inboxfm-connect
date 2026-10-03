@@ -143,6 +143,15 @@ describe('Project Replace Domain Contracts', () => {
                 archiveFileBase64: 'UEsDBBQAAAAIAAA=',
             }
             expect(RequiredPieceSchema.parse(validPiece).name).toBe('custom-internal-crm')
+
+            const oversizedPiece = {
+                name: 'oversized-piece',
+                version: '0.0.1',
+                archiveFileBase64: 'A'.repeat(MAX_CUSTOM_PIECE_BASE64_LENGTH + 1),
+            }
+            expect(() => RequiredPieceSchema.parse(oversizedPiece)).toThrowError(
+                /Archive base64 payload exceeds 15MB limit/,
+            )
         })
     })
 

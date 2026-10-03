@@ -138,9 +138,18 @@ describe('ConnectSession schemas', () => {
         })
 
         it('rejects response missing connectUrl or token', () => {
+            const iso = new Date().toISOString()
             expect(() =>
                 CreateConnectSessionResponse.parse({
                     token: 'tok',
+                    expiresAt: iso,
+                }),
+            ).toThrow()
+
+            expect(() =>
+                CreateConnectSessionResponse.parse({
+                    connectUrl: 'https://connect.example.com',
+                    expiresAt: iso,
                 }),
             ).toThrow()
         })

@@ -58,13 +58,13 @@ const etcDir = path.resolve(process.cwd(), 'packages/server/api/src/assets/etc')
 export function isolateProcess(log: SandboxLogger, enginePath: string, _codeDirectory: string, boxId: number): SandboxProcessMaker {
     return {
         create: async (params: CreateSandboxProcessParams) => {
-            const { sandboxId, mounts, env } = params
+            const { sandboxId, mounts, env, resourceLimits } = params
 
             for (const mount of mounts) {
                 assertMountInsideRoot(mount)
             }
 
-            const engineSandboxPath = path.join('/root/common', path.basename(enginePath))
+            const engineSandboxPath = path.posix.join('/root/common', path.posix.basename(enginePath.replace(/\\/g, '/')))
             const sandboxEnv = {
                 ...env,
                 AP_BASE_CODE_DIRECTORY: '/root/codes',
@@ -115,24 +115,28 @@ export function isolateProcess(log: SandboxLogger, enginePath: string, _codeDire
                 '--processes',
                 // Ceiling, not a countdown. Isolate mode previously applied no
                 // memory limit at all, so a runaway piece could exhaust the host.
-                `--mem=${params.resourceLimits.memoryLimitMb}`,
-                // Deliberately NO `--time` here. Isolate's --time is a wall-clock
-                // limit measured from process start, and it kills the process. A
-                // sandbox is reused when REUSE_SANDBOX=true (and always in
-                // DEVELOPMENT - see canReuseSandbox), so a fixed --time would
-                // tear down a healthy worker mid-execution once it aged past
-                // FLOW_TIMEOUT_SECONDS. The per-execution budget is already
-                // enforced precisely, per run, by the setTimeout in
-                // sandbox.ts#execute using executeOptions.timeoutInSeconds.
+                // isolate's --mem takes KB, so scale from the configured MB.
+                `--mem=${resourceLimits.memoryLimitMb * 1024}`,
+                // Isolate `--time` enforces cumulative CPU time for the entire lifetime of the
+                // process. Reusable sandboxes execute multiple sequential jobs over the same
+                // process, so a cumulative cap would cause healthy later runs to get SIGKILLed.
+                // Per-execution timeouts are enforced at the application layer; `--time` is only
+                // passed for one-off (non-reusable) sandbox processes.
+                ...(params.reusable ? [] : [`--time=${resourceLimits.timeLimitSeconds}`]),
                 '--chdir=/root',
                 ...envArgs,
                 '--run',
                 '--',
                 process.execPath,
+                // The engine loads isolated-vm for its code sandbox, and on Node 20+
+                // isolated-vm refuses to create an isolate unless the host process was
+                // started with --no-node-snapshot. Without it the sandbox child fails at
+                // isolate construction rather than at the code step. Parity with fork.ts.
+                '--no-node-snapshot',
                 // Keep V8's own heap ceiling at or below the isolate ceiling so
                 // the allocation failure happens inside the sandbox (where we
                 // can report it) rather than as an opaque host OOM.
-                `--max-old-space-size=${params.resourceLimits.memoryLimitMb}`,
+                `--max-old-space-size=${resourceLimits.memoryLimitMb}`,
                 engineSandboxPath,
             ]
 

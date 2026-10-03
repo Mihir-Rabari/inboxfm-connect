@@ -40,10 +40,10 @@ describe('Billing Domain Contracts and Schemas', () => {
             expect(PRICE_NAMES.AI_CREDITS).toBe('ai-credit')
             expect(PRICE_NAMES.ACTIVE_FLOWS).toBe('active-flow')
 
-            expect(PRICE_ID_MAP[PRICE_NAMES.AI_CREDITS].dev).toContain('price_')
-            expect(PRICE_ID_MAP[PRICE_NAMES.AI_CREDITS].prod).toContain('price_')
-            expect(PRICE_ID_MAP[PRICE_NAMES.ACTIVE_FLOWS].dev).toContain('price_')
-            expect(PRICE_ID_MAP[PRICE_NAMES.ACTIVE_FLOWS].prod).toContain('price_')
+            expect(PRICE_ID_MAP[PRICE_NAMES.AI_CREDITS].dev).toBe('price_1SfgNxKTWXpWeD7hmDBG4YMZ')
+            expect(PRICE_ID_MAP[PRICE_NAMES.AI_CREDITS].prod).toBe('price_1Rnj5bKZ0dZRqLEKQx2gwL7s')
+            expect(PRICE_ID_MAP[PRICE_NAMES.ACTIVE_FLOWS].dev).toBe('price_1SQbbYQN93Aoq4f8WK2JC4sf')
+            expect(PRICE_ID_MAP[PRICE_NAMES.ACTIVE_FLOWS].prod).toBe('price_1SQbcvKZ0dZRqLEKHV5UepRx')
         })
     })
 

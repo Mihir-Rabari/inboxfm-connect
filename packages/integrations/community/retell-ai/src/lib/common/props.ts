@@ -69,7 +69,14 @@ interface RetellAiAgent {
   };
 }
 
-type RetellAiAgentListResponse = RetellAiAgent[];
+// Retell removed GET /list-agents on 2026-07-31. The unified replacement is
+// POST /v2/list-agents, which serves both voice and chat agents and returns the
+// paginated envelope rather than a top-level array.
+type RetellAiAgentListResponse = {
+  items?: RetellAiAgent[];
+  has_more?: boolean;
+  pagination_key?: string;
+};
 
 interface RetellAiCall {
   call_id: string;
@@ -105,15 +112,24 @@ export const agentIdDropdown = (displayName:string,required=false)=>  Property.D
       };
     }
     try {
-      const agents = await retellAiApiCall<RetellAiAgentListResponse>({
-       auth,
-        method: HttpMethod.GET,
-        url: '/list-agents',
+      // `limit` is a query parameter on v2 (the body schema documents only
+      // filter_criteria), and v2 lists voice AND chat agents - filter to voice so
+      // this dropdown keeps its pre-migration behaviour.
+      const response = await retellAiApiCall<RetellAiAgentListResponse>({
+        auth,
+        method: HttpMethod.POST,
+        url: '/v2/list-agents?limit=100',
         body: {
-          limit: 100,
-        }
+          filter_criteria: {
+            channel: {
+              type: 'string',
+              op: 'eq',
+              value: 'voice',
+            },
+          },
+        },
       });
-      const agentList = Array.isArray(agents) ? agents : [];
+      const agentList = Array.isArray(response?.items) ? response.items : [];
       if (agentList.length === 0) {
         return {
           disabled: true,

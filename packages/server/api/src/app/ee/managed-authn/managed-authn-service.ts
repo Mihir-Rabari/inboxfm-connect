@@ -206,7 +206,7 @@ const getOrCreateUser = async (
         })
         if (isNil(winner)) {
             throw new ActivepiecesError({
-                code: ErrorCode.INTERNAL_ERROR,
+                code: ErrorCode.VALIDATION,
                 params: { message: 'User insert lost a unique-violation race but no row could be read back' },
             })
         }
@@ -253,7 +253,7 @@ const getOrCreateUserIdentity = async (
         const winner = await userIdentityService(log).getIdentityByEmail(cleanedEmail)
         if (isNil(winner)) {
             throw new ActivepiecesError({
-                code: ErrorCode.INTERNAL_ERROR,
+                code: ErrorCode.VALIDATION,
                 params: { message: 'Identity insert lost a race but no row could be read back' },
             })
         }
@@ -312,7 +312,7 @@ const getOrCreateProject = async ({
         })
         if (isNil(winner)) {
             throw new ActivepiecesError({
-                code: ErrorCode.INTERNAL_ERROR,
+                code: ErrorCode.VALIDATION,
                 params: { message: 'Project insert lost a unique-violation race but no row could be read back' },
             })
         }

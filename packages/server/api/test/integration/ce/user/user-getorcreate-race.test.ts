@@ -27,9 +27,12 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
+    // runExclusive() hands `key` to redlock as the raw Redis resource, so the key lands
+    // unprefixed - `redlock:*` matches nothing here. Clear this suite's own prefix so a
+    // crashed run cannot leave a lock behind that makes the next run's create block until
+    // it expires.
     const redis = await redisConnections.useExisting()
-    // redlock:* covers every live lock key (redlock prefixes resources)
-    await deleteKeysByPattern(redis, 'redlock:*')
+    await deleteKeysByPattern(redis, 'user:get-or-create:*')
 })
 
 describe('userService.getOrCreateWithProject concurrent first provision', () => {

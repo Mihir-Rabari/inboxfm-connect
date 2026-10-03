@@ -4,12 +4,108 @@ import { ActivePiecesProviderAuthConfig, AIProviderAuthConfig, AIProviderConfig,
 import { FastifyBaseLogger } from 'fastify'
 import cron from 'node-cron'
 import { repoFactory } from '../core/db/repo-factory'
+import { distributedLock } from '../database/redis-connections'
 import { flagService } from '../flags/flag.service'
 import { encryptUtils } from '../helper/encryption'
 import { AIProviderEntity, AIProviderSchema } from './ai-provider-entity'
 import { aiProviders } from './providers'
 
 const aiProviderRepo = repoFactory<AIProviderSchema>(AIProviderEntity)
+
+const AI_PROVIDER_AUTO_CREATE_LOCK_TIMEOUT_SECONDS = 60
+
+function isUniqueConstraintViolation(error: unknown): boolean {
+    // Postgres unique-violation driver code (SQLSTATE 23505), gated on the driver code the
+    // same way as the approved #460/#466/#470 helpers: the two drivers pinned in this repo
+    // (pg 8.11.3, @electric-sql/pglite 0.3.14) do not surface it on the same property, so
+    // match both the top-level error and the wrapped driverError. Any other failure must
+    // propagate raw rather than be mistaken for a lost race.
+    const candidate = error as { code?: string, driverError?: { code?: string } } | null | undefined
+    return candidate?.code === '23505' || candidate?.driverError?.code === '23505'
+}
+
+// The managed ACTIVEPIECES provider is auto-created on the first list call, so two concurrent
+// GETs on a fresh platform both see "no providers yet" and both insert. `ai_provider` is
+// unique on (platformId, provider), so the loser takes a raw 23505 out of a GET route - the
+// exact burst the dashboard chat page produces on load (issue #471).
+//
+// Serialize on (platformId, provider): concurrent inserts of the same provider queue behind
+// one another, while two *different* providers on the same platform never block each other -
+// coarser than a per-platform lock and still correct. A uniqueness violation converges
+// silently, because the winner already created exactly the row this call wanted to exist.
+//
+// Fails open on lock-infrastructure errors: a Redis outage must not break provider listing.
+// That leaves the race unserialized in that window, which is why the 23505 convergence below
+// still matters.
+async function autoCreateManagedProviderIfAbsent({
+    platformId,
+    hasChatProvider,
+    log,
+}: {
+    platformId: PlatformId
+    hasChatProvider: boolean
+    log: FastifyBaseLogger
+}): Promise<void> {
+    const insert = async (): Promise<void> => {
+        // Re-check inside the lock: a concurrent caller may have inserted while we waited.
+        const exists = await aiProviderRepo().existsBy({
+            platformId,
+            provider: AIProviderName.ACTIVEPIECES,
+        })
+        if (exists) {
+            return
+        }
+        await aiProviderRepo().save({
+            id: apId(),
+            auth: await encryptUtils.encryptObject({}),
+            config: {},
+            provider: AIProviderName.ACTIVEPIECES,
+            displayName: 'Inboxfm Connect',
+            platformId,
+            enabledForChat: !hasChatProvider,
+        })
+    }
+
+    const key = `ai-provider:auto-create:${platformId}:${AIProviderName.ACTIVEPIECES}`
+    let fnSettled = false
+    try {
+        await distributedLock(log).runExclusive({
+            key,
+            timeoutInSeconds: AI_PROVIDER_AUTO_CREATE_LOCK_TIMEOUT_SECONDS,
+            fn: async () => {
+                try {
+                    await insert()
+                }
+                finally {
+                    // Settled on EVERY exit path, not just the throw path: a lock-infra error
+                    // surfacing after a successful insert must not take the fail-open branch
+                    // and insert a second row (reviewer hardening, #410 round 2).
+                    fnSettled = true
+                }
+            },
+        })
+    }
+    catch (error) {
+        if (fnSettled) {
+            // The insert already ran. A violation here means the lock failed open and a
+            // concurrent request won the insert - the row this call wanted now exists.
+            if (isUniqueConstraintViolation(error)) {
+                return
+            }
+            throw error
+        }
+        log.warn({ error, lockKey: key }, 'AI provider auto-create lock unavailable - failing open')
+        try {
+            await insert()
+        }
+        catch (insertError) {
+            if (isUniqueConstraintViolation(insertError)) {
+                return
+            }
+            throw insertError
+        }
+    }
+}
 
 const modelsCache = new Map<string, AIProviderModel[]>()
 
@@ -32,15 +128,7 @@ export const aiProviderService = (log: FastifyBaseLogger) => ({
             // provider" wall — but only when nothing else is already enabled for chat, so we never
             // create a second chat provider or override an existing BYO choice (see update()).
             const hasChatProvider = await aiProviderRepo().existsBy({ platformId, enabledForChat: true })
-            await aiProviderRepo().save({
-                id: apId(),
-                auth: await encryptUtils.encryptObject({}),
-                config: {},
-                provider: AIProviderName.ACTIVEPIECES,
-                displayName: 'Inboxfm Connect',
-                platformId,
-                enabledForChat: !hasChatProvider,
-            })
+            await autoCreateManagedProviderIfAbsent({ platformId, hasChatProvider, log })
         }
         const configuredProviders = await aiProviderRepo().findBy({ platformId })
 

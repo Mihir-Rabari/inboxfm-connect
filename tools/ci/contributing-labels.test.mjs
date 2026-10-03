@@ -43,11 +43,17 @@ function labelsSection(md) {
 
 function documentedLabels(md) {
     const section = labelsSection(md)
-    // Inline code spans are the only place labels are listed. A bare `area:` or
-    // `category:` in prose is a prefix explanation rather than a label name, so
-    // require at least one character after the colon.
-    return [...section.matchAll(/`([a-z][\w-]*(?::[\w-]+)+(?:\/[\w-]+)?|[a-z][\w-]*(?:\/[\w-]+)+)`/g)]
+    // Every inline code span in the section is a candidate label. An earlier version
+    // required a `:` or `/` inside the span, which silently skipped plain-word labels
+    // like `chore`, `refactor` and `docs` - precisely the drift this test exists to
+    // catch, so a mutation restoring the old Types line still passed 4/4.
+    //
+    // Bare `area:` / `category:` spans are prefix explanations in prose rather than
+    // label names, so drop a span that is only a known prefix with nothing after it.
+    return [...section.matchAll(/`([^`\s]+)`/g)]
         .map((m) => m[1])
+        .filter((token) => /^\w/.test(token))
+        .filter((token) => !/^(area|category|size|depth):?$/.test(token))
 }
 
 describe('CONTRIBUTING.md PR labels', () => {

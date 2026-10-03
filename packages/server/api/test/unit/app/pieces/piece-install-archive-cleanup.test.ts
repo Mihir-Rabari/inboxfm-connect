@@ -154,16 +154,23 @@ describe('installPiece orphaned-archive cleanup (#475)', () => {
 
     // CodeAnt's Major on #500: "if the distributed lock rejects after its callback
     // commits the row, piecePersisted stays false and cleanup deletes the referenced
-    // archive." That cannot happen here, because `piecePersisted = true` and
-    // `uploadedArchive = undefined` are the FIRST two statements after create() resolves -
-    // they run before anything downstream can throw, and the cleanup reads the same
-    // variable, which is already undefined. This test drives the exact sequence.
+    // archive." No statement between create() resolving and the two guard assignments
+    // can throw - they are adjacent - so this path cannot reach cleanup. The one window
+    // left open is create() itself rejecting after its row commits (redlock's `using()`
+    // releases in a `finally`, so a release failure rejects after the commit); that is
+    // inherited from #496's approved design, not reachable from here. This test drives
+    // the exact post-resolve sequence.
     it('does not delete the archive when create() commits and something later throws', async () => {
         mockCreateMetadata.mockResolvedValue({ id: 'piece-1' })
         mockPostCommitFailure = new Error('downstream failed')
 
         const service = await loadService()
-        await expect(service.installPiece('platform-1', request)).rejects.toBeDefined()
+        await expect(service.installPiece('platform-1', request)).rejects.toMatchObject({
+            error: {
+                code: 'ENGINE_OPERATION_FAILURE',
+                params: { message: 'downstream failed' },
+            },
+        })
 
         expect(mockCreateMetadata).toHaveBeenCalled()
         expect(mockFileDelete).not.toHaveBeenCalled()

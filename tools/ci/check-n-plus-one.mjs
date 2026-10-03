@@ -16,6 +16,24 @@ import ts from 'typescript'
 // same calls is NOT flagged: it is the batched form this rule is trying to push people
 // towards, and rejecting it would be backwards.
 //
+// Why a site leaving the baseline is silent, while a site entering one is hard-reviewed
+// (choksi2212 on #501). Deletion is the whole point of paying the debt down, so the gate
+// must never be the thing that punishes it:
+//
+//   1. A removal complaint punishes exactly the PRs this gate exists to encourage. #104
+//      was a debt-cleanup PR; the next one should not have to fight the gate while paying
+//      the debt down. A rule that turns green cleanup PRs red gets switched off - that is
+//      how gates like this die in practice.
+//   2. A removal complaint has no operational response. The contributor replies "yes, I
+//      removed it", re-runs --write-baseline, and the noise normalises touching the
+//      baseline file for reasons other than "the tree changed".
+//   3. Shrinkage is already visible without a complaint: the green run prints the debt
+//      count every time, so a cleanup PR shows a lower number in its own CI log and the
+//      baseline diff names exactly which keys went.
+//
+// The debt count is a headline, not a gate. Silence on removal; hard review on
+// --write-baseline, which is the only command that can move the list.
+
 // Existing sites are baselined in tools/ci/n-plus-one-baseline.json. New ones fail.
 
 // Scope is packages/server/api/src/app only. packages/server/engine (BullMQ workers and
@@ -156,6 +174,11 @@ function main() {
             sites: sites.map((s) => `${s.file}:${s.method}#${s.occurrence}`),
         }, null, 2) + '\n')
         console.log(`Recorded ${sites.length} N+1 site(s).`)
+        // This is the only command that can move the debt list, so make the review
+        // expectation visible at the moment someone reaches for it rather than leaving
+        // it to be rediscovered in review.
+        console.log('Treat this diff as load-bearing review material: justify every key')
+        console.log('that changed in the PR body, not just the ones that were added.')
         return
     }
 

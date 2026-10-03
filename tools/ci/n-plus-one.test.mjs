@@ -165,4 +165,88 @@ describe('check-n-plus-one', () => {
         assert.equal(sites.length, 1)
         assert.equal(sites[0].line, 3)
     })
+
+    // A service whose accessor was bound to a local earlier in the function still reaches
+    // the database once per row - `user-invitation.service.ts:164` is exactly this shape.
+    it('flags a call on a service bound to a local variable', () => {
+        const sites = scan(`
+            async function load(ids) {
+                const projectRoleService = getProjectRoleService()
+                for (const id of ids) {
+                    await projectRoleService.getOneOrThrowById({ id })
+                }
+            }
+        `)
+        assert.equal(sites.length, 1)
+    })
+
+    // The allowlist-inversion fix: these three all sit in the same per-invitation loop in
+    // user-invitation.service.ts and were missed by the original allowlist.
+    it('flags domain-specific query methods not on any known list', () => {
+        for (const method of ['getOneWithPlanOrThrow', 'getOrCreateWithProject', 'findWithCount']) {
+            const sites = scan(`
+                async function load(ids) {
+                    for (const id of ids) {
+                        await thingService(log).${method}({ id })
+                    }
+                }
+            `)
+            assert.equal(sites.length, 1, method)
+        }
+    })
+
+    it('still does not flag known non-query operations', () => {
+        for (const method of ['invalidate', 'clear', 'withTransaction']) {
+            const sites = scan(`
+                async function load(ids, thingRepo) {
+                    for (const id of ids) {
+                        await thingRepo().${method}()
+                    }
+                }
+            `)
+            assert.equal(sites.length, 0, method)
+        }
+    })
+
+    it('keys the baseline by method so line drift does not re-report a site', () => {
+        const sites = scan(`
+            async function load(ids) {
+                for (const id of ids) {
+                    await thingRepo().findOneBy({ id })
+                }
+            }
+        `)
+        assert.equal(sites.length, 1)
+        assert.equal(sites[0].method, 'findOneBy')
+    })
+
+    // A single loop can make several per-row calls. Reporting only the first one
+    // understated the debt: user-invitation.service.ts makes six inside one for-of.
+    it('reports every per-row query in a loop body, not just the first', () => {
+        const sites = scan(`
+            async function load(ids) {
+                for (const id of ids) {
+                    const a = await thingService(log).getOneWithPlanOrThrow(id)
+                    const b = await thingService(log).exists({ id })
+                    await thingService(log).upsert({ id })
+                }
+            }
+        `)
+        assert.equal(sites.length, 3)
+        assert.deepEqual(sites.map((s) => s.method).sort(),
+            ['exists', 'getOneWithPlanOrThrow', 'upsert'])
+    })
+
+    it('reports each line distinctly for reporting purposes', () => {
+        const sites = scan([
+            'async function load(ids) {',
+            '    for (const id of ids) {',
+            '        await thingRepo().findOne({ id })',
+            '        await thingRepo().findOneBy({ id })',
+            '    }',
+            '}',
+        ].join('\n'))
+        assert.equal(sites.length, 2)
+        assert.deepEqual(sites.map((s) => s.line), [3, 4])
+    })
 })

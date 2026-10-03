@@ -18,11 +18,19 @@ import ts from 'typescript'
 //
 // Existing sites are baselined in tools/ci/n-plus-one-baseline.json. New ones fail.
 
+// Scope is packages/server/api/src/app only. packages/server/engine (BullMQ workers and
+// flow execution) is NOT scanned, so this is not repo-wide coverage.
 const SCAN_ROOTS = ['packages/server/api/src/app']
-const QUERY_METHODS = new Set([
-    'find', 'findBy', 'findOne', 'findOneBy', 'findOneOrFail', 'findWithCount',
-    'findAndCount', 'count', 'countBy', 'exists', 'existsBy', 'get', 'getOne',
-    'getOneOrFail', 'getOrFail', 'save', 'insert', 'upsert', 'query', 'delete',
+// An allowlist of known query method names went stale immediately: services legitimately
+// call getOneWithPlanOrThrow, getOrCreateWithProject and getOneOrThrowById inside
+// loops, and none of those names were on the list. Inverting it - treat every method on
+// a repository or service accessor as a query except an explicit list of known
+// non-query operations - keeps coverage broad without hand-maintaining a dictionary.
+const NON_QUERY_METHODS = new Set([
+    // cache and coordination verbs that do not hit the database
+    'invalidate', 'clear', 'reset', 'disconnect', 'connect', 'ping', 'flush',
+    // promise/value helpers, not persistence calls
+    'withTransaction', 'run', 'wrap', 'toPromise',
 ])
 
 const repoAccessor = /^(?:[A-Za-z_$][\w$]*Repo|[A-Za-z_$][\w$]*Service)\s*(\(\s*\)|\([\w\s,]*\)\s*)$/
@@ -46,18 +54,26 @@ function isQueryCall(node, sourceFile) {
     if (!ts.isCallExpression(node)) return false
     const callee = ts.isPropertyAccessExpression(node.expression) ? node.expression : null
     if (!callee) return false
-    if (!QUERY_METHODS.has(callee.name.text)) return false
+    if (NON_QUERY_METHODS.has(callee.name.text)) return false
     const receiver = callee.expression
-    if (!ts.isCallExpression(receiver)) return false
-    // getText() needs the source file to render the node.
-    const src = receiver.getText(sourceFile).replace(/\s+/g, ' ')
-    return repoAccessor.test(src)
+    // `thingRepo()` / `userService(log)` - an accessor invoked at the call site.
+    if (ts.isCallExpression(receiver)) {
+        return repoAccessor.test(receiver.getText(sourceFile).replace(/\s+/g, ' '))
+    }
+    // `const roleService = ...` then `roleService.getOneOrThrowById(...)` - the accessor
+    // was bound earlier, but the call still reaches the database once per row.
+    if (ts.isIdentifier(receiver)) {
+        return repoAccessor.test(`${receiver.text}()`)
+    }
+    return false
 }
 
-function hasAwaitedQueryInLoopBody(loop, sourceFile) {
-    let found = null
+// Collect EVERY awaited query in the loop body, not just the first: one loop can make
+// several per-row calls (user-invitation.service.ts makes four inside the same
+// for-of over invitations) and reporting one of them understated the debt.
+function awaitedQueriesInLoopBody(loop, sourceFile) {
+    const found = []
     const visit = (node) => {
-        if (found) return
         // Do not descend into nested functions: a closure called later is not executed
         // per-iteration, and a nested loop is reported on its own.
         if (node !== loop && (ts.isFunctionExpression(node) || ts.isArrowFunction(node) ||
@@ -65,8 +81,7 @@ function hasAwaitedQueryInLoopBody(loop, sourceFile) {
             return
         }
         if (ts.isAwaitExpression(node) && isQueryCall(node.expression, sourceFile)) {
-            found = node.expression
-            return
+            found.push(node.expression)
         }
         ts.forEachChild(node, visit)
     }
@@ -79,10 +94,14 @@ export function findNPlusOneSites({ file, source }) {
     const sites = []
     const visit = (node) => {
         if (isLoop(node)) {
-            const call = hasAwaitedQueryInLoopBody(node, ast)
-            if (call) {
+            for (const call of awaitedQueriesInLoopBody(node, ast)) {
                 const { line } = ast.getLineAndCharacterOfPosition(call.getStart(ast))
-                sites.push({ file, line: line + 1, snippet: call.getText(ast).replace(/\s+/g, ' ').slice(0, 120) })
+                sites.push({
+                    file,
+                    line: line + 1,
+                    method: call.expression.name.text,
+                    snippet: call.getText(ast).replace(/\s+/g, ' ').slice(0, 120),
+                })
             }
         }
         ts.forEachChild(node, visit)
@@ -106,7 +125,7 @@ function main() {
     if (process.argv.includes('--write-baseline')) {
         writeFileSync(baselinePath, JSON.stringify({
             description: 'N+1 query sites found at the time this baseline was taken. Not a target - see packages/server/AGENTS.md. Batch with Promise.all, or hoist the lookup out of the loop.',
-            sites: sites.map((s) => `${s.file}:${s.line}`),
+            sites: sites.map((s) => `${s.file}:${s.method}`),
         }, null, 2) + '\n')
         console.log(`Recorded ${sites.length} N+1 site(s).`)
         return
@@ -114,7 +133,7 @@ function main() {
 
     const baseline = JSON.parse(readFileSync(baselinePath, 'utf8')).sites
     const known = new Set(baseline)
-    const introduced = sites.filter((s) => !known.has(`${s.file}:${s.line}`))
+    const introduced = sites.filter((s) => !known.has(`${s.file}:${s.method}`))
 
     if (introduced.length === 0) {
         console.log(`No new N+1 sites. Existing debt: ${sites.length}; see packages/server/AGENTS.md.`)
@@ -123,7 +142,7 @@ function main() {
 
     console.error('New N+1 query site(s) introduced:')
     for (const site of introduced) {
-        console.error(`  ${site.file}:${site.line}  ${site.snippet}`)
+        console.error(`  ${site.file}:${site.line} (${site.method})  ${site.snippet}`)
     }
     console.error('\nA query inside a loop runs once per row. Batch it:')
     console.error('  const rows = await repo().findBy({ id: In(ids) })   // one query')

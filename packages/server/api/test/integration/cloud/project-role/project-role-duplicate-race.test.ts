@@ -32,8 +32,11 @@ afterAll(async () => {
 })
 
 beforeEach(async () => {
+    // runExclusive() hands `key` to redlock as the raw Redis resource, so the keys land
+    // unprefixed. Clear this suite's own prefix so a crashed run cannot leave a lock
+    // behind that makes the next run's create block until it expires.
     const redis = await redisConnections.useExisting()
-    await deleteKeysByPattern(redis, 'redlock:*')
+    await deleteKeysByPattern(redis, 'project-role:create:*')
 })
 
 describe('projectRoleService.create duplicate-name handling', () => {

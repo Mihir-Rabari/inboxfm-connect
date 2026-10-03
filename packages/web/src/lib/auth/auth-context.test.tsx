@@ -1,7 +1,8 @@
 import { act } from 'react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { apiClient } from '@/lib/api/client'
 import { AuthProvider, useAuth } from '@/lib/auth/auth-context'
+import { setAuthNavigator } from '@/lib/auth/auth-navigation'
 import { stubApi } from '@/test/api-stub'
 import { mount, waitFor } from '@/test/test-utils'
 
@@ -23,6 +24,17 @@ let capturedAuth: ReturnType<typeof useAuth> | null = null
 function AuthProbe() {
   capturedAuth = useAuth()
   return null
+}
+
+/**
+ * `waitFor` cannot narrow `capturedAuth` for the compiler, so read it through this
+ * instead of a non-null assertion: it either yields the context or fails loudly.
+ */
+function requireAuth(): ReturnType<typeof useAuth> {
+  if (capturedAuth === null) {
+    throw new Error('AuthProbe never rendered, so no auth context was captured')
+  }
+  return capturedAuth
 }
 
 function renderAuth() {
@@ -47,10 +59,12 @@ beforeEach(() => {
   apiClient.setToken(null)
   apiClient.setProjectId(null)
   capturedAuth = null
+  setAuthNavigator(vi.fn())
 })
 
 afterEach(() => {
   localStorage.clear()
+  setAuthNavigator(null)
 })
 
 describe('auth session restore', () => {
@@ -100,7 +114,7 @@ describe('auth session restore', () => {
     // Mirrors login.tsx: the response is flat, so the whole object (sans token/projectId)
     // is the user.
     act(() => {
-      capturedAuth!.signIn('real-jwt', REAL_USER, REAL_PROJECT_ID)
+      requireAuth().signIn('real-jwt', REAL_USER, REAL_PROJECT_ID)
     })
 
     expect(capturedAuth?.user?.id).toBe(REAL_USER.id)
@@ -127,12 +141,69 @@ describe('auth session restore', () => {
     await waitFor(() => capturedAuth?.isLoading === false)
 
     act(() => {
-      capturedAuth!.signOut()
+      requireAuth().signOut()
     })
 
     expect(localStorage.getItem('ap-user')).toBeNull()
     expect(localStorage.getItem('ap-token')).toBeNull()
     expect(localStorage.getItem('ap-project-id')).toBeNull()
     expect(capturedAuth?.isAuthenticated).toBe(false)
+  })
+
+  it('signOut navigates to /login', async () => {
+    const mockNavigator = vi.fn()
+    setAuthNavigator(mockNavigator)
+    apiClient.setToken('real-jwt')
+    apiClient.setProjectId(REAL_PROJECT_ID)
+    localStorage.setItem('ap-user', JSON.stringify(REAL_USER))
+
+    stubApi([
+      {
+        match: (url) => url.pathname.endsWith('/api/v1/projects'),
+        respond: () => ({ status: 200, body: { data: [] } }),
+      },
+    ])
+
+    renderAuth()
+    await waitFor(() => capturedAuth?.isLoading === false)
+
+    act(() => {
+      requireAuth().signOut()
+    })
+
+    expect(mockNavigator).toHaveBeenCalledWith(
+      expect.stringContaining('/login'),
+      expect.objectContaining({ replace: true })
+    )
+    setAuthNavigator(null)
+  })
+
+  it('resets AuthProvider state immediately when 401 is handled by apiClient', async () => {
+    const mockNavigator = vi.fn()
+    setAuthNavigator(mockNavigator)
+    apiClient.setToken('real-jwt')
+    apiClient.setProjectId(REAL_PROJECT_ID)
+    localStorage.setItem('ap-user', JSON.stringify(REAL_USER))
+
+    stubApi([
+      {
+        match: (url) => url.pathname.endsWith('/api/v1/projects'),
+        respond: () => ({ status: 200, body: { data: [{ id: REAL_PROJECT_ID, displayName: 'InboxFM', platformId: REAL_USER.platformId }] } }),
+      },
+    ])
+
+    renderAuth()
+    await waitFor(() => capturedAuth?.isLoading === false)
+    expect(capturedAuth?.isAuthenticated).toBe(true)
+
+    act(() => {
+      apiClient.handleUnauthorized()
+    })
+
+    expect(capturedAuth?.isAuthenticated).toBe(false)
+    expect(capturedAuth?.user).toBeNull()
+    expect(capturedAuth?.token).toBeNull()
+    expect(capturedAuth?.currentProject).toBeNull()
+    setAuthNavigator(null)
   })
 })

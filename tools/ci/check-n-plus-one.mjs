@@ -92,14 +92,24 @@ function awaitedQueriesInLoopBody(loop, sourceFile) {
 export function findNPlusOneSites({ file, source }) {
     const ast = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true)
     const sites = []
+    const occurrences = new Map()
     const visit = (node) => {
         if (isLoop(node)) {
             for (const call of awaitedQueriesInLoopBody(node, ast)) {
                 const { line } = ast.getLineAndCharacterOfPosition(call.getStart(ast))
+                const method = call.expression.name.text
+                // Occurrence index within (file, method): keying on method alone made
+                // a new loop invisible in any file that already had one - the 12
+                // baselined findOne calls in project-replace.service.ts shared a key,
+                // so a 13th passed the gate. Indexing the occurrence keeps the key
+                // unique per site while still tolerating line drift.
+                const n = occurrences.get(`${file}|${method}`) ?? 0
+                occurrences.set(`${file}|${method}`, n + 1)
                 sites.push({
                     file,
                     line: line + 1,
-                    method: call.expression.name.text,
+                    method,
+                    occurrence: n,
                     snippet: call.getText(ast).replace(/\s+/g, ' ').slice(0, 120),
                 })
             }
@@ -125,7 +135,7 @@ function main() {
     if (process.argv.includes('--write-baseline')) {
         writeFileSync(baselinePath, JSON.stringify({
             description: 'N+1 query sites found at the time this baseline was taken. Not a target - see packages/server/AGENTS.md. Batch with Promise.all, or hoist the lookup out of the loop.',
-            sites: sites.map((s) => `${s.file}:${s.method}`),
+            sites: sites.map((s) => `${s.file}:${s.method}#${s.occurrence}`),
         }, null, 2) + '\n')
         console.log(`Recorded ${sites.length} N+1 site(s).`)
         return
@@ -133,7 +143,7 @@ function main() {
 
     const baseline = JSON.parse(readFileSync(baselinePath, 'utf8')).sites
     const known = new Set(baseline)
-    const introduced = sites.filter((s) => !known.has(`${s.file}:${s.method}`))
+    const introduced = sites.filter((s) => !known.has(`${s.file}:${s.method}#${s.occurrence}`))
 
     if (introduced.length === 0) {
         console.log(`No new N+1 sites. Existing debt: ${sites.length}; see packages/server/AGENTS.md.`)
@@ -142,7 +152,7 @@ function main() {
 
     console.error('New N+1 query site(s) introduced:')
     for (const site of introduced) {
-        console.error(`  ${site.file}:${site.line} (${site.method})  ${site.snippet}`)
+        console.error(`  ${site.file}:${site.line} (${site.method} #${site.occurrence})  ${site.snippet}`)
     }
     console.error('\nA query inside a loop runs once per row. Batch it:')
     console.error('  const rows = await repo().findBy({ id: In(ids) })   // one query')

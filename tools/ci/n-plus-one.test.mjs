@@ -249,4 +249,50 @@ describe('check-n-plus-one', () => {
         assert.equal(sites.length, 2)
         assert.deepEqual(sites.map((s) => s.line), [3, 4])
     })
+
+    // Regression for the hole choksi2212 accepted knowingly on #501: keying the
+    // baseline on file:method made a new loop invisible in any file that already had
+    // one for that method. project-replace.service.ts had 12 baselined findOne calls
+    // sharing a single key, so a 13th passed the gate silently.
+    it('assigns a distinct occurrence index to each site sharing a method', () => {
+        const sites = scan(`
+            async function load(ids) {
+                for (const id of ids) {
+                    await thingRepo().findOne({ id })
+                }
+                for (const other of ids) {
+                    await thingRepo().findOne({ id: other })
+                }
+                for (const third of ids) {
+                    await thingRepo().findOneBy({ id: third })
+                }
+            }
+        `)
+        assert.equal(sites.length, 3)
+        assert.deepEqual(sites.map((s) => [s.method, s.occurrence]), [
+            ['findOne', 0], ['findOne', 1], ['findOneBy', 0],
+        ])
+    })
+
+    it('continues the occurrence sequence across functions in one file', () => {
+        const sites = scan(`
+            async function a(ids) {
+                for (const id of ids) { await thingRepo().findOne({ id }) }
+            }
+            async function b(ids) {
+                for (const id of ids) { await thingRepo().findOne({ id }) }
+            }
+        `)
+        // Same file, so the sequence continues - that is what keeps the keys distinct.
+        assert.deepEqual(sites.map((s) => s.occurrence), [0, 1])
+    })
+
+    it('starts a fresh sequence in a different file', () => {
+        const sites = scan('async function a(ids) { for (const id of ids) { await thingRepo().findOne({ id }) } }',
+            'one.ts')
+        assert.deepEqual(sites.map((s) => s.occurrence), [0])
+        const other = scan('async function a(ids) { for (const id of ids) { await thingRepo().findOne({ id }) } }',
+            'two.ts')
+        assert.deepEqual(other.map((s) => s.occurrence), [0])
+    })
 })

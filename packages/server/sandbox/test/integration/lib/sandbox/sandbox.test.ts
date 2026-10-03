@@ -33,6 +33,23 @@ function createMockLogger(): SandboxLogger {
     }
 }
 
+/**
+ * Reads the ErrorCode off a rejected value by narrowing through unknown, so the
+ * assertions need no `as ActivepiecesError` cast. Returns undefined rather than
+ * throwing so a wrong-shaped rejection surfaces as a failed expectation.
+ */
+function errorCodeOf(err: unknown): string | undefined {
+    if (typeof err !== 'object' || err === null || !('error' in err)) {
+        return undefined
+    }
+    const { error } = err
+    if (typeof error !== 'object' || error === null || !('code' in error)) {
+        return undefined
+    }
+    const { code } = error
+    return typeof code === 'string' ? code : undefined
+}
+
 function createTestProcessMaker() {
     let client: ClientSocket | null = null
     let child: (ChildProcess & EventEmitter) | null = null
@@ -640,7 +657,7 @@ describe('createSandbox', () => {
                 await executePromise
             }
             catch (err) {
-                expect((err as ActivepiecesError).error.code).toBe(ErrorCode.SANDBOX_MEMORY_ISSUE)
+                expect(errorCodeOf(err)).toBe(ErrorCode.SANDBOX_MEMORY_ISSUE)
             }
         })
 

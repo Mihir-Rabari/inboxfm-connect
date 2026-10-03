@@ -138,7 +138,6 @@ export function isolateProcess(log: SandboxLogger, enginePath: string, _codeDire
                 // can report it) rather than as an opaque host OOM.
                 `--max-old-space-size=${resourceLimits.memoryLimitMb}`,
                 engineSandboxPath,
-
             ]
 
             log.debug({ sandbox: { id: sandboxId }, command: `${isolateBinaryPath} ${args.join(' ')}` }, 'Spawning isolate process')

@@ -2103,6 +2103,90 @@ describe('Project Replace API (CE)', () => {
             expect(createdAgent!.displayName).toBe('Support Assistant')
         })
 
+        it('should carry provider mappings in the artifact so apply does not need them re-sent', async () => {
+            await mockAndSaveAIProvider({
+                platformId: ctx.platform.id,
+                provider: AIProviderName.ANTHROPIC,
+                displayName: 'Anthropic Dest',
+            })
+
+            const sourceSnapshot: ProjectStateSnapshot = {
+                schemaVersion: 1,
+                sourceActivepiecesVersion: '0.120.0',
+                exportedAt: new Date().toISOString(),
+                sourceEnvironment: { projectId: apId() },
+                tables: [],
+                agents: [
+                    {
+                        externalId: 'agent-persisted-mapping',
+                        displayName: 'Support Assistant',
+                        description: 'Handles tickets',
+                        prompt: 'Answer politely',
+                        maxSteps: 8,
+                        model: {
+                            provider: 'openai',
+                            model: 'gpt-4o',
+                        },
+                        tools: [],
+                        structuredOutput: null,
+                        status: 'ENABLED',
+                    },
+                ],
+                triggerBindings: [],
+                scheduledTasks: [],
+                mcp: { disabledTools: [] },
+                requiredPieces: [],
+                requiredConnections: [],
+            }
+
+            const providerMappings: ProviderMappingSchema[] = [
+                { sourceProvider: 'openai', destProvider: 'anthropic' },
+            ]
+
+            const planRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/plan`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    snapshot: sourceSnapshot,
+                    providerMappings,
+                },
+            })
+
+            expect(planRes.statusCode).toBe(StatusCodes.OK)
+            const artifact: ProjectReplaceArtifact = planRes.json()
+            expect(artifact.plan.preflight.passed).toBe(true)
+
+            // The signed plan must carry the remap, otherwise an apply from a
+            // `--plan-file` has no way to know one was ever requested.
+            expect(artifact.plan.providerMappings).toEqual(providerMappings)
+
+            // Apply WITHOUT re-supplying them: the `ap project replace --plan-file` path.
+            const applyRes = await app!.inject({
+                method: 'POST',
+                url: `/api/v1/projects/${ctx.project.id}/replace/apply`,
+                headers: { authorization: `Bearer ${ctx.token}` },
+                body: {
+                    plan: artifact.plan,
+                    snapshot: artifact.snapshot,
+                },
+            })
+
+            expect(applyRes.statusCode).toBe(StatusCodes.OK)
+            const applyResult = applyRes.json()
+            expect(applyResult.failed.length).toBe(0)
+            expect(applyResult.applied.agentsCreated).toBe(1)
+
+            // The agent must land on the DESTINATION provider, not the source one.
+            const createdAgent = await agentService.getByExternalId({
+                externalId: 'agent-persisted-mapping',
+                projectId: ctx.project.id,
+                platformId: ctx.platform.id,
+            })
+            expect(createdAgent).toBeDefined()
+            expect(createdAgent!.model.provider).toBe('anthropic')
+        })
+
         it('should converge idempotently on retry with 0 duplicate agents', async () => {
             await mockAndSaveAIProvider({
                 platformId: ctx.platform.id,

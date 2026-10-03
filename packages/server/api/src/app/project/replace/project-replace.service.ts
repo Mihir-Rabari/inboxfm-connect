@@ -417,6 +417,10 @@ function computePlanSignature(plan: Omit<ProjectReplacePlan, 'signature'>): stri
         destinationStateHash: plan.destinationStateHash,
         preflight: plan.preflight,
         connectionMappings: (plan.connectionMappings ?? []).map(sanitizeMappingForPlan),
+        providerMappings: (plan.providerMappings ?? []).map((pm: ProviderMappingSchema) => ({
+            sourceProvider: pm.sourceProvider,
+            destProvider: pm.destProvider,
+        })),
         changes: plan.changes,
         summary: plan.summary,
     })
@@ -1587,6 +1591,10 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                 connections: connectionsReport,
             },
             connectionMappings: (connectionMappings ?? []).map(sanitizeMappingForPlan),
+            providerMappings: (providerMappings ?? []).map((pm: ProviderMappingSchema) => ({
+                sourceProvider: pm.sourceProvider,
+                destProvider: pm.destProvider,
+            })),
             changes: {
                 creates,
                 updates,
@@ -1650,6 +1658,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             destinationStateHash: plan.destinationStateHash,
             preflight: plan.preflight,
             connectionMappings: plan.connectionMappings,
+            providerMappings: plan.providerMappings,
             changes: plan.changes,
             summary: plan.summary,
         }
@@ -2179,6 +2188,51 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     }
                 }
 
+                // A plan records the provider remaps that were in force when it was
+                // generated, but the signed artifact does not carry them, so an apply
+                // driven by `--plan-file` has no way to know a remap was ever requested.
+                // Falling through to `?? rawProvider` in that case writes the destination
+                // agent against the SOURCE provider and reports success. Fail closed
+                // instead: the plan's own preflight lists the mapped providers, so if one
+                // of those agents is being applied and no mapping covers it, refuse the
+                // change rather than silently pointing it at the wrong provider (#502).
+                // The signed plan carries the provider remaps that were in force when it
+                // was generated. Before this they were dropped, so an apply driven by
+                // `--plan-file` had no way to know a remap was ever requested and fell
+                // through to `?? rawProvider` - silently writing destination agents
+                // against the SOURCE provider and reporting success (#502).
+                //
+                // Request-time mappings still win, so an operator can override at apply.
+                // Otherwise fall back to the artifact's own record. A plan that never
+                // remapped anything carries none and keeps applying unchanged.
+                const planProviderMap = new Map<string, string>()
+                for (const pm of plan.providerMappings ?? []) {
+                    planProviderMap.set(pm.sourceProvider.toLowerCase(), pm.destProvider)
+                }
+
+                const planRecordsMappings = planProviderMap.size > 0
+
+                const resolveTargetProvider = (rawProvider: string): string => {
+                    const key = rawProvider.toLowerCase()
+                    // Request-time mappings win, so an operator can override at apply.
+                    const mapped = providerMap.get(key) ?? planProviderMap.get(key)
+                    if (mapped) {
+                        return mapped
+                    }
+                    // Only refuse when this plan demonstrably involved provider remapping.
+                    // A plan that records none is either an unmapped plan or a legacy
+                    // artifact written before the mappings were persisted; refusing the
+                    // latter would break every apply that never remapped anything.
+                    if (planRecordsMappings) {
+                        throw new Error(
+                            `Provider "${rawProvider}" is not covered by the provider mappings recorded in this `
+                            + 'plan, and none were supplied to this apply. Refusing to create the agent against the '
+                            + 'source provider - re-run the apply with providerMappings (the CLI flag is --provider-map).',
+                        )
+                    }
+                    return rawProvider
+                }
+
                 const effectiveAgents: AgentSnapshotSchema[] = [...(snapshot.agents ?? [])]
                 if (snapshot.flows && snapshot.flows.length > 0) {
                     const flowAgents = extractAgentsFromFlows(snapshot.flows)
@@ -2194,7 +2248,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                         const srcAgent = effectiveAgents.find((a) => a.externalId === change.externalId)
                         if (srcAgent) {
                             const rawProvider = srcAgent.model.provider
-                            const targetProvider = providerMap.get(rawProvider.toLowerCase()) ?? rawProvider
+                            const targetProvider = resolveTargetProvider(rawProvider)
 
                             const mappedTools = remapAgentTools(srcAgent.tools, resolvedConnections, request.connectionMappings)
 
@@ -2233,7 +2287,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                         }
 
                         const rawProvider = srcAgent.model.provider
-                        const targetProvider = providerMap.get(rawProvider.toLowerCase()) ?? rawProvider
+                        const targetProvider = resolveTargetProvider(rawProvider)
 
                         const mappedTools = remapAgentTools(srcAgent.tools, resolvedConnections, request.connectionMappings, existing.tools)
 

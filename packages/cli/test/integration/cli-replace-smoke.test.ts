@@ -32,24 +32,35 @@ describe('CLI Project Replace Integration Smoke Tests (Real HTTP Boundary)', () 
     } = {}
 
     const sampleSnapshot: ProjectStateSnapshot = {
-        version: '1.0.0',
+        schemaVersion: 1,
+        sourceActivepiecesVersion: '1.0.0',
         exportedAt: '2026-09-28T00:00:00.000Z',
-        projectId: 'src-proj-real',
-        flows: [],
+        sourceEnvironment: { projectId: 'src-proj-real' },
+        tables: [],
         agents: [],
+        triggerBindings: [],
+        scheduledTasks: [],
         mcp: null,
-        connections: [],
+        requiredPieces: [],
+        requiredConnections: [],
+        flows: [],
     }
 
     const sampleArtifact: ProjectReplaceArtifact = {
-        version: '1.0.0',
+        artifactVersion: 1,
+        toolVersion: '1.0.0',
+        createdAt: '2026-09-28T00:00:00.000Z',
         plan: {
             planId: 'real-plan-999',
-            sourceProjectId: 'src-proj-real',
+            schemaVersion: 1,
+            toolVersion: '1.0.0',
+            createdAt: '2026-09-28T00:00:00.000Z',
+            sourceActivepiecesVersion: '1.0.0',
+            targetActivepiecesVersion: '1.0.0',
             targetProjectId: 'dest-proj-real',
             checksum: 'chk-real-123',
+            destinationStateHash: 'dst-hash-real',
             signature: 'sig-real-456',
-            createdAt: '2026-09-28T00:00:00.000Z',
             summary: {
                 created: 1,
                 updated: 0,
@@ -62,7 +73,7 @@ describe('CLI Project Replace Integration Smoke Tests (Real HTTP Boundary)', () 
                 warnings: [],
             },
             changes: {
-                creates: [{ kind: 'mcp_server', externalId: 'default', title: 'Default MCP' }],
+                creates: [{ kind: 'mcp_server', externalId: 'default', op: 'CREATE', name: 'Default MCP' }],
                 updates: [],
                 deletes: [],
                 unchanged: [],

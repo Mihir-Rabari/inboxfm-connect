@@ -24,6 +24,48 @@ import {
     ProjectStateSnapshot,
 } from '@inboxfm-connect/shared'
 
+type ProviderMapping = Parameters<typeof parseProviderMappingContent>[1][number]
+
+type FetchHandler = (url: string, init?: RequestInit) => Promise<Response>
+
+/**
+ * Builds a `fetch`-shaped stub from a URL handler. Typing the boundary here means
+ * callers pass a real `typeof fetch` to the command under test, so no
+ * `as unknown as typeof fetch` cast is needed at any call site.
+ */
+function createFetch(handler: FetchHandler): typeof fetch {
+    return async (input: RequestInfo | URL, init?: RequestInit) =>
+        handler(String(input), init)
+}
+
+/** Reads a JSON request body without casting `BodyInit` to `string`. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null
+}
+
+type CapturedRequestBody = {
+    providerMappings?: unknown
+    connectionMappings?: unknown
+}
+
+/**
+ * Reads the JSON request body and keeps the mapping fields these assertions
+ * inspect. Narrowing through unknown avoids both a `BodyInit` cast and an `any`
+ * on the capture record.
+ */
+function captureRequestBody(init: RequestInit | undefined): CapturedRequestBody {
+    const { body } = init ?? {}
+    if (typeof body !== 'string') {
+        return {}
+    }
+    const parsed: unknown = JSON.parse(body)
+    if (!isRecord(parsed)) {
+        return {}
+    }
+    const { providerMappings, connectionMappings } = parsed
+    return { providerMappings, connectionMappings }
+}
+
 describe('CLI project-replace Command', () => {
     let tmpDir: string
 
@@ -41,37 +83,48 @@ describe('CLI project-replace Command', () => {
     })
 
     const sampleSnapshot: ProjectStateSnapshot = {
-        version: '1.0.0',
+        schemaVersion: 1,
+        sourceActivepiecesVersion: '1.0.0',
         exportedAt: '2026-09-28T00:00:00.000Z',
-        projectId: 'src-proj-1',
-        flows: [],
+        sourceEnvironment: { projectId: 'src-proj-1' },
+        tables: [],
         agents: [],
+        triggerBindings: [],
+        scheduledTasks: [],
         mcp: null,
-        connections: [],
+        requiredPieces: [],
+        requiredConnections: [],
+        flows: [],
     }
 
     const sampleArtifact: ProjectReplaceArtifact = {
-        version: '1.0.0',
+        artifactVersion: 1,
+        toolVersion: '1.0.0',
+        createdAt: '2026-09-28T00:00:00.000Z',
         plan: {
             planId: 'plan-123',
-            sourceProjectId: 'src-proj-1',
+            schemaVersion: 1,
+            toolVersion: '1.0.0',
+            createdAt: '2026-09-28T00:00:00.000Z',
+            sourceActivepiecesVersion: '1.0.0',
+            targetActivepiecesVersion: '1.0.0',
             targetProjectId: 'dest-proj-1',
             checksum: 'chk-abc-123',
+            destinationStateHash: 'dst-hash-1',
             signature: 'sig-verified',
-            createdAt: '2026-09-28T00:00:00.000Z',
+            preflight: {
+                passed: true,
+                errors: [],
+                warnings: [],
+            },
             summary: {
                 created: 1,
                 updated: 0,
                 deleted: 0,
                 unchanged: 0,
             },
-            preflight: {
-                passed: true,
-                errors: [],
-                warnings: [],
-            },
             changes: {
-                creates: [{ kind: 'mcp_server', externalId: 'default', title: 'Default MCP' }],
+                creates: [{ kind: 'mcp_server', externalId: 'default', op: 'CREATE', name: 'Default MCP' }],
                 updates: [],
                 deletes: [],
                 unchanged: [],
@@ -150,7 +203,7 @@ describe('CLI project-replace Command', () => {
         })
 
         it('parses provider mappings from object dictionary format', () => {
-            const out: any[] = []
+            const out: ProviderMapping[] = []
             parseProviderMappingContent(
                 JSON.stringify({
                     openai: 'anthropic',
@@ -165,7 +218,7 @@ describe('CLI project-replace Command', () => {
         })
 
         it('ignores malformed non-string items in mappings array', () => {
-            const out: any[] = []
+            const out: ProviderMapping[] = []
             parseProviderMappingContent(
                 JSON.stringify({
                     mappings: [
@@ -291,7 +344,7 @@ describe('CLI project-replace Command', () => {
             let exitCode: number | undefined
             const errLogs: string[] = []
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+            const mockFetch = createFetch(async (url) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
@@ -324,7 +377,7 @@ describe('CLI project-replace Command', () => {
                 {
                     exitFn: (c) => { exitCode = c },
                     errFn: (...args) => { errLogs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -337,7 +390,7 @@ describe('CLI project-replace Command', () => {
             let exitCode: number | undefined
             const errLogs: string[] = []
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+            const mockFetch = createFetch(async (url) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
@@ -362,7 +415,7 @@ describe('CLI project-replace Command', () => {
                 {
                     exitFn: (c) => { exitCode = c },
                     errFn: (...args) => { errLogs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -375,7 +428,7 @@ describe('CLI project-replace Command', () => {
             let exitCode: number | undefined
             const errLogs: string[] = []
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+            const mockFetch = createFetch(async (url) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
@@ -397,7 +450,7 @@ describe('CLI project-replace Command', () => {
                 {
                     exitFn: (c) => { exitCode = c },
                     errFn: (...args) => { errLogs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -410,7 +463,7 @@ describe('CLI project-replace Command', () => {
             let exitCode: number | undefined
             const errLogs: string[] = []
 
-            const mockFetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED destination unreachable'))
+            const mockFetch = createFetch(async () => { throw new Error('ECONNREFUSED destination unreachable') })
 
             const code = await runProjectReplace(
                 {
@@ -424,7 +477,7 @@ describe('CLI project-replace Command', () => {
                 {
                     exitFn: (c) => { exitCode = c },
                     errFn: (...args) => { errLogs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -437,7 +490,7 @@ describe('CLI project-replace Command', () => {
             let exitCode: number | undefined
             const errLogs: string[] = []
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+            const mockFetch = createFetch(async (url) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
@@ -459,7 +512,7 @@ describe('CLI project-replace Command', () => {
                 {
                     exitFn: (c) => { exitCode = c },
                     errFn: (...args) => { errLogs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -472,7 +525,7 @@ describe('CLI project-replace Command', () => {
             let exitCode: number | undefined
             const warnLogs: string[] = []
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+            const mockFetch = createFetch(async (url) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
@@ -503,7 +556,7 @@ describe('CLI project-replace Command', () => {
                 {
                     exitFn: (c) => { exitCode = c },
                     warnFn: (...args) => { warnLogs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -516,7 +569,7 @@ describe('CLI project-replace Command', () => {
             let exitCode: number | undefined
             const logs: string[] = []
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+            const mockFetch = createFetch(async (url) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
@@ -539,7 +592,7 @@ describe('CLI project-replace Command', () => {
                 {
                     exitFn: (c) => { exitCode = c },
                     logFn: (...args) => { logs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -552,7 +605,7 @@ describe('CLI project-replace Command', () => {
             let exitCode: number | undefined
             const logs: string[] = []
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+            const mockFetch = createFetch(async (url) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
@@ -583,7 +636,7 @@ describe('CLI project-replace Command', () => {
                 {
                     exitFn: (c) => { exitCode = c },
                     logFn: (...args) => { logs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -600,7 +653,7 @@ describe('CLI project-replace Command', () => {
             const logs: string[] = []
             const errLogs: string[] = []
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+            const mockFetch = createFetch(async (url) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
@@ -637,7 +690,7 @@ describe('CLI project-replace Command', () => {
                     exitFn: () => {},
                     logFn: (...args) => { logs.push(args.join(' ')) },
                     errFn: (...args) => { errLogs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -653,7 +706,7 @@ describe('CLI project-replace Command', () => {
             const credsFilePath = path.join(tmpDir, 'subdir', 'mcp-credentials.json')
             const logs: string[] = []
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+            const mockFetch = createFetch(async (url) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
@@ -690,7 +743,7 @@ describe('CLI project-replace Command', () => {
                 {
                     exitFn: () => {},
                     logFn: (...args) => { logs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -714,7 +767,7 @@ describe('CLI project-replace Command', () => {
             const credsFilePath = path.join(tmpDir, 'json-mode', 'mcp-credentials.json')
             const logs: string[] = []
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+            const mockFetch = createFetch(async (url) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
@@ -752,7 +805,7 @@ describe('CLI project-replace Command', () => {
                 {
                     exitFn: () => {},
                     logFn: (...args) => { logs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -773,7 +826,7 @@ describe('CLI project-replace Command', () => {
         it('omits snapshot from --json dry-run stdout', async () => {
             const logs: string[] = []
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+            const mockFetch = createFetch(async (url) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
@@ -797,7 +850,7 @@ describe('CLI project-replace Command', () => {
                 {
                     exitFn: () => {},
                     logFn: (...args) => { logs.push(args.join(' ')) },
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 
@@ -810,18 +863,18 @@ describe('CLI project-replace Command', () => {
 
     describe('Provider Mappings Payload Propagation', () => {
         it('forwards providerMappings to inspect, plan, and apply endpoints', async () => {
-            const requestBodies: Record<string, any> = {}
+            const requestBodies: Record<string, CapturedRequestBody> = {}
 
-            const mockFetch = vi.fn().mockImplementation(async (url: string, init: RequestInit) => {
+            const mockFetch = createFetch(async (url, init) => {
                 if (url.includes('/export')) {
                     return new Response(JSON.stringify(sampleSnapshot), { status: 200 })
                 }
                 if (url.includes('/plan')) {
-                    requestBodies.plan = JSON.parse(init.body as string)
+                    requestBodies.plan = captureRequestBody(init)
                     return new Response(JSON.stringify(sampleArtifact), { status: 200 })
                 }
                 if (url.includes('/apply')) {
-                    requestBodies.apply = JSON.parse(init.body as string)
+                    requestBodies.apply = captureRequestBody(init)
                     return new Response(
                         JSON.stringify({
                             applied: { flowsCreated: 1 },
@@ -846,7 +899,7 @@ describe('CLI project-replace Command', () => {
                 },
                 {
                     exitFn: () => {},
-                    fetchFn: mockFetch as unknown as typeof fetch,
+                    fetchFn: mockFetch,
                 },
             )
 

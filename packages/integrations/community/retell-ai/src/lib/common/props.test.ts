@@ -109,6 +109,76 @@ describe('agentIdDropdown (Issue #477)', () => {
     });
   });
 
+  it('follows pagination so agents past the first page are selectable', async () => {
+    const apiSpy = vi
+      .spyOn(clientModule, 'retellAiApiCall')
+      .mockResolvedValueOnce({
+        items: [{ ...AGENT, agent_id: 'agent_1' }],
+        has_more: true,
+        pagination_key: 'cursor_a',
+      } as never)
+      .mockResolvedValueOnce({
+        items: [{ ...AGENT, agent_id: 'agent_2', agent_name: 'Second' }],
+        has_more: true,
+        pagination_key: 'cursor_b',
+      } as never)
+      .mockResolvedValueOnce({
+        items: [{ ...AGENT, agent_id: 'agent_3', agent_name: 'Third' }],
+        has_more: false,
+      } as never);
+
+    const dropdown = agentIdDropdown('Agent');
+    const result = await dropdown.options({ auth: 'retell_api_key' as never }, {} as never);
+
+    // Every page is requested, each with the cursor the previous one returned.
+    expect(apiSpy).toHaveBeenCalledTimes(3);
+    expect(apiSpy.mock.calls[0][0].url).toBe('/v2/list-agents?limit=100');
+    expect(apiSpy.mock.calls[1][0].url).toBe('/v2/list-agents?limit=100&pagination_key=cursor_a');
+    expect(apiSpy.mock.calls[2][0].url).toBe('/v2/list-agents?limit=100&pagination_key=cursor_b');
+
+    expect(result).toEqual({
+      disabled: false,
+      options: [
+        { label: 'Customer Support Bot (agent_1)', value: 'agent_1' },
+        { label: 'Second (agent_2)', value: 'agent_2' },
+        { label: 'Third (agent_3)', value: 'agent_3' },
+      ],
+    });
+  });
+
+  it('stops paginating when has_more is false', async () => {
+    const apiSpy = mockAgents({ items: [AGENT], has_more: false });
+
+    const dropdown = agentIdDropdown('Agent');
+    await dropdown.options({ auth: 'retell_api_key' as never }, {} as never);
+
+    expect(apiSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('stops paginating when has_more is true but no cursor is returned', async () => {
+    // A cursor-less "more" would otherwise re-request page 1 forever.
+    const apiSpy = mockAgents({ items: [AGENT], has_more: true });
+
+    const dropdown = agentIdDropdown('Agent');
+    await dropdown.options({ auth: 'retell_api_key' as never }, {} as never);
+
+    expect(apiSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('breaks out when the API repeats a cursor instead of looping forever', async () => {
+    const apiSpy = vi
+      .spyOn(clientModule, 'retellAiApiCall')
+      .mockResolvedValue({ items: [AGENT], has_more: true, pagination_key: 'same' } as never);
+
+    const dropdown = agentIdDropdown('Agent');
+    await dropdown.options({ auth: 'retell_api_key' as never }, {} as never);
+
+    // Page 1 has no cursor, page 2 returns 'same', which would be re-sent.
+    expect(apiSpy.mock.calls.length).toBeLessThanOrEqual(3);
+    const urls = apiSpy.mock.calls.map((c) => c[0].url as string);
+    expect(new Set(urls).size).toBe(urls.length);
+  });
+
   it('disables without calling the API when auth is missing', async () => {
     const apiSpy = vi.spyOn(clientModule, 'retellAiApiCall');
 

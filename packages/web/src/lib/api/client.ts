@@ -1,5 +1,10 @@
 import { navigateToLogin } from '../auth/auth-navigation'
 
+// How often the 401 redirect guard re-checks whether the router has left the
+// page we redirected from. Small enough to feel immediate, large enough not to
+// spin while a navigation is in flight.
+const REDIRECT_GUARD_POLL_MS = 50
+
 export class ApiClientError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -100,10 +105,22 @@ export class ApiClient {
 
     try {
       navigateToLogin()
-    } finally {
-      setTimeout(() => {
-        this.isRedirectingToLogin = false
-      }, 100)
+    }
+    finally {
+      // Clear the guard once navigation has actually settled rather than after an
+      // arbitrary 100ms. A fixed timer re-armed the guard while the user could still
+      // be on the protected page, so a 401 arriving later would start a second
+      // redirect. Keyed on the location we redirected FROM: once the app has moved
+      // on, the guard is moot and another 401 should be free to redirect again.
+      const fromPath = currentPath
+      const clearWhenAwayFrom = () => {
+        if (window.location.pathname !== fromPath) {
+          this.isRedirectingToLogin = false
+          return
+        }
+        window.setTimeout(clearWhenAwayFrom, REDIRECT_GUARD_POLL_MS)
+      }
+      window.setTimeout(clearWhenAwayFrom, REDIRECT_GUARD_POLL_MS)
     }
   }
 

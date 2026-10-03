@@ -128,11 +128,17 @@ export function isolateProcess(log: SandboxLogger, enginePath: string, _codeDire
                 '--run',
                 '--',
                 process.execPath,
+                // The engine loads isolated-vm for its code sandbox, and on Node 20+
+                // isolated-vm refuses to create an isolate unless the host process was
+                // started with --no-node-snapshot. Without it the sandbox child fails at
+                // isolate construction rather than at the code step. Parity with fork.ts.
+                '--no-node-snapshot',
                 // Keep V8's own heap ceiling at or below the isolate ceiling so
                 // the allocation failure happens inside the sandbox (where we
                 // can report it) rather than as an opaque host OOM.
                 `--max-old-space-size=${resourceLimits.memoryLimitMb}`,
                 engineSandboxPath,
+
             ]
 
             log.debug({ sandbox: { id: sandboxId }, command: `${isolateBinaryPath} ${args.join(' ')}` }, 'Spawning isolate process')

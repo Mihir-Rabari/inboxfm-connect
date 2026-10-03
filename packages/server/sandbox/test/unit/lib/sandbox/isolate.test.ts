@@ -220,11 +220,25 @@ describe('isolateProcess', () => {
         it('runs node with --max-old-space-size and engine path at /root/common/<basename>', async () => {
             await callCreate({ enginePath: '/any/where/engine-main.js', resourceLimits: { memoryLimitMb: 256, timeLimitSeconds: 60 } })
             const args: string[] = spawnMock.mock.calls[0][1]
-            expect(args[args.length - 3]).toBe(process.execPath)
+            expect(args[args.length - 4]).toBe(process.execPath)
+            expect(args[args.length - 3]).toBe('--no-node-snapshot')
             expect(args[args.length - 2]).toBe('--max-old-space-size=256')
             expect(args[args.length - 1]).toBe('/root/common/engine-main.js')
-            expect(args[args.length - 4]).toBe('--')
-            expect(args[args.length - 5]).toBe('--run')
+            expect(args[args.length - 5]).toBe('--')
+            expect(args[args.length - 6]).toBe('--run')
+        })
+
+        // The engine loads isolated-vm for its code sandbox, and on Node 20+ it refuses to
+        // create an isolate unless the host process started with --no-node-snapshot
+        // (https://github.com/laverdet/isolated-vm). Without it the sandbox child fails at
+        // isolate construction rather than at the code step. fork.ts already passes it.
+        it('passes --no-node-snapshot to node so isolated-vm can construct an isolate on Node 20+', async () => {
+            await callCreate({ enginePath: '/any/where/engine-main.js' })
+            const args: string[] = spawnMock.mock.calls[0][1]
+
+            expect(args).toContain('--no-node-snapshot')
+            // It must reach node, i.e. sit after the binary, not before the `--` separator.
+            expect(args.indexOf('--no-node-snapshot')).toBeGreaterThan(args.indexOf(process.execPath))
         })
 
         it('normalizes Windows backslashes in enginePath to POSIX forward slashes inside isolate', async () => {

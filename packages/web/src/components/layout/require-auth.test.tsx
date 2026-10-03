@@ -9,6 +9,29 @@ vi.mock('@/lib/auth/auth-context', () => ({
   useAuth: () => mockUseAuth(),
 }))
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
+}
+
+/**
+ * Reads the pathname RequireAuth stashed in `state.from`. Asserts the navigation
+ * happened and narrows through unknown at each hop, so no cast is needed.
+ */
+function readRedirectTargetPathname(location: Location | null): string | null {
+  if (location === null) {
+    throw new Error('expected RequireAuth to have navigated to /login')
+  }
+  if (!isRecord(location.state)) {
+    return null
+  }
+  const from: unknown = location.state.from
+  if (!isRecord(from)) {
+    return null
+  }
+  const { pathname } = from
+  return typeof pathname === 'string' ? pathname : null
+}
+
 describe('RequireAuth', () => {
   it('renders loading state while session restore is in progress (isLoading = true)', () => {
     mockUseAuth.mockReturnValue({
@@ -60,12 +83,8 @@ describe('RequireAuth', () => {
     expect(container.textContent).toContain('Login Page')
     expect(container.textContent).not.toContain('Protected Content')
     expect(capturedLocation).not.toBeNull()
-    const probeLocation = capturedLocation as unknown as {
-      pathname: string
-      state: { from?: { pathname: string } } | null
-    }
-    expect(probeLocation.pathname).toBe('/login')
-    expect(probeLocation.state?.from?.pathname).toBe('/connections')
+    expect(capturedLocation?.pathname).toBe('/login')
+    expect(readRedirectTargetPathname(capturedLocation)).toBe('/connections')
   })
 
   it('renders children when user is authenticated', () => {

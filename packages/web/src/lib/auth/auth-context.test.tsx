@@ -26,6 +26,17 @@ function AuthProbe() {
   return null
 }
 
+/**
+ * `waitFor` cannot narrow `capturedAuth` for the compiler, so read it through this
+ * instead of a non-null assertion: it either yields the context or fails loudly.
+ */
+function requireAuth(): ReturnType<typeof useAuth> {
+  if (capturedAuth === null) {
+    throw new Error('AuthProbe never rendered, so no auth context was captured')
+  }
+  return capturedAuth
+}
+
 function renderAuth() {
   return mount(
     <AuthProvider>
@@ -103,7 +114,7 @@ describe('auth session restore', () => {
     // Mirrors login.tsx: the response is flat, so the whole object (sans token/projectId)
     // is the user.
     act(() => {
-      capturedAuth!.signIn('real-jwt', REAL_USER, REAL_PROJECT_ID)
+      requireAuth().signIn('real-jwt', REAL_USER, REAL_PROJECT_ID)
     })
 
     expect(capturedAuth?.user?.id).toBe(REAL_USER.id)
@@ -130,7 +141,7 @@ describe('auth session restore', () => {
     await waitFor(() => capturedAuth?.isLoading === false)
 
     act(() => {
-      capturedAuth!.signOut()
+      requireAuth().signOut()
     })
 
     expect(localStorage.getItem('ap-user')).toBeNull()
@@ -157,7 +168,7 @@ describe('auth session restore', () => {
     await waitFor(() => capturedAuth?.isLoading === false)
 
     act(() => {
-      capturedAuth!.signOut()
+      requireAuth().signOut()
     })
 
     expect(mockNavigator).toHaveBeenCalledWith(

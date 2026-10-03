@@ -177,38 +177,56 @@ describe('ApiClient', () => {
       expect(mockNavigator).toHaveBeenCalledTimes(1)
     })
 
-    it('holds the redirect guard until the router leaves the protected page (issue: 100ms window)', async () => {
-      vi.useFakeTimers()
-      try {
-        apiClient.setToken('expired_token')
+    it('absorbs a burst of 401s from the same route and redirects again once the route changes', async () => {
+      apiClient.setToken('expired_token')
 
+      const respondUnauthorized = () => {
         global.fetch = vi.fn().mockResolvedValue({
           ok: false,
           status: 401,
           headers: new Headers({ 'content-type': 'application/json' }),
           json: async () => ({ message: 'Unauthorized' }),
         })
-
-        await expect(apiClient.get('/projects')).rejects.toThrow(ApiClientError)
-        expect(mockNavigator).toHaveBeenCalledTimes(1)
-
-        // Still sitting on the page we redirected FROM, however long we wait:
-        // a second 401 must not start another redirect.
-        vi.advanceTimersByTime(5000)
-        await expect(apiClient.get('/connections')).rejects.toThrow(ApiClientError)
-        expect(mockNavigator).toHaveBeenCalledTimes(1)
-
-        // Navigating away clears the guard: land on a different protected route
-        // (not /login, which short-circuits by design) and a further 401 is free
-        // to redirect again.
-        window.history.pushState({}, '', '/connections')
-        vi.advanceTimersByTime(100)
-        await expect(apiClient.get('/executions')).rejects.toThrow(ApiClientError)
-        expect(mockNavigator).toHaveBeenCalledTimes(2)
       }
-      finally {
+      respondUnauthorized()
+
+      await expect(apiClient.get('/projects')).rejects.toThrow(ApiClientError)
+      expect(mockNavigator).toHaveBeenCalledTimes(1)
+
+      // Still on the route that triggered the redirect, however long we wait: a
+      // later 401 must not start a second redirect. (The old guard cleared itself
+      // on a 100ms timer, so this is exactly the window it reopened.)
+      vi.useFakeTimers()
+      try {
+        respondUnauthorized()
+        await expect(apiClient.get('/connections')).rejects.toThrow(ApiClientError)
+        vi.advanceTimersByTime(5000)
+        expect(mockNavigator).toHaveBeenCalledTimes(1)
+        // The guard is path-keyed, not polled, so it leaves no timer running.
+        expect(vi.getTimerCount()).toBe(0)
+      } finally {
         vi.useRealTimers()
       }
+
+      // Landing on a different route makes the guard inert by itself: a further
+      // 401 there is free to redirect again.
+      window.history.pushState({}, '', '/executions')
+      respondUnauthorized()
+      await expect(apiClient.get('/runs')).rejects.toThrow(ApiClientError)
+      expect(mockNavigator).toHaveBeenCalledTimes(2)
+    })
+
+    it('unlatches the redirect guard when navigation to login throws', () => {
+      mockNavigator.mockImplementationOnce(() => {
+        throw new Error('router exploded')
+      })
+
+      expect(() => apiClient.handleUnauthorized()).toThrow('router exploded')
+
+      // The guard must not stay latched, otherwise every later 401 is swallowed
+      // and the user can never reach /login.
+      apiClient.handleUnauthorized()
+      expect(mockNavigator).toHaveBeenCalledTimes(2)
     })
 
     it('does not trigger redirect if already on /login', async () => {

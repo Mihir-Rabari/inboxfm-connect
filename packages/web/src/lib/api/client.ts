@@ -1,10 +1,5 @@
 import { navigateToLogin } from '../auth/auth-navigation'
 
-// How often the 401 redirect guard re-checks whether the router has left the
-// page we redirected from. Small enough to feel immediate, large enough not to
-// spin while a navigation is in flight.
-const REDIRECT_GUARD_POLL_MS = 50
-
 export class ApiClientError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -24,7 +19,7 @@ export class ApiClient {
   private baseUrl = '/api/v1'
   private token: string | null = null
   private projectId: string | null = null
-  private isRedirectingToLogin = false
+  private redirectingFromPath: string | null = null
   private onUnauthorized: (() => void) | null = null
 
   constructor() {
@@ -75,20 +70,25 @@ export class ApiClient {
   }
 
   resetRedirectState(): void {
-    this.isRedirectingToLogin = false
+    this.redirectingFromPath = null
   }
 
   handleUnauthorized(): void {
-    if (this.isRedirectingToLogin) {
+    const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
+    // The guard is keyed on the route that triggered it instead of a timer, so it
+    // goes inert by itself once the app navigates away and needs no cleanup. A
+    // burst of 401s raised from the page we are still on is absorbed; a 401 from
+    // any other route is free to redirect again. (A fixed timer left a window
+    // where a later 401, still on the same page, started a second redirect.)
+    if (this.redirectingFromPath === currentPath) {
       return
     }
 
-    const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
     if (currentPath.startsWith('/login')) {
       return
     }
 
-    this.isRedirectingToLogin = true
+    this.redirectingFromPath = currentPath
     this.setToken(null)
     this.setProjectId(null)
     if (typeof localStorage !== 'undefined') {
@@ -105,22 +105,11 @@ export class ApiClient {
 
     try {
       navigateToLogin()
-    }
-    finally {
-      // Clear the guard once navigation has actually settled rather than after an
-      // arbitrary 100ms. A fixed timer re-armed the guard while the user could still
-      // be on the protected page, so a 401 arriving later would start a second
-      // redirect. Keyed on the location we redirected FROM: once the app has moved
-      // on, the guard is moot and another 401 should be free to redirect again.
-      const fromPath = currentPath
-      const clearWhenAwayFrom = () => {
-        if (window.location.pathname !== fromPath) {
-          this.isRedirectingToLogin = false
-          return
-        }
-        window.setTimeout(clearWhenAwayFrom, REDIRECT_GUARD_POLL_MS)
-      }
-      window.setTimeout(clearWhenAwayFrom, REDIRECT_GUARD_POLL_MS)
+    } catch (error) {
+      // A navigation that throws must not leave the guard latched forever, or the
+      // user is stranded on an unauthenticated page with no way back to login.
+      this.redirectingFromPath = null
+      throw error
     }
   }
 

@@ -36,9 +36,13 @@ export const aiToolConfigService = (_log: FastifyBaseLogger) => ({
                 capability: request.capability,
                 provider: request.provider,
                 auth: encryptedAuth,
-                config: request.config ?? null,
+                // `config` is a nullable JSON column, and TypeORM types an insert value as
+                // _QueryDeepPartialEntity, which rejects a bare JSON scalar or null. Passing
+                // it as a bound parameter keeps the type check honest instead of casting.
+                config: () => ':config',
                 enabled: request.enabled ?? true,
             })
+            .setParameter('config', JSON.stringify(request.config ?? null))
             .orUpdate(['provider', 'auth', 'config', 'enabled'], ['platformId', 'capability'])
             .execute()
     },

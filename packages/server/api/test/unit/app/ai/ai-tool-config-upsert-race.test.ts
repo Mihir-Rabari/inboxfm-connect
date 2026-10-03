@@ -32,6 +32,7 @@ const mockValues = vi.fn()
 const mockOrUpdate = vi.fn()
 const mockInto = vi.fn()
 const mockCreateQueryBuilder = vi.fn()
+const mockSetParameter = vi.fn()
 
 vi.mock('../../../../src/app/core/db/repo-factory', () => ({
     repoFactory: () => () => ({
@@ -82,11 +83,12 @@ const request = {
 describe('aiToolConfigService.upsert — concurrent first-write race (#473)', () => {
     beforeEach(() => {
         vi.clearAllMocks()
-        // Chain: createQueryBuilder().insert().into().values().orUpdate().execute()
+        // Chain: createQueryBuilder().insert().into().values().setParameter().orUpdate().execute()
         mockCreateQueryBuilder.mockReturnValue({ insert: mockInsert })
         mockInsert.mockReturnValue({ into: mockInto })
         mockInto.mockReturnValue({ values: mockValues })
-        mockValues.mockReturnValue({ orUpdate: mockOrUpdate })
+        mockValues.mockReturnValue({ setParameter: mockSetParameter })
+        mockSetParameter.mockReturnValue({ orUpdate: mockOrUpdate })
         mockOrUpdate.mockReturnValue({ execute: mockExecute })
         mockExecute.mockResolvedValue({ identifiers: [{ id: 'generated-id' }] })
         mockFindOneBy.mockResolvedValue(null)
@@ -134,6 +136,11 @@ describe('aiToolConfigService.upsert — concurrent first-write race (#473)', ()
             enabled: true,
         })
         expect(inserted.id).toBeTruthy()
+        // `config` is a nullable JSON column, so it is bound as a parameter rather than
+        // inlined - that is also what satisfies TypeORM's _QueryDeepPartialEntity type.
+        expect(typeof inserted.config).toBe('function')
+        expect(inserted.config()).toBe(':config')
+        expect(mockSetParameter).toHaveBeenCalledWith('config', 'null')
     })
 
     it('does not throw when a concurrent writer has already inserted the row', async () => {

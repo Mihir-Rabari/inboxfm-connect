@@ -226,7 +226,7 @@ export const ApplicationEvent = z.union([
 
 export type ApplicationEvent = z.infer<typeof ApplicationEvent>
 
-export function summarizeApplicationEvent(event: ApplicationEvent) {
+export function summarizeApplicationEvent(event: ApplicationEvent): string {
     switch (event.action) {
         case ApplicationEventName.CONNECTION_UPSERTED:
             return `${event.data.connection.displayName} (${event.data.connection.externalId}) is updated`

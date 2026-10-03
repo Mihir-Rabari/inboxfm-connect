@@ -169,9 +169,20 @@ bun x turbo run lint typecheck --filter=@inboxfm-connect/web
   fix(infra): update setup-dev and crowdin to packages/integrations path (#179)
   ```
 - **PR Description**: Include a clear summary of changes, problem addressed, resolution details, and reference the associated issue (`Resolves #123`).
-- **PR Labels**: Pull requests are categorized by maintainers using standard labels:
-  - Types: `feature`, `bug`, `refactor`, `chore`, `docs`, `skip-changelog`
-  - Areas: `area/frontend`, `area/backend`, `area/engine`, `area/integrations`, `area/infra`
+- **PR Labels**: Pull requests are categorized by maintainers. These are the labels that
+  actually exist in this repository — a label not listed here will not be applied.
+  - Types: `bug`, `documentation`, `enhancement`, `feature`, `testing`, `skip-changelog`
+  - Areas (`area:` prefix, note the colon): `area:server`, `area:web`, `area:engine`,
+    `area:integrations`, `area:infra`, `area:docs`, `area:security`, `area:product`
+  - Categories (`category:` prefix): `category:feature`, `category:engine`,
+    `category:infra`, `category:docs`, `category:tests`, `category:security`,
+    `category:i18n`, `category:rebrand`
+  - Size: `size:XS` … `size:XXL` · Depth: `depth:trivial`, `depth:moderate`,
+    `depth:substantial`, `depth:deep`
+  - Process: `in-review`, `changes-requested`, `mergeable`
+
+  Check the current list with `gh label list --repo Mihir-Rabari/inboxfm-connect` before
+  assuming a label is available.
 
 ---
 

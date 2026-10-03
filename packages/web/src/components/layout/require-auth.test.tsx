@@ -57,10 +57,13 @@ describe('RequireAuth', () => {
       isLoading: false,
     })
 
-    let capturedLocation: Location | null = null
+    // Typed through a mutable box: TS narrows a plain `let` to `never` after the
+    // initializer (it cannot see that React calls LoginProbe), so `capturedLocation?.`
+    // would not typecheck.
+    const capture: { location: Location | null } = { location: null }
 
     function LoginProbe() {
-      capturedLocation = useLocation()
+      capture.location = useLocation()
       return <div>Login Page</div>
     }
 
@@ -82,9 +85,9 @@ describe('RequireAuth', () => {
 
     expect(container.textContent).toContain('Login Page')
     expect(container.textContent).not.toContain('Protected Content')
-    expect(capturedLocation).not.toBeNull()
-    expect(capturedLocation?.pathname).toBe('/login')
-    expect(readRedirectTargetPathname(capturedLocation)).toBe('/connections')
+    expect(capture.location).not.toBeNull()
+    expect(capture.location?.pathname).toBe('/login')
+    expect(readRedirectTargetPathname(capture.location)).toBe('/connections')
   })
 
   it('renders children when user is authenticated', () => {

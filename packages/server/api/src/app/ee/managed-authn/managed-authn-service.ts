@@ -1,10 +1,11 @@
 import { createHash } from 'crypto'
-import { isNil } from '@inboxfm-connect/core-utils'
+import { ActivepiecesError, ErrorCode, isNil } from '@inboxfm-connect/core-utils'
 import { cryptoUtils } from '@inboxfm-connect/server-utils'
 import { AuthenticationResponse, PiecesFilterType, PlatformRole, PrincipalType, Project, ProjectType, User, UserIdentity, UserIdentityProvider } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { accessTokenManager } from '../../authentication/lib/access-token-manager'
 import { userIdentityService } from '../../authentication/user-identity/user-identity-service'
+import { distributedLock } from '../../database/redis-connections'
 import { pieceTagService } from '../../pieces/tags/pieces/piece-tag.service'
 import { platformService } from '../../platform/platform.service'
 import { projectService } from '../../project/project-service'
@@ -113,26 +114,111 @@ const updateProjectLimits = async ({ platformId, projectId, piecesTags, piecesFi
     }, projectId)
 }
 
+function isUniqueConstraintViolation(error: unknown): boolean {
+    // Postgres unique-violation driver code (SQLSTATE 23505), gated on the driver
+    // code exactly as the approved #460/#466 helpers do: the two drivers pinned in this
+    // repo (pg 8.11.3, @electric-sql/pglite 0.3.14) do not surface the code on the same
+    // property, so match both the top-level error and the wrapped driverError. Any other
+    // failure must propagate raw rather than be mistaken for a lost race.
+    const candidate = error as { code?: string, driverError?: { code?: string } } | null | undefined
+    return candidate?.code === '23505' || candidate?.driverError?.code === '23505'
+}
+
+// Serializes a get-or-create on its natural key so the loser's lookup happens strictly
+// after the winner's commit. Fail-open on lock unavailability so a Redis outage cannot
+// block sign-in - `converge` then absorbs the unique violation the interleaving causes.
+// Same shape as the merged #466 helper.
+async function runGetOrCreateExclusiveOrWithoutLock<T>({ key, fn, converge, log }: {
+    key: string
+    fn: () => Promise<T>
+    converge: () => Promise<T>
+    log: FastifyBaseLogger
+}): Promise<T> {
+    let fnSettled = false
+    try {
+        return await distributedLock(log).runExclusive({
+            key,
+            timeoutInSeconds: 60,
+            fn: async () => {
+                try {
+                    return await fn()
+                }
+                finally {
+                    // Settled on EVERY exit path, not just the throw path: a lock-infra
+                    // error surfacing after a successful fn must not take the fail-open
+                    // branch and run the get-or-create a second time.
+                    fnSettled = true
+                }
+            },
+        })
+    }
+    catch (error) {
+        if (fnSettled) {
+            // fn already ran. A unique violation here means the lock failed open and a
+            // concurrent request won the insert - converge on that row. Anything else
+            // is a real failure and must propagate.
+            if (isUniqueConstraintViolation(error)) {
+                return converge()
+            }
+            throw error
+        }
+        log.warn({ error, lockKey: key }, 'Managed authn get-or-create lock unavailable - failing open')
+        try {
+            return await fn()
+        }
+        catch (error) {
+            if (isUniqueConstraintViolation(error)) {
+                return converge()
+            }
+            throw error
+        }
+    }
+}
+
 const getOrCreateUser = async (
     params: GetOrCreateUserParams,
     log: FastifyBaseLogger,
 ): Promise<User> => {
-    const existingUser = await userService(log).getByPlatformAndExternalId({
-        platformId: params.platformId,
-        externalId: params.externalUserId,
-    })
-
-    if (!isNil(existingUser)) {
-        return existingUser
+    const findUser = async (): Promise<User> => {
+        const existingUser = await userService(log).getByPlatformAndExternalId({
+            platformId: params.platformId,
+            externalId: params.externalUserId,
+        })
+        if (!isNil(existingUser)) {
+            return existingUser
+        }
+        const identity = await getOrCreateUserIdentity(params, log)
+        return userService(log).create({
+            externalId: params.externalUserId,
+            platformId: params.platformId,
+            identityId: identity.id,
+            platformRole: PlatformRole.MEMBER,
+        })
     }
-    const identity = await getOrCreateUserIdentity(params, log)
-    const user = await userService(log).create({
-        externalId: params.externalUserId,
-        platformId: params.platformId,
-        identityId: identity.id,
-        platformRole: PlatformRole.MEMBER,
+
+    // idx_user_platform_id_external_id is unique, so a concurrent first sign-in
+    // inserting the same external user loses the insert. Converge on its row instead
+    // of failing the sign-in with a raw driver error.
+    const converge = async (): Promise<User> => {
+        const winner = await userService(log).getByPlatformAndExternalId({
+            platformId: params.platformId,
+            externalId: params.externalUserId,
+        })
+        if (isNil(winner)) {
+            throw new ActivepiecesError({
+                code: ErrorCode.INTERNAL_ERROR,
+                params: { message: 'User insert lost a unique-violation race but no row could be read back' },
+            })
+        }
+        return winner
+    }
+
+    return runGetOrCreateExclusiveOrWithoutLock({
+        key: ['managed-authn', 'user', params.platformId, params.externalUserId].join(':'),
+        fn: findUser,
+        converge,
+        log,
     })
-    return user
 }
 
 const getOrCreateUserIdentity = async (
@@ -140,46 +226,105 @@ const getOrCreateUserIdentity = async (
     log: FastifyBaseLogger,
 ): Promise<UserIdentity> => {
     const cleanedEmail = generateEmailHash(params)
-    const existingIdentity = await userIdentityService(log).getIdentityByEmail(cleanedEmail)
-    if (!isNil(existingIdentity)) {
-        return existingIdentity
+
+    const findOrCreateIdentity = async (): Promise<UserIdentity> => {
+        const existingIdentity = await userIdentityService(log).getIdentityByEmail(cleanedEmail)
+        if (!isNil(existingIdentity)) {
+            return existingIdentity
+        }
+        return userIdentityService(log).create({
+            email: cleanedEmail,
+            password: await cryptoUtils.generateRandomPassword(),
+            firstName: params.externalFirstName,
+            lastName: params.externalLastName,
+            trackEvents: true,
+            newsLetter: false,
+            provider: UserIdentityProvider.JWT,
+            verified: true,
+        })
     }
-    const identity = await userIdentityService(log).create({
-        email: cleanedEmail,
-        password: await cryptoUtils.generateRandomPassword(),
-        firstName: params.externalFirstName,
-        lastName: params.externalLastName,
-        trackEvents: true,
-        newsLetter: false,
-        provider: UserIdentityProvider.JWT,
-        verified: true,
-    })
-    return identity
+
+    // idx_user_identity_email is unique. For managed JWT the email is a deterministic
+    // hash of (platformId, externalUserId), so this really is the same person's
+    // identity - losing this insert means asserting an account already exists for an
+    // email that did not exist a moment ago. EXISTING_USER is the same "lost the race"
+    // signal as 23505 on this leg, so converge on the winner's row.
+    const converge = async (): Promise<UserIdentity> => {
+        const winner = await userIdentityService(log).getIdentityByEmail(cleanedEmail)
+        if (isNil(winner)) {
+            throw new ActivepiecesError({
+                code: ErrorCode.INTERNAL_ERROR,
+                params: { message: 'Identity insert lost a race but no row could be read back' },
+            })
+        }
+        return winner
+    }
+
+    try {
+        return await runGetOrCreateExclusiveOrWithoutLock({
+            key: ['managed-authn', 'identity', cleanedEmail].join(':'),
+            fn: findOrCreateIdentity,
+            converge,
+            log,
+        })
+    }
+    catch (error) {
+        if (error instanceof ActivepiecesError && error.error.code === ErrorCode.EXISTING_USER) {
+            return converge()
+        }
+        throw error
+    }
 }
 const getOrCreateProject = async ({
     platformId,
     externalProjectId,
 }: GetOrCreateProjectParams, log: FastifyBaseLogger): Promise<{ project: Project, isNewProject: boolean }> => {
-    const existingProject = await projectService(log).getByPlatformIdAndExternalId({
-        platformId,
-        externalId: externalProjectId,
-    })
+    const findOrCreateProject = async (): Promise<{ project: Project, isNewProject: boolean }> => {
+        const existingProject = await projectService(log).getByPlatformIdAndExternalId({
+            platformId,
+            externalId: externalProjectId,
+        })
 
-    if (!isNil(existingProject)) {
-        return { project: existingProject, isNewProject: false }
+        if (!isNil(existingProject)) {
+            return { project: existingProject, isNewProject: false }
+        }
+
+        const platform = await platformService(log).getOneOrThrow(platformId)
+
+        const project = await projectService(log).create({
+            displayName: externalProjectId,
+            ownerId: platform.ownerId,
+            platformId,
+            externalId: externalProjectId,
+            type: ProjectType.TEAM,
+        })
+
+        return { project, isNewProject: true }
     }
 
-    const platform = await platformService(log).getOneOrThrow(platformId)
+    // idx_project_platform_id_external_id is unique. A loser converging on the winner's
+    // project must report isNewProject: false so the follow-on projectMember/limits
+    // upserts are not replayed as if this request were the creator.
+    const converge = async (): Promise<{ project: Project, isNewProject: boolean }> => {
+        const winner = await projectService(log).getByPlatformIdAndExternalId({
+            platformId,
+            externalId: externalProjectId,
+        })
+        if (isNil(winner)) {
+            throw new ActivepiecesError({
+                code: ErrorCode.INTERNAL_ERROR,
+                params: { message: 'Project insert lost a unique-violation race but no row could be read back' },
+            })
+        }
+        return { project: winner, isNewProject: false }
+    }
 
-    const project = await projectService(log).create({
-        displayName: externalProjectId,
-        ownerId: platform.ownerId,
-        platformId,
-        externalId: externalProjectId,
-        type: ProjectType.TEAM,
+    return runGetOrCreateExclusiveOrWithoutLock({
+        key: ['managed-authn', 'project', platformId, externalProjectId].join(':'),
+        fn: findOrCreateProject,
+        converge,
+        log,
     })
-
-    return { project, isNewProject: true }
 }
 
 const getPiecesList = async ({

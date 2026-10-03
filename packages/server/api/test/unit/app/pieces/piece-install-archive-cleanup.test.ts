@@ -152,6 +152,24 @@ describe('installPiece orphaned-archive cleanup (#475)', () => {
         expect(mockS3Delete).not.toHaveBeenCalled()
     })
 
+    // CodeAnt's Major on #500: "if the distributed lock rejects after its callback
+    // commits the row, piecePersisted stays false and cleanup deletes the referenced
+    // archive." That cannot happen here, because `piecePersisted = true` and
+    // `uploadedArchive = undefined` are the FIRST two statements after create() resolves -
+    // they run before anything downstream can throw, and the cleanup reads the same
+    // variable, which is already undefined. This test drives the exact sequence.
+    it('does not delete the archive when create() commits and something later throws', async () => {
+        mockCreateMetadata.mockResolvedValue({ id: 'piece-1' })
+        mockPostCommitFailure = new Error('downstream failed')
+
+        const service = await loadService()
+        await expect(service.installPiece('platform-1', request)).rejects.toBeDefined()
+
+        expect(mockCreateMetadata).toHaveBeenCalled()
+        expect(mockFileDelete).not.toHaveBeenCalled()
+        expect(mockS3Delete).not.toHaveBeenCalled()
+    })
+
     it('keeps the archive on a clean install', async () => {
         mockCreateMetadata.mockResolvedValue({ id: 'piece-1', name: 'my-piece', version: '1.0.0' })
 

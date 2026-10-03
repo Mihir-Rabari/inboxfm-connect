@@ -191,6 +191,62 @@ describe('LoopStepOutput', () => {
         expect(LoopStepOutput.init({ input: [] }).hasIteration(0)).toBe(false)
     })
 
+    // execution-journal.ts calls addIteration() to append the record for a loop pass it
+    // has just created, so append behaviour and preservation of the existing records are
+    // both load-bearing here.
+    it('addIteration appends an empty record without disturbing existing iterations', () => {
+        const first = { 'step-1': LoopStepOutput.init({ input: null }) }
+        const original = LoopStepOutput.init({ input: ['a', 'b'] })
+            .setItemAndIndex({ item: 'a', index: 0 })
+            .setIterations([first])
+
+        const next = original.addIteration()
+
+        // The source is untouched - addIteration returns a new instance.
+        expect(next).not.toBe(original)
+        expect(original.output?.iterations).toHaveLength(1)
+
+        // The new record is appended, so the existing one keeps its position.
+        expect(next.output?.iterations).toHaveLength(2)
+        expect(next.output?.iterations[0]).toBe(first)
+
+        // item/index survive the append; that is what the journal relies on.
+        expect(next.output?.item).toBe('a')
+        expect(next.output?.index).toBe(0)
+    })
+
+    it('addIteration reports the appended record as present and still leaves later ones absent', () => {
+        const output = LoopStepOutput.init({ input: [] }).addIteration()
+
+        expect(output.output?.iterations).toHaveLength(1)
+        expect(output.hasIteration(0)).toBe(true)
+        expect(output.hasIteration(1)).toBe(false)
+    })
+
+    it('addIteration accumulates across successive loop passes', () => {
+        const output = LoopStepOutput.init({ input: ['a', 'b'] })
+            .addIteration()
+            .addIteration()
+            .addIteration()
+
+        expect(output.output?.iterations).toHaveLength(3)
+        expect(output.hasIteration(2)).toBe(true)
+    })
+
+    // setIterations stores the caller's array by reference, so a shared record nested in it
+    // can still be reached from the loop output. Asserting only the outer instance and the
+    // length would miss that - check the nested records are the caller's own.
+    it('preserves the nested iteration records handed to it', () => {
+        const nested = { 'step-1': LoopStepOutput.init({ input: null }).setStatus(StepOutputStatus.FAILED) }
+        const iterations = [nested]
+
+        const output = LoopStepOutput.init({ input: [] }).setIterations(iterations)
+
+        expect(output.output?.iterations).toHaveLength(1)
+        expect(output.output?.iterations[0]).toBe(nested)
+        expect(output.output?.iterations[0]['step-1'].status).toBe(StepOutputStatus.FAILED)
+    })
+
     it('accepts a falsy item without losing the iteration index', () => {
         const output = LoopStepOutput.init({ input: [] }).setItemAndIndex({ item: 0, index: 2 })
 

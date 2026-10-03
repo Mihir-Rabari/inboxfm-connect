@@ -155,6 +155,15 @@ describe('ListProjectRequestForPlatformQueryParams schema', () => {
         expect(parsed.limit).toBe(20)
         expect(parsed.types).toEqual([ProjectType.TEAM, ProjectType.PERSONAL])
     })
+
+    it('converts single scalar type into array via OptionalArrayFromQuery', () => {
+        const query = {
+            displayName: 'PersonalOnly',
+            types: ProjectType.PERSONAL,
+        }
+        const parsed = ListProjectRequestForPlatformQueryParams.parse(query)
+        expect(parsed.types).toEqual([ProjectType.PERSONAL])
+    })
 })
 
 describe('ProjectMember schema and DefaultProjectRole', () => {

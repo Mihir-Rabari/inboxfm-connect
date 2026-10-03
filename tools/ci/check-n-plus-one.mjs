@@ -58,7 +58,7 @@ function isLiteralTrue(expr) {
         (ts.isIdentifier(expr) && expr.text === 'true')
 }
 
-function isQueryCall(node, sourceFile) {
+function isQueryCall(node) {
     if (!ts.isCallExpression(node)) return false
     const callee = ts.isPropertyAccessExpression(node.expression) ? node.expression : null
     if (!callee) return false
@@ -76,7 +76,7 @@ function isQueryCall(node, sourceFile) {
 // Collect EVERY awaited query in the loop body, not just the first: one loop can make
 // several per-row calls (user-invitation.service.ts makes four inside the same
 // for-of over invitations) and reporting one of them understated the debt.
-function awaitedQueriesInLoopBody(loop, sourceFile) {
+function awaitedQueriesInLoopBody(loop) {
     const found = []
     const visit = (node) => {
         // Do not descend into nested functions: a closure called later is not executed
@@ -85,7 +85,7 @@ function awaitedQueriesInLoopBody(loop, sourceFile) {
             ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node) || isLoop(node)) {
             return
         }
-        if (ts.isAwaitExpression(node) && isQueryCall(node.expression, sourceFile)) {
+        if (ts.isAwaitExpression(node) && isQueryCall(node.expression)) {
             found.push(node.expression)
         }
         ts.forEachChild(node, visit)
@@ -113,7 +113,7 @@ export function findNPlusOneSites({ file, source }) {
     const occurrences = new Map()
     const visit = (node) => {
         if (isLoop(node)) {
-            for (const call of awaitedQueriesInLoopBody(node, ast)) {
+            for (const call of awaitedQueriesInLoopBody(node)) {
                 const { line } = ast.getLineAndCharacterOfPosition(call.getStart(ast))
                 const method = call.expression.name.text
                 // Occurrence index within (file, method): keying on method alone made

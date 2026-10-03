@@ -131,8 +131,9 @@ describe('Billing Domain Contracts and Schemas', () => {
         })
 
         it('generates APPSUMO_PLAN preserving standard plan features without flow limits', () => {
-            const appsumo = APPSUMO_PLAN(PlanName.PLUS_10)
-            expect(appsumo.plan).toBe(PlanName.PLUS_10)
+            const appsumo = APPSUMO_PLAN(PlanName.APPSUMO_ACTIVEPIECES_TIER1)
+            expect(appsumo.plan).toBe(PlanName.APPSUMO_ACTIVEPIECES_TIER1)
+            expect(appsumo.plan).toBe('appsumo_activepieces_tier1')
             expect(appsumo.activeFlowsLimit).toBeUndefined()
             expect(appsumo.tablesEnabled).toBe(true)
         })

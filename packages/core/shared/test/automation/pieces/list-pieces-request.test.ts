@@ -16,9 +16,11 @@ import { ApEdition } from '../../../src/lib/core/flag/flag'
  * here against the parsed output rather than the raw string.
  */
 
-const parse = (query: Record<string, string | undefined>): ReturnType<typeof ListPiecesRequestQuery.safeParse> => ListPiecesRequestQuery.safeParse(query)
+type QueryInput = Record<string, string | string[] | undefined>
 
-const parsed = (query: Record<string, string | undefined>): Record<string, unknown> => {
+const parse = (query: QueryInput): ReturnType<typeof ListPiecesRequestQuery.safeParse> => ListPiecesRequestQuery.safeParse(query)
+
+const parsed = (query: QueryInput): Record<string, unknown> => {
     const result = parse(query)
     if (!result.success) {
         throw new Error(`expected query to parse: ${JSON.stringify(query)}`)
@@ -127,9 +129,11 @@ describe('ListPiecesRequestQuery — cursor and filters', () => {
         expect(parsed({ cursor: 'eyJpZCI6MX0=' }).cursor).toBe('eyJpZCI6MX0=')
     })
 
-    it('rejects a non-string cursor', () => {
-        expect(parse({ cursor: '123' }).success).toBe(true)
-        expect(parse({ cursor: '' }).success).toBe(true)
+    // The cursor is an opaque string: no numeric or empty-string rejection happens.
+    // Pinned so a future validation change is a deliberate decision, not a drift.
+    it('treats numeric-looking and empty cursors as opaque strings', () => {
+        expect(parsed({ cursor: '123' }).cursor).toBe('123')
+        expect(parsed({ cursor: '' }).cursor).toBe('')
     })
 
     it('accepts a release version and rejects a malformed one', () => {

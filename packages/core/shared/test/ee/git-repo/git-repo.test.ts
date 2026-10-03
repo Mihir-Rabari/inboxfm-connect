@@ -104,6 +104,14 @@ describe('Git Repository Contracts (#141)', () => {
             })
             expect(push.type).toBe('PUSH_TABLE')
             expect(push.externalTableIds).toHaveLength(1)
+
+            const del = PushTablesGitRepoRequest.parse({
+                type: GitPushOperationType.DELETE_TABLE,
+                commitMessage: 'chore(tables): remove archived table',
+                externalTableIds: ['tbl-2'],
+            })
+            expect(del.type).toBe('DELETE_TABLE')
+            expect(del.externalTableIds).toHaveLength(1)
         })
 
         it('validates PushEverythingGitRepoRequest', () => {

@@ -2,6 +2,10 @@
   "description": "N+1 query sites found at the time this baseline was taken. Not a target - see packages/server/AGENTS.md. Batch with Promise.all, or hoist the lookup out of the loop.",
   "sites": [
     "packages/server/api/src/app/database/seeds/role-seed.ts:upsert#0",
+    "packages/server/api/src/app/ee/license-keys/license-keys-module.ts:getOneWithPlan#0",
+    "packages/server/api/src/app/ee/license-keys/license-keys-module.ts:verifyKeyOrReturnNull#0",
+    "packages/server/api/src/app/ee/license-keys/license-keys-module.ts:downgradeToFreePlan#0",
+    "packages/server/api/src/app/ee/license-keys/license-keys-module.ts:applyLimits#0",
     "packages/server/api/src/app/ee/scim/scim-group-service.ts:update#0",
     "packages/server/api/src/app/ee/scim/scim-group-service.ts:update#1",
     "packages/server/api/src/app/ee/scim/scim-user-service.ts:update#0",

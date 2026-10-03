@@ -33,7 +33,15 @@ const NON_QUERY_METHODS = new Set([
     'withTransaction', 'run', 'wrap', 'toPromise',
 ])
 
-const repoAccessor = /^(?:[A-Za-z_$][\w$]*Repo|[A-Za-z_$][\w$]*Service)\s*(\(\s*\)|\([\w\s,]*\)\s*)$/
+// Match the accessor's *name*, never its argument list: a text match on the whole call
+// only accepted `repo()` and `service(identifier)`, so a real accessor call like
+// `userService(request.log)` was silently missed by the gate.
+const ACCESSOR_NAME = /(?:Repo|Service)$/
+
+function isAccessorCall(node) {
+    return ts.isCallExpression(node) && ts.isIdentifier(node.expression) &&
+        ACCESSOR_NAME.test(node.expression.text)
+}
 
 // A loop whose iteration count is driven by data - that is where a per-iteration
 // query turns into N+1. `while (true)` / `do {} while` are control-flow constructs
@@ -56,15 +64,12 @@ function isQueryCall(node, sourceFile) {
     if (!callee) return false
     if (NON_QUERY_METHODS.has(callee.name.text)) return false
     const receiver = callee.expression
-    // `thingRepo()` / `userService(log)` - an accessor invoked at the call site.
-    if (ts.isCallExpression(receiver)) {
-        return repoAccessor.test(receiver.getText(sourceFile).replace(/\s+/g, ' '))
-    }
+    // `thingRepo()` / `userService(log)` / `userService(request.log)` - an accessor
+    // invoked at the call site.
+    if (isAccessorCall(receiver)) return true
     // `const roleService = ...` then `roleService.getOneOrThrowById(...)` - the accessor
     // was bound earlier, but the call still reaches the database once per row.
-    if (ts.isIdentifier(receiver)) {
-        return repoAccessor.test(`${receiver.text}()`)
-    }
+    if (ts.isIdentifier(receiver) && ACCESSOR_NAME.test(receiver.text)) return true
     return false
 }
 
@@ -76,8 +81,8 @@ function awaitedQueriesInLoopBody(loop, sourceFile) {
     const visit = (node) => {
         // Do not descend into nested functions: a closure called later is not executed
         // per-iteration, and a nested loop is reported on its own.
-        if (node !== loop && (ts.isFunctionExpression(node) || ts.isArrowFunction(node) ||
-            ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node) || isLoop(node))) {
+        if (ts.isFunctionExpression(node) || ts.isArrowFunction(node) ||
+            ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node) || isLoop(node)) {
             return
         }
         if (ts.isAwaitExpression(node) && isQueryCall(node.expression, sourceFile)) {
@@ -85,7 +90,10 @@ function awaitedQueriesInLoopBody(loop, sourceFile) {
         }
         ts.forEachChild(node, visit)
     }
-    visit(loop)
+    // Start at the body, never at the loop node itself: an initializer or condition of
+    // `for (const x = await repo().findOne(); ...)` runs once, so a query there is not
+    // an N+1 and reporting it would send a contributor to the wrong loop.
+    visit(loop.statement)
     return found
 }
 

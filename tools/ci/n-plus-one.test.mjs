@@ -42,6 +42,74 @@ describe('check-n-plus-one', () => {
         assert.match(sites[0].snippet, /getOneOrFail/)
     })
 
+    // CodeAnt's Major on #501: the accessor pattern used to match the whole call text,
+    // so its argument list had to be identifiers. `userService(request.log)` is a real
+    // accessor call and was silently missed by the gate.
+    for (const accessor of ['userService(request.log)', 'thingRepo(request.log)', 'userService(this.log)']) {
+        it(`flags an awaited query on an accessor called as ${accessor}`, () => {
+            const sites = scan(`
+                async function load(ids, request) {
+                    for (const id of ids) {
+                        await ${accessor}.getOneOrFail({ id })
+                    }
+                }
+            `)
+            assert.equal(sites.length, 1, accessor)
+            assert.match(sites[0].snippet, /getOneOrFail/)
+        })
+    }
+
+    it('flags an accessor whose argument is an object or a call', () => {
+        for (const accessor of ['thingService({ id })', 'thingService(getLog())', 'thingService(logs[0])']) {
+            const sites = scan(`
+                async function load(ids, logs) {
+                    for (const id of ids) {
+                        await ${accessor}.findOne({ id })
+                    }
+                }
+            `)
+            assert.equal(sites.length, 1, accessor)
+        }
+    })
+
+    // The traversal used to start at the loop node, so it also walked the initializer and
+    // the condition. Those run once, so a query there is not an N+1 and reporting it
+    // points the contributor at a loop that is not theirs.
+    it('does not flag a query in a for-loop initializer', () => {
+        const sites = scan(`
+            async function load(ids) {
+                for (let i = await thingRepo().findOne({ first: true }); i < ids.length; i++) {
+                    process(ids[i])
+                }
+            }
+        `)
+        assert.equal(sites.length, 0)
+    })
+
+    it('does not flag a query in a while-loop condition', () => {
+        const sites = scan(`
+            async function load(ids) {
+                while (await thingRepo().exists({ next: true })) {
+                    process(ids.pop())
+                }
+            }
+        `)
+        assert.equal(sites.length, 0)
+    })
+
+    // ...but a query in the body of those same loops is still the real thing.
+    it('still flags a query in the body of a loop with a query initializer', () => {
+        const sites = scan(`
+            async function load(ids) {
+                for (let i = await thingRepo().findOne({ first: true }); i < ids.length; i++) {
+                    await thingRepo().findOneBy({ id: ids[i] })
+                }
+            }
+        `)
+        assert.equal(sites.length, 1)
+        assert.match(sites[0].snippet, /findOneBy/)
+    })
+
     it('flags a query nested deeper inside the loop body', () => {
         const sites = scan(`
             async function load(ids) {

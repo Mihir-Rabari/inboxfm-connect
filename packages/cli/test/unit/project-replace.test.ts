@@ -46,6 +46,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 type CapturedRequestBody = {
     providerMappings?: unknown
     connectionMappings?: unknown
+    plan?: unknown
 }
 
 /**
@@ -62,8 +63,8 @@ function captureRequestBody(init: RequestInit | undefined): CapturedRequestBody 
     if (!isRecord(parsed)) {
         return {}
     }
-    const { providerMappings, connectionMappings } = parsed
-    return { providerMappings, connectionMappings }
+    const { providerMappings, connectionMappings, plan } = parsed
+    return { providerMappings, connectionMappings, plan }
 }
 
 describe('CLI project-replace Command', () => {
@@ -862,7 +863,7 @@ describe('CLI project-replace Command', () => {
     })
 
     describe('Provider Mappings Payload Propagation', () => {
-        it('forwards providerMappings to inspect, plan, and apply endpoints', async () => {
+        it('forwards providerMappings to the plan and apply endpoints', async () => {
             const requestBodies: Record<string, CapturedRequestBody> = {}
 
             const mockFetch = createFetch(async (url, init) => {
@@ -914,6 +915,55 @@ describe('CLI project-replace Command', () => {
             expect(requestBodies.plan.connectionMappings).toEqual([
                 { sourceExternalId: 'conn1', destExternalId: 'conn2' },
             ])
+        })
+
+        // CodeAnt's Major on #276: the CLI sent providerMappings to /replace/inspect, whose
+        // body schema accepts only plan, snapshot and connectionMappings. Zod strips the
+        // extra key, so the field never reached the service. /inspect verifies the
+        // already-signed plan, whose preflight folded the mappings in at plan time, so the
+        // field could not change the verdict either way - the honest fix is to stop
+        // sending it rather than to widen the endpoint and imply it means something there.
+        it('omits providerMappings from the inspect request', async () => {
+            const requestBodies: Record<string, CapturedRequestBody> = {}
+
+            const mockFetch = createFetch(async (url, init) => {
+                if (url.includes('/inspect')) {
+                    requestBodies.inspect = captureRequestBody(init)
+                    return new Response(
+                        JSON.stringify({ applied: {}, failed: [] }),
+                        { status: 200 },
+                    )
+                }
+                return new Response('Not found', { status: 404 })
+            })
+
+            const planFilePath = path.join(tmpDir, 'signed-plan.json')
+            fs.writeFileSync(planFilePath, JSON.stringify(sampleArtifact))
+
+            const code = await runProjectReplace(
+                {
+                    destUrl: 'http://dest.local',
+                    destToken: 'dest-tok',
+                    destProject: 'dest-p1',
+                    planFile: planFilePath,
+                    dryRun: true,
+                    providerMap: ['openai=anthropic', 'mistral=bedrock'],
+                    connectionMap: ['conn1=conn2'],
+                },
+                {
+                    exitFn: () => {},
+                    fetchFn: mockFetch,
+                    logFn: () => {},
+                },
+            )
+
+            expect(code).toBe(EXIT_PLAN_CHANGES)
+            expect(requestBodies.inspect).toBeDefined()
+            expect(requestBodies.inspect.providerMappings).toBeUndefined()
+            expect(requestBodies.inspect.connectionMappings).toEqual([
+                { sourceExternalId: 'conn1', destExternalId: 'conn2' },
+            ])
+            expect(requestBodies.inspect.plan).toBeDefined()
         })
     })
 })

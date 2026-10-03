@@ -299,6 +299,10 @@ export async function runProjectReplace(
 
             // If --dry-run or --inspect-only is passed with --plan-file, verify signature & drift with destination /inspect
             if (options.dryRun || options.inspectOnly) {
+                // No providerMappings here: /inspect takes only plan, snapshot and
+                // connectionMappings, and verifies the already-signed plan. The mappings
+                // were folded into plan.preflight when the plan was generated, so sending
+                // them again is dropped by the endpoint's schema and cannot change the verdict.
                 const inspectRes = await fetchJson<{ applied: Record<string, number>, failed: Array<{ error: string }>, error?: string }>(
                     `${destBase}/api/v1/projects/${options.destProject}/replace/inspect`,
                     {
@@ -311,7 +315,6 @@ export async function runProjectReplace(
                             plan: artifact.plan,
                             snapshot,
                             connectionMappings: connectionMappings.length > 0 ? connectionMappings : undefined,
-                            providerMappings: providerMappings.length > 0 ? providerMappings : undefined,
                         }),
                     },
                     fetchImpl,
@@ -336,7 +339,7 @@ export async function runProjectReplace(
                     return code
                 }
 
-if (options.dryRun) {
+                if (options.dryRun) {
                 if (options.json) {
                     const sanitized = {
                         ...artifact,
@@ -345,23 +348,23 @@ if (options.dryRun) {
                     log(JSON.stringify(sanitized, null, 2))
                 }
                 else {
-                        log(`Plan ID: ${artifact.plan.planId}`)
-                        log(`Checksum: ${artifact.plan.checksum}`)
-                        log(`Signature: ${artifact.plan.signature} (Verified)`)
-                        log('\nPlanned Changes:')
-                        log(`  Creates:   ${artifact.plan.summary.created}`)
-                        log(`  Updates:   ${artifact.plan.summary.updated}`)
-                        log(`  Deletes:   ${artifact.plan.summary.deleted}`)
-                        log(`  Unchanged: ${artifact.plan.summary.unchanged}`)
-                        if (artifact.plan.preflight.connections) {
-                            const cp = artifact.plan.preflight.connections
-                            log('\nConnections:')
-                            log(`  Required:   ${cp.required.length}`)
-                            log(`  Matched:    ${cp.matched.length}`)
-                            log(`  Missing:    ${cp.missing.length}`)
-                            log(`  Mapped:     ${cp.mapped.length}`)
-                        }
+                    log(`Plan ID: ${artifact.plan.planId}`)
+                    log(`Checksum: ${artifact.plan.checksum}`)
+                    log(`Signature: ${artifact.plan.signature} (Verified)`)
+                    log('\nPlanned Changes:')
+                    log(`  Creates:   ${artifact.plan.summary.created}`)
+                    log(`  Updates:   ${artifact.plan.summary.updated}`)
+                    log(`  Deletes:   ${artifact.plan.summary.deleted}`)
+                    log(`  Unchanged: ${artifact.plan.summary.unchanged}`)
+                    if (artifact.plan.preflight.connections) {
+                        const cp = artifact.plan.preflight.connections
+                        log('\nConnections:')
+                        log(`  Required:   ${cp.required.length}`)
+                        log(`  Matched:    ${cp.matched.length}`)
+                        log(`  Missing:    ${cp.missing.length}`)
+                        log(`  Mapped:     ${cp.mapped.length}`)
                     }
+                }
                     const totalChanges = artifact.plan.summary.created + artifact.plan.summary.updated + artifact.plan.summary.deleted
                     const code = totalChanges > 0 ? EXIT_PLAN_CHANGES : EXIT_SUCCESS
                     exit(code)

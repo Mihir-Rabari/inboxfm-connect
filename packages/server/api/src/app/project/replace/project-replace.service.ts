@@ -2188,49 +2188,23 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     }
                 }
 
-                // A plan records the provider remaps that were in force when it was
-                // generated, but the signed artifact does not carry them, so an apply
-                // driven by `--plan-file` has no way to know a remap was ever requested.
-                // Falling through to `?? rawProvider` in that case writes the destination
-                // agent against the SOURCE provider and reports success. Fail closed
-                // instead: the plan's own preflight lists the mapped providers, so if one
-                // of those agents is being applied and no mapping covers it, refuse the
-                // change rather than silently pointing it at the wrong provider (#502).
-                // The signed plan carries the provider remaps that were in force when it
-                // was generated. Before this they were dropped, so an apply driven by
-                // `--plan-file` had no way to know a remap was ever requested and fell
-                // through to `?? rawProvider` - silently writing destination agents
-                // against the SOURCE provider and reporting success (#502).
-                //
-                // Request-time mappings still win, so an operator can override at apply.
-                // Otherwise fall back to the artifact's own record. A plan that never
-                // remapped anything carries none and keeps applying unchanged.
+                // Provider remaps used to be dropped from the artifact, so an apply driven by
+                // `--plan-file` had no way to know a remap was ever requested and fell through
+                // to `?? rawProvider` - silently writing destination agents against the SOURCE
+                // provider and reporting success (#502). They are now signed into the plan, so
+                // this map is authoritative and cannot be edited without breaking the HMAC.
                 const planProviderMap = new Map<string, string>()
                 for (const pm of plan.providerMappings ?? []) {
                     planProviderMap.set(pm.sourceProvider.toLowerCase(), pm.destProvider)
                 }
 
-                const planRecordsMappings = planProviderMap.size > 0
-
+                // Request-time mappings override the artifact, so an operator can still change
+                // the destination at apply time. The artifact is the fallback. Falling through
+                // to the raw provider is correct here: it means nothing ever remapped that
+                // provider, which is the common case and must keep applying unchanged.
                 const resolveTargetProvider = (rawProvider: string): string => {
                     const key = rawProvider.toLowerCase()
-                    // Request-time mappings win, so an operator can override at apply.
-                    const mapped = providerMap.get(key) ?? planProviderMap.get(key)
-                    if (mapped) {
-                        return mapped
-                    }
-                    // Only refuse when this plan demonstrably involved provider remapping.
-                    // A plan that records none is either an unmapped plan or a legacy
-                    // artifact written before the mappings were persisted; refusing the
-                    // latter would break every apply that never remapped anything.
-                    if (planRecordsMappings) {
-                        throw new Error(
-                            `Provider "${rawProvider}" is not covered by the provider mappings recorded in this `
-                            + 'plan, and none were supplied to this apply. Refusing to create the agent against the '
-                            + 'source provider - re-run the apply with providerMappings (the CLI flag is --provider-map).',
-                        )
-                    }
-                    return rawProvider
+                    return providerMap.get(key) ?? planProviderMap.get(key) ?? rawProvider
                 }
 
                 const effectiveAgents: AgentSnapshotSchema[] = [...(snapshot.agents ?? [])]

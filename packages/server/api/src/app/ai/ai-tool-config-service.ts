@@ -14,17 +14,33 @@ export const aiToolConfigService = (_log: FastifyBaseLogger) => ({
     },
 
     async upsert(platformId: PlatformId, request: CreateAiToolConfigRequest): Promise<void> {
-        const existing = await aiToolConfigRepo().findOneBy({ platformId, capability: request.capability })
         const encryptedAuth = await encryptUtils.encryptObject(request.auth)
-        await aiToolConfigRepo().save({
-            id: existing?.id ?? apId(),
-            platformId,
-            capability: request.capability,
-            provider: request.provider,
-            auth: encryptedAuth,
-            config: request.config ?? null,
-            enabled: request.enabled ?? true,
-        })
+        // Two concurrent first-time requests for the same capability both read no existing
+        // row before either save lands, so both insert and the loser violates
+        // idx_ai_tool_config_platform_capability, surfacing a raw driver error as a 500 on a
+        // platform-admin route. Upserting on the unique index lets the loser update the row the
+        // winner inserted instead.
+        //
+        // `orUpdate` gets an explicit column list rather than repo().upsert(), because TypeORM
+        // 0.3.x derives the DO UPDATE set from the entity (all defined columns minus the conflict
+        // paths), which includes the primary key - the loser would overwrite the winner's id and
+        // the read-back would miss. Same fix as 9438507cb7 (project-member) and the oauth-app
+        // upsert.
+        await aiToolConfigRepo()
+            .createQueryBuilder()
+            .insert()
+            .into(AiToolConfigEntity)
+            .values({
+                id: apId(),
+                platformId,
+                capability: request.capability,
+                provider: request.provider,
+                auth: encryptedAuth,
+                config: request.config ?? null,
+                enabled: request.enabled ?? true,
+            })
+            .orUpdate(['provider', 'auth', 'config', 'enabled'], ['platformId', 'capability'])
+            .execute()
     },
 
     async update(platformId: PlatformId, id: string, request: UpdateAiToolConfigRequest): Promise<void> {

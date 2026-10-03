@@ -148,13 +148,21 @@ describe('flows DTOs, folders, triggers, and constants contracts', () => {
 
     describe('test trigger and trigger events', () => {
         it('validates TestTriggerRequestBody with SIMULATION and TEST_FUNCTION', () => {
-            const testReq = TestTriggerRequestBody.parse({
+            const simulationReq = TestTriggerRequestBody.parse({
                 projectId: 'mEYVQL4gGPlHsTamd2xtW',
                 flowId: 'mEYVQL4gGPlHsTamd2xtX',
                 flowVersionId: 'mEYVQL4gGPlHsTamd2xtY',
                 testStrategy: TriggerTestStrategy.SIMULATION,
             })
-            expect(testReq.testStrategy).toBe(TriggerTestStrategy.SIMULATION)
+            expect(simulationReq.testStrategy).toBe(TriggerTestStrategy.SIMULATION)
+
+            const testFunctionReq = TestTriggerRequestBody.parse({
+                projectId: 'mEYVQL4gGPlHsTamd2xtW',
+                flowId: 'mEYVQL4gGPlHsTamd2xtX',
+                flowVersionId: 'mEYVQL4gGPlHsTamd2xtY',
+                testStrategy: TriggerTestStrategy.TEST_FUNCTION,
+            })
+            expect(testFunctionReq.testStrategy).toBe(TriggerTestStrategy.TEST_FUNCTION)
 
             const cancelReq = CancelTestTriggerRequestBody.parse({
                 projectId: 'mEYVQL4gGPlHsTamd2xtW',

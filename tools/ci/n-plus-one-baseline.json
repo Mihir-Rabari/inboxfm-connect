@@ -1,0 +1,25 @@
+{
+  "description": "N+1 query sites found at the time this baseline was taken. Not a target - see packages/server/AGENTS.md. Batch with Promise.all, or hoist the lookup out of the loop.",
+  "sites": [
+    "packages/server/api/src/app/database/seeds/role-seed.ts:22",
+    "packages/server/api/src/app/file/file.service.ts:322",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:458",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:508",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:623",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:965",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:1178",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:1230",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:1769",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:1880",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:2032",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:2100",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:2230",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:2326",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:2407",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:2476",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:2495",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:2513",
+    "packages/server/api/src/app/project/replace/project-replace.service.ts:2531",
+    "packages/server/api/src/app/user-invitations/user-invitation.service.ts:168"
+  ]
+}

@@ -23,7 +23,7 @@ export enum HumanInputFormResultTypes {
     MARKDOWN = 'markdown',
 }
 
-export function createKeyForFormInput(displayName: string) {
+export function createKeyForFormInput(displayName: string): string {
     const inputKey = displayName
         .toLowerCase()
         .replace(/\s+(\w)/g, (_, letter) => letter.toUpperCase())

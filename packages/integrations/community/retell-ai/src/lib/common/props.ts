@@ -69,7 +69,11 @@ interface RetellAiAgent {
   };
 }
 
-type RetellAiAgentListResponse = RetellAiAgent[];
+interface RetellAiAgentListResponse {
+  items: RetellAiAgent[];
+  has_more?: boolean;
+  pagination_key?: string;
+}
 
 interface RetellAiCall {
   call_id: string;
@@ -78,6 +82,14 @@ interface RetellAiCall {
   call_type: string;
   start_timestamp?: number;
   end_timestamp?: number;
+}
+
+// POST /v3/list-calls returns a paginated envelope (issue #477):
+// v2 returned a bare array; v3 wraps results in { items, pagination_key, has_more }.
+interface RetellAiCallListResponse {
+  items: RetellAiCall[];
+  has_more?: boolean;
+  pagination_key?: string;
 }
 
 interface RetellAiVoice {
@@ -90,7 +102,7 @@ interface RetellAiVoice {
 }
 
 // --- Agent Dropdown ---
-export const agentIdDropdown = (displayName:string,required=false)=>  Property.Dropdown({
+export const agentIdDropdown = (displayName: string, required = false) => Property.Dropdown({
   auth: retellAiAuth,
   displayName,
   description: 'Select the Retell AI agent.',
@@ -105,15 +117,21 @@ export const agentIdDropdown = (displayName:string,required=false)=>  Property.D
       };
     }
     try {
-      const agents = await retellAiApiCall<RetellAiAgentListResponse>({
-       auth,
-        method: HttpMethod.GET,
-        url: '/list-agents',
+      const response = await retellAiApiCall<RetellAiAgentListResponse>({
+        auth,
+        method: HttpMethod.POST,
+        url: '/v2/list-agents?limit=100',
         body: {
-          limit: 100,
-        }
+          filter_criteria: {
+            channel: {
+              type: 'string',
+              op: 'eq',
+              value: 'voice',
+            },
+          },
+        },
       });
-      const agentList = Array.isArray(agents) ? agents : [];
+      const agentList = Array.isArray(response?.items) ? response.items : [];
       if (agentList.length === 0) {
         return {
           disabled: true,
@@ -155,17 +173,21 @@ export const callIdDropdown =  Property.Dropdown({
       };
     }
     try {
-      const response = await retellAiApiCall<RetellAiCall[]>({
+      // POST /v2/list-calls was deprecated on 06/15/2026 and removed. Migrated
+      // to POST /v3/list-calls, which returns { items, pagination_key, has_more }
+      // instead of a bare array (issue #477).
+      const response = await retellAiApiCall<RetellAiCallListResponse>({
        auth,
         method: HttpMethod.POST,
-        url: '/v2/list-calls',
+        url: '/v3/list-calls',
         body: {
           limit: 50,
           sort_order: 'descending'
         }
       });
       
-      if (!response || response.length === 0) {
+      const callList = Array.isArray(response?.items) ? response.items : [];
+      if (callList.length === 0) {
         return {
           disabled: true,
           options: [],
@@ -175,7 +197,7 @@ export const callIdDropdown =  Property.Dropdown({
       
       return {
         disabled: false,
-        options: response.map((call) => ({
+        options: callList.map((call) => ({
           label: `${call.call_id} (${call.call_status} - ${call.call_type})`,
           value: call.call_id,
         })),

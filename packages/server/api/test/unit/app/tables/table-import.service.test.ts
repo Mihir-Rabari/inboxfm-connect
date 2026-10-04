@@ -428,5 +428,28 @@ describe('tableImportService (unit)', () => {
             expect(mockInsertRecord).toHaveBeenCalledTimes(3) // 50 + 50 + 20
             expect(mockInsertCell).toHaveBeenCalledTimes(3)
         })
+
+        it('deduplicates cells if a JSON row provides both case variants of the same field name', async () => {
+            const existingFields: Field[] = [
+                { id: 'f_name', name: 'Name', type: FieldType.TEXT, tableId: 'tbl_1', projectId: 'proj_1', externalId: 'ext_name', position: 0, created: '', updated: '' },
+            ]
+            mockGetAllFields.mockResolvedValue(existingFields)
+
+            const result = await tableImportService.importData({
+                projectId: 'proj_1',
+                tableId: 'tbl_1',
+                request: {
+                    format: TableImportFormat.JSON,
+                    jsonData: [{ Name: 'Primary Value', name: 'Secondary Value' }],
+                },
+                logger: mockLogger,
+            })
+
+            expect(result.totalRows).toBe(1)
+            const cellArgs = mockInsertCell.mock.calls[0][0]
+            expect(cellArgs).toHaveLength(1)
+            expect(cellArgs[0].fieldId).toBe('f_name')
+            expect(cellArgs[0].value).toBe('Primary Value')
+        })
     })
 })

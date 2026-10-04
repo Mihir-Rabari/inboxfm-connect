@@ -229,11 +229,13 @@ export const tableImportService = {
 
             const structuredRecords = rawRows.map((row) => {
                 const cells: { fieldId: string, value: string }[] = []
+                const seenFieldIds = new Set<string>()
                 for (const [key, rawVal] of Object.entries(row)) {
                     const targetField = resolvedFieldsMap.get(key)
-                    if (!targetField) {
+                    if (!targetField || seenFieldIds.has(targetField.id)) {
                         continue
                     }
+                    seenFieldIds.add(targetField.id)
                     const sanitized = sanitizeObjectForPostgresql(rawVal)
                     const strValue = isNil(sanitized)
                         ? ''

@@ -127,10 +127,13 @@ describe('Engine Run DTOs, Step Responses, and Folder Contracts (#141)', () => {
                 updated: '2026-10-01T00:00:00.000Z',
                 projectId: apId(),
                 displayName: 'Customer Onboarding',
+                displayOrder: 1,
+                externalId: null,
                 numberOfFlows: 8,
                 numberOfTables: 3,
             }
             expect(folderDto.displayName).toBe('Customer Onboarding')
+            expect(folderDto.displayOrder).toBe(1)
             expect(folderDto.numberOfFlows).toBe(8)
             expect(folderDto.numberOfTables).toBe(3)
         })

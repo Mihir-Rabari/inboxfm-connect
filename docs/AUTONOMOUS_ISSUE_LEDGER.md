@@ -47,15 +47,15 @@ This file tracks the sequential issues discovered, implemented, tested, audited,
 - **Timestamp**: 2026-09-28T12:17:35+05:30
 
 ### Issue #141: `tests: core libs are thin — wire core/execution into test-unit and raise shared/execution coverage`
-- **Status**: Verified / In Review
-- **Branch**: `test/core-execution-and-shared-coverage`
+- **Status**: Implemented & Verified
+- **Branch**: `test/issue-141-execution-operations-and-journal`
 - **Tests**:
-  - `@inboxfm-connect/core-utils`: 3 files, 73 passed (73)
-  - `npm run test-unit`: 23 tasks passed (495 api tests passed)
-  - `turbo run lint`: 0 errors
+  - `packages/core/execution`: 10 files, 152 passed (152)
+  - `test/flow-run/execution-journal.test.ts`: 37 tests passed (upsertStep, getStep, getStateAtPath, getOrCreateStateAtPath, findLastStepWithStatus, getLoopSteps, isChildOf, getPathToStep)
+  - `test/flow-run/flow-execution.test.ts`: 23 tests passed (isFlowRunStateTerminal, isFailedState, GenericStepOutput, RouterStepOutput, LoopStepOutput, Delay/Webhook PauseMetadata, RespondResponse, StopResponse)
+  - `test/flows/operations/flow-operations.test.ts`: 20 tests passed (_deleteAction, _skipAction, _duplicateStep, _duplicateBranch, _moveAction, flowOperations.apply)
+  - `turbo run lint --filter=@inboxfm-connect/core-execution`: 0 errors
 - **Coverage**:
-  - `packages/core/utils/vitest.config.ts`: configured coverage thresholds
-  - `packages/core/utils/test/object-utils.test.ts`: 25 tests (sanitizeObjectForPostgresql, omit, spread, deleteProps)
-  - `packages/core/utils/test/utils.test.ts`: 40 tests (chunk, partition, unique, truncateString, isBase64)
-- **Known Limitations**: Yielded overlapping journal/step-output suites to #268 first-mover.
-- **Timestamp**: 2026-10-01T22:38:00+05:30
+  - `packages/core/execution/vitest.config.ts`: configured coverage thresholds (lines: 80, functions: 80, branches: 75, statements: 80)
+- **Timestamp**: 2026-10-06T15:15:00+05:30
+

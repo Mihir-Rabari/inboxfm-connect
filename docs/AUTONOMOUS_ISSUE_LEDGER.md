@@ -47,8 +47,10 @@ This file tracks the sequential issues discovered, implemented, tested, audited,
 - **Timestamp**: 2026-09-28T12:17:35+05:30
 
 ### Issue #141: `tests: core libs are thin — wire core/execution into test-unit and raise shared/execution coverage`
-- **Status**: Implemented & Verified
+- **Status**: Pushed / Ready for PR (`submitted for manual PR creation`)
 - **Branch**: `test/issue-141-execution-operations-and-journal`
+- **Commit SHA**: `f79ee5339c5e3e683c1590483ab1064ae06c7928`
+- **Comparison URL**: https://github.com/Mihir-Rabari/inboxfm-connect/compare/dev...KhushiTrivediii:inboxfm-connect:test/issue-141-execution-operations-and-journal?expand=1
 - **Tests**:
   - `packages/core/execution`: 10 files, 152 passed (152)
   - `test/flow-run/execution-journal.test.ts`: 37 tests passed (upsertStep, getStep, getStateAtPath, getOrCreateStateAtPath, findLastStepWithStatus, getLoopSteps, isChildOf, getPathToStep)
@@ -57,5 +59,6 @@ This file tracks the sequential issues discovered, implemented, tested, audited,
   - `turbo run lint --filter=@inboxfm-connect/core-execution`: 0 errors
 - **Coverage**:
   - `packages/core/execution/vitest.config.ts`: configured coverage thresholds (lines: 80, functions: 80, branches: 75, statements: 80)
+- **Known Limitations**: None.
 - **Timestamp**: 2026-10-06T15:15:00+05:30
 

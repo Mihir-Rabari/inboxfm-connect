@@ -46,10 +46,11 @@ jobs:
       - name: Validate workflow syntax
         run: docker run --rm -v "$GITHUB_WORKSPACE:/repo" -w /repo rhysd/actionlint:1.7.12 -color -shellcheck=
       - uses: ./.github/actions/setup-ci
-      - name: Check licensing boundaries and notices
+      - name: Check licensing boundaries, notices and N+1 queries
         run: |
           node --test tools/ci/*.test.mjs
           node tools/ci/check-license-boundaries.mjs
+          node tools/ci/check-n-plus-one.mjs
       - name: Verify benchmark regression gate
         run: |
           npm run test-bench-gate

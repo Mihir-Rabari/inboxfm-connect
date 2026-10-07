@@ -417,6 +417,10 @@ function computePlanSignature(plan: Omit<ProjectReplacePlan, 'signature'>): stri
         destinationStateHash: plan.destinationStateHash,
         preflight: plan.preflight,
         connectionMappings: (plan.connectionMappings ?? []).map(sanitizeMappingForPlan),
+        providerMappings: (plan.providerMappings ?? []).map((pm: ProviderMappingSchema) => ({
+            sourceProvider: pm.sourceProvider,
+            destProvider: pm.destProvider,
+        })),
         changes: plan.changes,
         summary: plan.summary,
     })
@@ -1587,6 +1591,10 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                 connections: connectionsReport,
             },
             connectionMappings: (connectionMappings ?? []).map(sanitizeMappingForPlan),
+            providerMappings: (providerMappings ?? []).map((pm: ProviderMappingSchema) => ({
+                sourceProvider: pm.sourceProvider,
+                destProvider: pm.destProvider,
+            })),
             changes: {
                 creates,
                 updates,
@@ -1650,6 +1658,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
             destinationStateHash: plan.destinationStateHash,
             preflight: plan.preflight,
             connectionMappings: plan.connectionMappings,
+            providerMappings: plan.providerMappings,
             changes: plan.changes,
             summary: plan.summary,
         }
@@ -2179,6 +2188,25 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     }
                 }
 
+                // Provider remaps used to be dropped from the artifact, so an apply driven by
+                // `--plan-file` had no way to know a remap was ever requested and fell through
+                // to `?? rawProvider` - silently writing destination agents against the SOURCE
+                // provider and reporting success (#502). They are now signed into the plan, so
+                // this map is authoritative and cannot be edited without breaking the HMAC.
+                const planProviderMap = new Map<string, string>()
+                for (const pm of plan.providerMappings ?? []) {
+                    planProviderMap.set(pm.sourceProvider.toLowerCase(), pm.destProvider)
+                }
+
+                // Request-time mappings override the artifact, so an operator can still change
+                // the destination at apply time. The artifact is the fallback. Falling through
+                // to the raw provider is correct here: it means nothing ever remapped that
+                // provider, which is the common case and must keep applying unchanged.
+                const resolveTargetProvider = (rawProvider: string): string => {
+                    const key = rawProvider.toLowerCase()
+                    return providerMap.get(key) ?? planProviderMap.get(key) ?? rawProvider
+                }
+
                 const effectiveAgents: AgentSnapshotSchema[] = [...(snapshot.agents ?? [])]
                 if (snapshot.flows && snapshot.flows.length > 0) {
                     const flowAgents = extractAgentsFromFlows(snapshot.flows)
@@ -2194,7 +2222,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                         const srcAgent = effectiveAgents.find((a) => a.externalId === change.externalId)
                         if (srcAgent) {
                             const rawProvider = srcAgent.model.provider
-                            const targetProvider = providerMap.get(rawProvider.toLowerCase()) ?? rawProvider
+                            const targetProvider = resolveTargetProvider(rawProvider)
 
                             const mappedTools = remapAgentTools(srcAgent.tools, resolvedConnections, request.connectionMappings)
 
@@ -2233,7 +2261,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                         }
 
                         const rawProvider = srcAgent.model.provider
-                        const targetProvider = providerMap.get(rawProvider.toLowerCase()) ?? rawProvider
+                        const targetProvider = resolveTargetProvider(rawProvider)
 
                         const mappedTools = remapAgentTools(srcAgent.tools, resolvedConnections, request.connectionMappings, existing.tools)
 

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { apiClient } from '../api/client'
 import { Project, User } from '../api/types'
+import { navigateToLogin } from './auth-navigation'
 
 interface AuthContextType {
   user: User | null
@@ -44,7 +45,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
-  const signOut = () => {
+  const resetAuthState = () => {
     apiClient.setToken(null)
     apiClient.setProjectId(null)
     clearPersistedUser()
@@ -53,6 +54,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setProjects([])
     setCurrentProjectState(null)
   }
+
+  const signOut = () => {
+    resetAuthState()
+    navigateToLogin()
+  }
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      resetAuthState()
+    }
+
+    apiClient.setOnUnauthorized(handleUnauthorized)
+    return () => {
+      apiClient.setOnUnauthorized(null)
+    }
+  }, [])
 
   useEffect(() => {
     async function loadSession() {

@@ -443,6 +443,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                     name: f.name,
                     type: f.type,
                     externalId: f.externalId ?? f.id,
+                    data: 'data' in f ? f.data : null,
                 })),
                 status: tbl.status ?? null,
                 trigger: tbl.trigger ?? null,
@@ -2085,6 +2086,7 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                                         name: f.name,
                                         type: f.type as FieldType,
                                         externalId: f.externalId,
+                                        data: f.data ?? null,
                                     })),
                                 },
                             })
@@ -2136,21 +2138,33 @@ export const projectReplaceService = (log: FastifyBaseLogger) => ({
                                                 name: sf.name,
                                                 type: sf.type as FieldType,
                                                 externalId: sf.externalId,
+                                                data: sf.data ?? null,
                                             } as unknown as CreateFieldRequest,
                                         })
                                     }
                                     else {
                                         matchedFieldIds.add(matchField.id)
                                         if (matchField.type !== sf.type) {
+                                            // delete+recreate appends the new field at the END of
+                                            // the table (position = siblingCount), so restore the
+                                            // original position afterwards or the destination field
+                                            // order silently diverges from the source table.
+                                            const originalPosition = matchField.position
                                             await fieldService.delete({ id: matchField.id, projectId: targetProjectId })
-                                            await fieldService.create({
+                                            const recreated = await fieldService.create({
                                                 projectId: targetProjectId,
                                                 request: {
                                                     tableId: destTable.id,
                                                     name: sf.name,
                                                     type: sf.type as FieldType,
                                                     externalId: sf.externalId,
+                                                    data: sf.data ?? null,
                                                 } as unknown as CreateFieldRequest,
+                                            })
+                                            await fieldService.update({
+                                                id: recreated.id,
+                                                projectId: targetProjectId,
+                                                request: { position: originalPosition },
                                             })
                                         }
                                         else if (matchField.name !== sf.name) {

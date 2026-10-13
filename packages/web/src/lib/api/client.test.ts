@@ -86,6 +86,67 @@ describe('ApiClient', () => {
     await expect(apiClient.get('/test')).rejects.toThrow(ApiClientError)
   })
 
+  it('surfaces the server-provided params.error on domain error responses', async () => {
+    // The API serializes domain errors as {code, params} — INVALID_APP_CONNECTION
+    // carries the piece's own validation message in params.error.
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ code: 'INVALID_APP_CONNECTION', params: { error: 'Invalid API key. Please check your key.' } }),
+    })
+
+    await expect(apiClient.post('/connections', {})).rejects.toThrow('Invalid API key. Please check your key.')
+  })
+
+  it('surfaces the server-provided params.message when params.error is absent', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 403,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ code: 'AUTHORIZATION', params: { message: 'Project ID is required' } }),
+    })
+
+    await expect(apiClient.get('/connections')).rejects.toThrow('Project ID is required')
+  })
+
+  it('falls back to the status message when the error body has no message', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 400,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ code: 'VALIDATION', params: {} }),
+    })
+
+    await expect(apiClient.get('/test')).rejects.toThrow('Request failed with status 400')
+  it('extracts the server message from structured { code, params } error bodies', async () => {
+    // The API's error handler sends ActivepiecesError responses as
+    // `{ code, params }` — the human-readable text lives in params.message.
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 409,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ code: 'VALIDATION', params: { message: 'Cron expression is not valid' } }),
+    })
+
+    await expect(apiClient.post('/scheduled-tasks', { prompt: 'x' })).rejects.toThrow(
+      'Cron expression is not valid'
+    )
+  })
+
+  it('falls back to the status message when the error body carries no message', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: async () => ({ code: 'INVALID_CREDENTIALS', params: null }),
+    })
+
+    await expect(apiClient.post('/authentication/sign-in', { email: 'a@b.c' })).rejects.toThrow(
+      'Request failed with status 401'
+    )
+  })
+
   it('should return parsed JSON data on 200 responses', async () => {
     const mockData = { id: '123', status: 'ACTIVE' }
     global.fetch = vi.fn().mockResolvedValue({

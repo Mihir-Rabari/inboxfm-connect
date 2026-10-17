@@ -18,6 +18,7 @@ import { apRunActionTool } from './ap-run-action'
 import { apSearchActionsTool } from './ap-search-actions'
 import { apSearchTriggersTool } from './ap-search-triggers'
 import { apSetupGuideTool } from './ap-setup-guide'
+import { apTestConnectionTool } from './ap-test-connection'
 import { apUpdateRecordTool } from './ap-update-record'
 import { apValidateStepConfigTool } from './ap-validate-step-config'
 
@@ -29,6 +30,7 @@ export const activepiecesTools = (mcp: ProjectScopedMcpServer, userId: string | 
     apResolvePropertyChainTool(mcp, log),
     apValidateStepConfigTool(mcp, log),
     apListConnectionsTool(mcp, log),
+    apTestConnectionTool(mcp, log),
     apListAiModelsTool(mcp, log),
     apListTablesTool(mcp, log),
     apFindRecordsTool(mcp, log),
@@ -49,6 +51,7 @@ export const LOCKED_TOOL_NAMES: string[] = [
     'ap_resolve_property_chain',
     'ap_validate_step_config',
     'ap_list_connections',
+    'ap_test_connection',
     'ap_list_ai_models',
     'ap_list_tables',
     'ap_find_records',

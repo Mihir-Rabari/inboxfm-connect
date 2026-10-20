@@ -3,7 +3,6 @@ import { makeRequest } from '../common/client';
 import { HttpMethod } from '@inboxfm-connect/pieces-common';
 import { voucheryIoAuth } from '../common/auth';
 import { comapaignIdDropdown } from '../common/props';
-import { tr } from 'zod/v4/locales';
 
 export const createAVoucher = createAction({
   auth: voucheryIoAuth,
@@ -29,9 +28,9 @@ export const createAVoucher = createAction({
       description: 'The date and time when the voucher expires',
       required: false,
     }),
-    customer_identifier: Property.Number({
+    customer_identifier: Property.ShortText({
       displayName: 'Customer Identifier',
-      description: 'The identifier for the customer',
+      description: 'The identifier for the customer (a string, e.g. email, hash or id)',
       required: false,
     }),
     gift_card_value: Property.Number({
@@ -66,7 +65,8 @@ export const createAVoucher = createAction({
     if (activates_at) body.activates_at = new Date(activates_at).toISOString();
 
     const response = await makeRequest(
-      context.auth.secret_text,
+      context.auth.props.apiKey,
+      context.auth.props.projectHost,
       HttpMethod.POST,
       `/campaigns/${campaignId}/vouchers`,
       body

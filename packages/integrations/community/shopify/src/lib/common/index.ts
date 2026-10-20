@@ -133,13 +133,39 @@ export async function getCustomerOrders(
   id: string,
   auth: ShopifyAuth
 ): Promise<ShopifyOrder[]> {
-  const response = await sendShopifyRequest({
-    auth: auth,
-    url: `/customers/${id}/orders.json`,
-    method: HttpMethod.GET,
-  });
+  const orders: ShopifyOrder[] = [];
+  const queryParams: QueryParams = {};
+  let hasNextPage = true;
 
-  return (response.body as { orders: ShopifyOrder[] }).orders;
+  while (hasNextPage) {
+    const response = await sendShopifyRequest({
+      auth: auth,
+      url: `/customers/${id}/orders.json`,
+      method: HttpMethod.GET,
+      queryParams,
+    });
+
+    orders.push(...(response.body as { orders: ShopifyOrder[] }).orders);
+
+    const linkHeader = response.headers?.['link'];
+    if (linkHeader && typeof linkHeader === 'string' && linkHeader.includes('rel="next"')) {
+      // Extract the URL for the next page from the Link header
+      const nextLink = linkHeader
+        .split(',')
+        .find((s) => s.includes('rel="next"'))
+        ?.match(/<(.*?)>/)?.[1];
+
+      if (nextLink) {
+        queryParams.page_info = new URL(nextLink).searchParams.get('page_info') || '';
+      } else {
+        hasNextPage = false;
+      }
+    } else {
+      hasNextPage = false;
+    }
+  }
+
+  return orders;
 }
 
 export async function getProducts(
@@ -183,9 +209,16 @@ export async function getProducts(
         .split(',')
         .find((s) => s.includes('rel="next"'))
         ?.match(/<(.*?)>/)?.[1];
-      
+
       if (nextLink) {
+        // Shopify rejects requests that combine page_info with any other
+        // filter parameter ("title cannot be passed when page_info is
+        // present"), so the cursor page keeps page_info only - the cursor
+        // token already encodes the original filters.
         queryParams.page_info = new URL(nextLink).searchParams.get('page_info') || '';
+        delete queryParams.title;
+        delete queryParams.created_at_min;
+        delete queryParams.updated_at_min;
       } else {
         hasNextPage = false;
       }
@@ -314,26 +347,82 @@ export async function getTransactions(
   orderId: number,
   auth: ShopifyAuth
 ): Promise<ShopifyTransaction[]> {
-  const response = await sendShopifyRequest({
-    auth: auth,
-    url: `/orders/${orderId}/transactions.json`,
-    method: HttpMethod.GET,
-  });
+  const transactions: ShopifyTransaction[] = [];
+  const queryParams: QueryParams = {};
+  let hasNextPage = true;
 
-  return (response.body as { transactions: ShopifyTransaction[] }).transactions;
+  while (hasNextPage) {
+    const response = await sendShopifyRequest({
+      auth: auth,
+      url: `/orders/${orderId}/transactions.json`,
+      method: HttpMethod.GET,
+      queryParams,
+    });
+
+    transactions.push(
+      ...((response.body as { transactions: ShopifyTransaction[] }).transactions ?? [])
+    );
+
+    const linkHeader = response.headers?.['link'];
+    if (linkHeader && typeof linkHeader === 'string' && linkHeader.includes('rel="next"')) {
+      // Extract the URL for the next page from the Link header
+      const nextLink = linkHeader
+        .split(',')
+        .find((s) => s.includes('rel="next"'))
+        ?.match(/<(.*?)>/)?.[1];
+
+      if (nextLink) {
+        queryParams.page_info = new URL(nextLink).searchParams.get('page_info') || '';
+      } else {
+        hasNextPage = false;
+      }
+    } else {
+      hasNextPage = false;
+    }
+  }
+
+  return transactions;
 }
 
 export async function getFulfillments(
   orderId: number,
   auth: ShopifyAuth
 ): Promise<ShopifyFulfillment[]> {
-  const response = await sendShopifyRequest({
-    auth: auth,
-    url: `/orders/${orderId}/fulfillments.json`,
-    method: HttpMethod.GET,
-  });
+  const fulfillments: ShopifyFulfillment[] = [];
+  const queryParams: QueryParams = {};
+  let hasNextPage = true;
 
-  return (response.body as { fulfillments: ShopifyFulfillment[] }).fulfillments;
+  while (hasNextPage) {
+    const response = await sendShopifyRequest({
+      auth: auth,
+      url: `/orders/${orderId}/fulfillments.json`,
+      method: HttpMethod.GET,
+      queryParams,
+    });
+
+    fulfillments.push(
+      ...((response.body as { fulfillments: ShopifyFulfillment[] }).fulfillments ?? [])
+    );
+
+    const linkHeader = response.headers?.['link'];
+    if (linkHeader && typeof linkHeader === 'string' && linkHeader.includes('rel="next"')) {
+      // Extract the URL for the next page from the Link header
+      const nextLink = linkHeader
+        .split(',')
+        .find((s) => s.includes('rel="next"'))
+        ?.match(/<(.*?)>/)?.[1];
+
+      if (nextLink) {
+        queryParams.page_info = new URL(nextLink).searchParams.get('page_info') || '';
+      } else {
+        hasNextPage = false;
+      }
+    } else {
+      hasNextPage = false;
+    }
+  }
+
+  return fulfillments;
 }
 
 export async function getFulfillment(
@@ -424,7 +513,7 @@ export async function adjustInventoryLevel(
     },
   });
 
-  return (response.body as { order: unknown }).order;
+  return (response.body as { inventory_level: unknown }).inventory_level;
 }
 
 export async function createCollect(

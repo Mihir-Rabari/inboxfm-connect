@@ -78,3 +78,30 @@ export const DuplicateTableRequest = z.object({
 })
 
 export type DuplicateTableRequest = z.infer<typeof DuplicateTableRequest>
+
+export enum TableImportFormat {
+    CSV = 'CSV',
+    JSON = 'JSON',
+}
+
+export const ImportTableRequest = z.object({
+    format: z.nativeEnum(TableImportFormat),
+    csvData: z.string().optional(),
+    jsonData: z.array(z.record(z.string(), z.unknown())).optional(),
+    autoCreateFields: z.boolean().optional(),
+})
+
+export type ImportTableRequest = z.infer<typeof ImportTableRequest>
+
+export const ImportTableResponse = z.object({
+    tableId: z.string(),
+    totalRows: z.number(),
+    importedRecords: z.number(),
+    createdFields: z.array(z.object({
+        id: z.string(),
+        name: z.string(),
+        type: z.nativeEnum(FieldType),
+    })),
+})
+
+export type ImportTableResponse = z.infer<typeof ImportTableResponse>

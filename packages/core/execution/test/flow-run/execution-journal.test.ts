@@ -183,4 +183,55 @@ describe('executionJournal (Issue #141)', () => {
             expect(path).toEqual([['loop_1', 0]])
         })
     })
+
+    describe('getLoopSteps & journal navigation helpers (Issue #141)', () => {
+        it('getLoopSteps collects all loop step outputs across root and nested loops', () => {
+            const innerLoop = LoopStepOutput.init({ input: [1] }).setItemAndIndex({ item: 1, index: 0 }).addIteration()
+            const outerLoop = LoopStepOutput.init({ input: [10] }).setItemAndIndex({ item: 10, index: 0 }).addIteration()
+            const normalStep = GenericStepOutput.create({ type: FlowActionType.CODE, status: StepOutputStatus.SUCCEEDED, input: {} })
+
+            const steps: Record<string, StepOutput> = {
+                step_root: normalStep,
+                loop_outer: outerLoop,
+            }
+
+            executionJournal.upsertStep({
+                stepName: 'loop_inner',
+                stepOutput: innerLoop,
+                path: [['loop_outer', 0]],
+                steps,
+            })
+
+            const loopSteps = executionJournal.getLoopSteps(steps)
+            expect(Object.keys(loopSteps)).toContain('loop_outer')
+            expect(Object.keys(loopSteps)).toContain('loop_inner')
+            expect(loopSteps.loop_outer.type).toBe(FlowActionType.LOOP_ON_ITEMS)
+            expect(loopSteps.loop_inner.type).toBe(FlowActionType.LOOP_ON_ITEMS)
+        })
+
+        it('getStateAtPath returns root steps dictionary when path is empty', () => {
+            const step = GenericStepOutput.create({ type: FlowActionType.CODE, status: StepOutputStatus.SUCCEEDED, input: {} })
+            const steps: Record<string, StepOutput> = { step_1: step }
+
+            const result = executionJournal.getStateAtPath({ path: [], steps })
+            expect(result).toBe(steps)
+            expect(result.step_1).toBe(step)
+        })
+
+        it('getPathToStep returns empty array for top-level root step', () => {
+            const step = GenericStepOutput.create({ type: FlowActionType.CODE, status: StepOutputStatus.SUCCEEDED, input: {} })
+            const steps: Record<string, StepOutput> = { root_action: step }
+
+            const path = executionJournal.getPathToStep(steps, 'root_action', {})
+            expect(path).toEqual([])
+        })
+
+        it('getPathToStep returns undefined when step is not present in graph', () => {
+            const step = GenericStepOutput.create({ type: FlowActionType.CODE, status: StepOutputStatus.SUCCEEDED, input: {} })
+            const steps: Record<string, StepOutput> = { root_action: step }
+
+            const path = executionJournal.getPathToStep(steps, 'missing_action', {})
+            expect(path).toBeUndefined()
+        })
+    })
 })

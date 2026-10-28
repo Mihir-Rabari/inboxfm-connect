@@ -43,6 +43,61 @@ describe('step-output classes and immutable state methods (Issue #141)', () => {
             expect(step.outputType).toBe(StepOutputType.SLICE)
             expect(step.output).toEqual({ fileId: 'file-123', size: 2048, url: 'https://storage/log' })
         })
+
+        describe('granular setter methods', () => {
+            it('setOutput returns a new instance with updated output immutably', () => {
+                const original = GenericStepOutput.create({
+                    type: FlowActionType.CODE,
+                    status: StepOutputStatus.RUNNING,
+                    input: null,
+                })
+                const updated = original.setOutput({ value: 42 })
+
+                expect(updated).not.toBe(original)
+                expect(original.output).toBeUndefined()
+                expect(updated.output).toEqual({ value: 42 })
+            })
+
+            it('setStatus returns a new instance with updated status immutably', () => {
+                const original = GenericStepOutput.create({
+                    type: FlowActionType.CODE,
+                    status: StepOutputStatus.RUNNING,
+                    input: null,
+                })
+                const updated = original.setStatus(StepOutputStatus.SUCCEEDED)
+
+                expect(updated).not.toBe(original)
+                expect(original.status).toBe(StepOutputStatus.RUNNING)
+                expect(updated.status).toBe(StepOutputStatus.SUCCEEDED)
+            })
+
+            it('setErrorMessage returns a new instance with updated errorMessage immutably', () => {
+                const original = GenericStepOutput.create({
+                    type: FlowActionType.CODE,
+                    status: StepOutputStatus.FAILED,
+                    input: null,
+                })
+                const updated = original.setErrorMessage('Execution failed')
+
+                expect(updated).not.toBe(original)
+                expect(original.errorMessage).toBeUndefined()
+                expect(updated.errorMessage).toBe('Execution failed')
+            })
+
+            it('setDuration returns a new instance with updated duration immutably', () => {
+                const original = GenericStepOutput.create({
+                    type: FlowActionType.CODE,
+                    status: StepOutputStatus.SUCCEEDED,
+                    input: null,
+                })
+                const updated = original.setDuration(450)
+
+                expect(updated).not.toBe(original)
+                expect(original.duration).toBeUndefined()
+                expect(updated.duration).toBe(450)
+            })
+        })
+
     })
 
     describe('RouterStepOutput', () => {
@@ -78,6 +133,23 @@ describe('step-output classes and immutable state methods (Issue #141)', () => {
             expect(loop2.output?.item).toBe('second')
             expect(loop2.output?.index).toBe(1)
             expect(loop2.hasIteration(1)).toBe(true)
+        })
+
+        it('setIterations updates iterations array immutably', () => {
+            const initial = LoopStepOutput.init({ input: null })
+            const iterations = [{ step_1: GenericStepOutput.create({ input: null, type: FlowActionType.CODE, status: StepOutputStatus.SUCCEEDED }) }]
+            const updated = initial.setIterations(iterations)
+
+            expect(updated).not.toBe(initial)
+            expect(initial.output?.iterations).toEqual([])
+            expect(updated.output?.iterations).toBe(iterations)
+        })
+
+        it('hasIteration returns false for negative or out-of-bound indices', () => {
+            const loop = LoopStepOutput.init({ input: null }).addIteration()
+            expect(loop.hasIteration(-1)).toBe(false)
+            expect(loop.hasIteration(0)).toBe(true)
+            expect(loop.hasIteration(1)).toBe(false)
         })
     })
 })

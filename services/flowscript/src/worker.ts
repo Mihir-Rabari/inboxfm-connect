@@ -17,13 +17,59 @@ import type { FlowIR } from './compiler.js'
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 const workerId = process.env.FLOWSCRIPT_WORKER_ID || `worker-${randomUUID()}`
-const MAX_CONCURRENT_RUNS = Number(process.env.FLOWSCRIPT_MAX_CONCURRENT_RUNS || 5)
-const LEASE_DURATION_MS = Number(process.env.FLOWSCRIPT_LEASE_MS || 30_000)
-const HEARTBEAT_INTERVAL_MS = Number(process.env.FLOWSCRIPT_HEARTBEAT_MS || 10_000)
+
+// Number('abc') is NaN, and NaN silently defeats every comparison below:
+// activeRuns.size >= NaN is always false (unbounded concurrency),
+// new Date(Date.now() + NaN) is an Invalid Date that pg rejects (claim and
+// heartbeat queries fail forever), and setInterval(NaN) fires on every tick.
+// Parse strictly and fall back to the documented default instead.
+const positiveIntEnv = (raw: string | undefined, fallback: number): number => {
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : fallback
+}
+const MAX_CONCURRENT_RUNS = positiveIntEnv(process.env.FLOWSCRIPT_MAX_CONCURRENT_RUNS, 5)
+const LEASE_DURATION_MS = positiveIntEnv(process.env.FLOWSCRIPT_LEASE_MS, 30_000)
+const HEARTBEAT_INTERVAL_MS = positiveIntEnv(process.env.FLOWSCRIPT_HEARTBEAT_MS, 10_000)
 
 let stopping = false
 const activeRuns = new Set<Promise<void>>()
 const activeControllers = new Set<AbortController>()
+
+/**
+ * Persist a terminal run outcome without ever rejecting.
+ *
+ * processJob() is fire-and-forget inside the poll loop, so any rejection
+ * becomes an unhandled promise rejection and terminates the whole worker
+ * process. A failure to persist the outcome is logged and the run is left
+ * to lease-expiry recovery (retry or 'uncertain') instead. A rowCount of 0
+ * means this worker no longer owns the run (lease expired and the run was
+ * re-queued/re-claimed); the result is intentionally discarded.
+ */
+async function persistRunOutcome(
+  runId: string,
+  ownerWorkerId: string,
+  result: Parameters<typeof finishRun>[1],
+): Promise<void> {
+  try {
+    const applied = await finishRun(runId, result, ownerWorkerId)
+    if (applied === 0) {
+      console.warn(JSON.stringify({
+        event: 'run_finish_skipped_stale_ownership',
+        runId,
+        status: result.status,
+        reason: 'Run ownership changed (lease expired and run was recovered or re-claimed); result not persisted',
+      }))
+    }
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: 'run_finish_failed',
+      runId,
+      status: result.status,
+      error: error instanceof Error ? error.message : String(error),
+      note: 'Run left for lease-expiry recovery',
+    }))
+  }
+}
 
 async function processJob(job: NonNullable<Awaited<ReturnType<typeof claimQueuedRun>>>) {
   const abortController = new AbortController()
@@ -64,7 +110,7 @@ async function processJob(job: NonNullable<Awaited<ReturnType<typeof claimQueued
     })
 
     if (result.status === 'cancelled') {
-      await finishRun(job.id, {
+      await persistRunOutcome(job.id, job.worker_id, {
         status: 'cancelled',
         steps: result.steps,
         error: result.error,
@@ -72,7 +118,7 @@ async function processJob(job: NonNullable<Awaited<ReturnType<typeof claimQueued
       })
       console.log(JSON.stringify({ event: 'run_cancelled', runId: job.id, durationMs: Date.now() - startTime }))
     } else {
-      await finishRun(job.id, result)
+      await persistRunOutcome(job.id, job.worker_id, result)
       console.log(JSON.stringify({
         event: 'run_completed',
         runId: job.id,
@@ -83,7 +129,7 @@ async function processJob(job: NonNullable<Awaited<ReturnType<typeof claimQueued
     }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Worker execution failed'
-    await finishRun(job.id, { status: 'failed', steps: [], error: message })
+    await persistRunOutcome(job.id, job.worker_id, { status: 'failed', steps: [], error: message })
     console.error(JSON.stringify({ event: 'run_failed', runId: job.id, error: message, durationMs: Date.now() - startTime }))
   } finally {
     clearInterval(heartbeatTimer)

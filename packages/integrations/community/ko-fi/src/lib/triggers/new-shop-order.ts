@@ -100,15 +100,10 @@ export const newShopOrder = createTrigger({
       return [];
     }
 
-    let event: KoFiShopOrderEvent;
-    try {
-      event = JSON.parse(body.data) as KoFiShopOrderEvent;
-    } catch {
-      return [];
-    }
+    const event = JSON.parse(body.data) as KoFiShopOrderEvent;
 
     if (event.verification_token !== context.auth.secret_text) {
-      return [];
+      throw new Error('Webhook verification token mismatch. This request may not be from Ko-fi.');
     }
     if (event.type !== 'Shop Order') {
       return [];

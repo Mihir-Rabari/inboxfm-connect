@@ -121,7 +121,11 @@ export default function ConnectPage() {
       } catch (err) {
         if (cancelled) return
         setLoadError(
-          err instanceof ApiClientError && (err.statusCode === 404 || err.statusCode === 410)
+          // The API maps an already-used or expired session to 403 SESSION_EXPIRED
+          // (see the server's error-handler status map), so 404/410 alone never
+          // matched the common case: reloading a link after connecting, or opening
+          // one after its TTL. Treat all three as "get a new link".
+          err instanceof ApiClientError && (err.statusCode === 403 || err.statusCode === 404 || err.statusCode === 410)
             ? 'This connect link has expired or was already used. Ask the app that sent you here for a new one.'
             : 'This connect link could not be loaded. Try again in a moment.'
         )
@@ -207,8 +211,31 @@ function ConnectPageShell({ children }: { children: React.ReactNode }) {
   )
 }
 
+/**
+ * Server errors carry the explanation in `params` (`{ code, params }` - the API never
+ * sets a top-level `message` for its own errors), so `ApiClientError.message` is the
+ * client's generic "Request failed with status NNN". Showing that to an end user of a
+ * public connect link is useless: the interesting copy is the server's (unsupported
+ * auth type, piece not allowed by this session, OAuth app not configured, session
+ * already used). Credential values are never echoed back by the API.
+ */
+function serverDetail(details: unknown): string | undefined {
+  if (typeof details !== 'object' || details === null) return undefined
+  const params = (details as { params?: unknown }).params
+  if (typeof params !== 'object' || params === null) return undefined
+  const { message, error } = params as { message?: unknown, error?: unknown }
+  if (typeof message === 'string' && message.trim().length > 0) return message.trim()
+  if (typeof error === 'string' && error.trim().length > 0) return error.trim()
+  return undefined
+}
+
 function describeConnectError(error: unknown): string {
   if (error instanceof ApiClientError) {
+    const detail = serverDetail(error.details)
+    if (detail) return detail
+    if (error.statusCode === 403) {
+      return 'This connect link has expired or was already used. Ask the app that sent you here for a new one.'
+    }
     return error.message || 'The connection could not be created. Try again.'
   }
   return 'The connection could not be created. Try again.'

@@ -146,6 +146,42 @@ describe('InboxFM transport', () => {
         ).rejects.toMatchObject({ category: 'timeout' })
     })
 
+    it('applies the timeout to the response body, not just the headers', async () => {
+        // A server that sends headers and then stalls the body must not hold the caller
+        // past `timeoutMs`: `fetch` resolves on headers, so the timer has to stay armed
+        // until the body has actually been read.
+        fetchMock.mockImplementation(async () => new Response(new ReadableStream({ start() { /* never closes */ } }), { status: 200 }))
+
+        vi.useFakeTimers()
+        try {
+            const settled = client({ timeoutMs: 25, maxAttempts: 1 })
+                .listConnections({ externalUserId: 'user_1' })
+                .then(() => 'resolved', (error: { category?: string }) => `rejected:${error.category}`)
+
+            await vi.advanceTimersByTimeAsync(50)
+
+            await expect(settled).resolves.toBe('rejected:timeout')
+        }
+        finally {
+            vi.useRealTimers()
+        }
+    })
+
+    it('detaches its abort listener from a caller signal once the request settles', async () => {
+        fetchMock.mockImplementation(async () => jsonResponse({ status: 200, body: { data: [], next: null, previous: null } }))
+        const controller = new AbortController()
+        const removeListener = vi.spyOn(controller.signal, 'removeEventListener')
+
+        for (let index = 0; index < 12; index++) {
+            await client({ maxAttempts: 1 }).listConnections({ externalUserId: 'user_1', signal: controller.signal })
+        }
+
+        // Before the fix every one of the 12 requests left its listener behind, which
+        // pins the request closure and trips Node's MaxListenersExceededWarning at 10.
+        expect(removeListener).toHaveBeenCalledTimes(12)
+        expect(removeListener.mock.calls.every(([type]) => type === 'abort')).toBe(true)
+    })
+
     it('sends the Idempotency-Key header when provided', async () => {
         fetchMock.mockResolvedValueOnce(jsonResponse({ status: 200, body: { token: 't', connectUrl: 'https://x', expiresAt: '2026-01-01' } }))
 
@@ -367,6 +403,39 @@ describe('InboxFM.proxy', () => {
 
     afterEach(() => {
         vi.unstubAllGlobals()
+    })
+
+    it('gives a proxy call a client timeout that outlasts the server-side upstream budget', async () => {
+        // The body omits timeoutMs, so the server applies its own 30s default for the
+        // upstream request. Before the fix the transport still gave up at the generic
+        // 10s default, so a 10-30s upstream call always surfaced as an SDK timeout.
+        fetchMock.mockImplementation((_url: string, init: { signal: AbortSignal }) => new Promise((_resolve, reject) => {
+            if (init.signal.aborted) {
+                reject(new DOMException('aborted', 'AbortError'))
+                return
+            }
+            init.signal.addEventListener('abort', () => reject(new DOMException('aborted', 'AbortError')))
+        }))
+
+        vi.useFakeTimers()
+        try {
+            const settled: string[] = []
+            void client({ maxAttempts: 1 })
+                .proxy({ externalUserId: 'cust_abc_123', provider: 'slack', path: '/users.info' })
+                .then(() => settled.push('resolved'), (error: { category?: string }) => settled.push(`rejected:${error.category}`))
+
+            await vi.advanceTimersByTimeAsync(10_000)
+            expect(settled).toEqual([])
+
+            await vi.advanceTimersByTimeAsync(25_500)
+            expect(settled).toEqual(['rejected:timeout'])
+
+            const [, init] = fetchMock.mock.calls[0]
+            expect(JSON.parse(String(init?.body)).timeoutMs).toBeUndefined()
+        }
+        finally {
+            vi.useRealTimers()
+        }
     })
 
     it('sends proxy request with project context and relative path', async () => {

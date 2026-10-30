@@ -28,6 +28,20 @@ export class FetchHttpClient extends BaseHttpClient {
     const headers = this.getHeaders(request);
     const queryParams = request.queryParams ?? {};
     for (const [key, value] of Object.entries(queryParams)) {
+      // An undefined entry means "no value" — the same convention the client
+      // already applies to headers. Appending it would send a literal
+      // "undefined" parameter (and duplicate keys present in the URL string).
+      if (value === undefined) {
+        continue;
+      }
+      // A list value means repeated keys (URLSearchParams semantics), not a
+      // comma-joined single value.
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          urlQueryParams.append(key, item);
+        }
+        continue;
+      }
       urlQueryParams.append(key, value);
     }
     const queryString = urlQueryParams.toString();
@@ -40,7 +54,12 @@ export class FetchHttpClient extends BaseHttpClient {
     const { body, extraHeaders, isStream } = serializeBody(request.body, headers);
     const finalHeaders = normalizeHeaders({ ...headers, ...extraHeaders });
 
-    const response = await sendWithRetries(async () => {
+    // The timeout budget must cover the FULL exchange: fetch() resolves as soon
+    // as response *headers* arrive, so the abort timer may only be disarmed
+    // once the body has been fully read (see parseResponseBody below). Clearing
+    // it right after fetch() would leave body reads unbounded — a server that
+    // sends headers promptly and then stalls the body hangs the request forever.
+    const attempt = await sendWithRetries(async () => {
       const controller = new AbortController();
       const timeoutId = request.timeout && request.timeout > 0
         ? setTimeout(() => controller.abort(), request.timeout)
@@ -60,28 +79,36 @@ export class FetchHttpClient extends BaseHttpClient {
         if (options?.dispatcher !== undefined) {
           init.dispatcher = options.dispatcher;
         }
-        return await fetch(finalUrl, init);
-      } finally {
+        const response = await fetch(finalUrl, init);
+        return { response, controller, timeoutId };
+      } catch (error) {
         if (timeoutId !== undefined) {
           clearTimeout(timeoutId);
         }
+        throw error;
       }
     }, retries);
 
     const successCeiling = followRedirects ? 300 : 400;
-    if (response.status < 200 || response.status >= successCeiling) {
-      const errorBody = await parseResponseBody(response, responseType);
-      const httpError = new HttpError(request.body, { status: response.status, responseBody: errorBody });
-      console.error('[HttpClient#(sanitized error message)] Request failed:', httpError);
-      throw httpError;
-    }
+    try {
+      if (attempt.response.status < 200 || attempt.response.status >= successCeiling) {
+        const errorBody = await parseResponseBody(attempt.response, responseType, attempt.controller.signal);
+        const httpError = new HttpError(request.body, { status: attempt.response.status, responseBody: errorBody });
+        console.error('[HttpClient#(sanitized error message)] Request failed:', httpError);
+        throw httpError;
+      }
 
-    const responseBody = await parseResponseBody(response, responseType);
-    return {
-      status: response.status,
-      headers: toHttpHeaders(response.headers),
-      body: responseBody as ResponseBody,
-    };
+      const responseBody = await parseResponseBody(attempt.response, responseType, attempt.controller.signal);
+      return {
+        status: attempt.response.status,
+        headers: toHttpHeaders(attempt.response.headers),
+        body: responseBody as ResponseBody,
+      };
+    } finally {
+      if (attempt.timeoutId !== undefined) {
+        clearTimeout(attempt.timeoutId);
+      }
+    }
   }
 }
 
@@ -109,22 +136,42 @@ function serializeBody(
   }
   const contentType = headers['Content-Type'] ?? headers['content-type'] ?? '';
   if (contentType.includes('application/x-www-form-urlencoded')) {
-    return { body: new URLSearchParams(body as Record<string, string>).toString(), extraHeaders: {}, isStream: false };
+    // URLSearchParams(value) coerces array values to "1,2"; urlencoded form
+    // semantics want repeated keys for lists. Undefined entries are skipped,
+    // matching the query-param and header conventions.
+    const formParams = new URLSearchParams();
+    for (const [key, value] of Object.entries(body as Record<string, string | string[]>)) {
+      if (value === undefined) {
+        continue;
+      }
+      if (Array.isArray(value)) {
+        for (const item of value) {
+          formParams.append(key, item);
+        }
+        continue;
+      }
+      formParams.append(key, value);
+    }
+    return { body: formParams.toString(), extraHeaders: {}, isStream: false };
   }
   return { body: JSON.stringify(body), extraHeaders: {}, isStream: false };
 }
 
-async function parseResponseBody(response: Response, responseType: ResponseType): Promise<unknown> {
+async function parseResponseBody(
+  response: Response,
+  responseType: ResponseType,
+  signal?: AbortSignal
+): Promise<unknown> {
   switch (responseType) {
     case 'arraybuffer':
-      return Buffer.from(await response.arrayBuffer());
+      return Buffer.from(await readWithTimeout(response.arrayBuffer(), signal));
     case 'blob':
-      return await response.blob();
+      return await readWithTimeout(response.blob(), signal);
     case 'text':
-      return await response.text();
+      return await readWithTimeout(response.text(), signal);
     case 'json':
     default: {
-      const text = await response.text();
+      const text = await readWithTimeout(response.text(), signal);
       if (text.length === 0) {
         return undefined;
       }
@@ -137,16 +184,65 @@ async function parseResponseBody(response: Response, responseType: ResponseType)
   }
 }
 
-async function sendWithRetries(fn: () => Promise<Response>, retries: number): Promise<Response> {
+// Races a body read against the request's abort signal. undici ties fetch
+// response bodies to the signal natively, but bodies that are not (proxied
+// dispatchers, plain Response objects) must still honor the deadline — a
+// stalled body read rejects instead of hanging the request forever.
+function readWithTimeout<T>(read: Promise<T>, signal: AbortSignal | undefined): Promise<T> {
+  if (signal === undefined) {
+    return read;
+  }
+  if (signal.aborted) {
+    return Promise.reject(bodyReadAbortError());
+  }
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(bodyReadAbortError());
+    signal.addEventListener('abort', onAbort, { once: true });
+    read.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (error) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(error);
+      }
+    );
+  });
+}
+
+function bodyReadAbortError(): Error {
+  const error = new Error(
+    'The request was aborted while reading the response body (request timeout exceeded).'
+  );
+  error.name = 'AbortError';
+  return error;
+}
+
+type FetchAttempt = {
+  response: Response;
+  controller: AbortController;
+  timeoutId: ReturnType<typeof setTimeout> | undefined;
+};
+
+async function sendWithRetries(fn: () => Promise<FetchAttempt>, retries: number): Promise<FetchAttempt> {
   let lastError: unknown;
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      const response = await fn();
-      if (response.status >= 500 && attempt < retries) {
+      const result = await fn();
+      if (result.response.status >= 500 && attempt < retries) {
+        if (result.timeoutId !== undefined) {
+          clearTimeout(result.timeoutId);
+        }
+        // Release the abandoned attempt: an undrained 5xx body keeps its socket
+        // pinned in the connection pool until GC, and its abort timer must not
+        // fire for an attempt nobody is reading anymore.
+        await result.response.body?.cancel()?.catch(() => undefined);
+        result.controller.abort();
         await backoff(attempt);
         continue;
       }
-      return response;
+      return result;
     } catch (error) {
       lastError = error;
       if (attempt < retries) {

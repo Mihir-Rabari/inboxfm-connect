@@ -1,10 +1,12 @@
 import { HeadlessRuntime } from '@inboxfm-connect/runtime'
 import { apLogger } from '@inboxfm-connect/server-utils'
-import { McpToolResult, NetworkMode } from '@inboxfm-connect/shared'
+import { AppConnectionStatus, McpToolResult, NetworkMode } from '@inboxfm-connect/shared'
 import { FastifyBaseLogger } from 'fastify'
 import { ArrayContains } from 'typeorm'
+import { accessTokenManager } from '../../authentication/lib/access-token-manager'
 import { appConnectionService, appConnectionsRepo } from '../../app-connection/app-connection-service/app-connection-service'
 import { AppConnectionSchema } from '../../app-connection/app-connection.entity'
+import { domainHelper } from '../../helper/domain-helper'
 import { system } from '../../helper/system/system'
 import { AppSystemProp } from '../../helper/system/system-props'
 import { localPieceCatalog } from '../../pieces/metadata/local-piece-catalog'
@@ -101,7 +103,24 @@ export async function executeAdhocAction({
         )
     }
 
-    const publicUrl = system.get(AppSystemProp.FRONTEND_URL) || 'http://localhost:3000'
+    // #544: the sandbox derives every engine-facing URL (store entries, file APIs,
+    // piece bundles) by appending `v1/...`, so both URLs must carry the `/api`
+    // prefix. Raw AP_FRONTEND_URL produced `<frontend>/v1/store-entries` — a path
+    // the API never serves. Same domainHelper construction the user-interaction
+    // watcher and the /v1/execute controller use for their sandbox dispatches.
+    const rawInternalApiUrl = await domainHelper.getInternalApiUrl({ path: '' })
+    const rawPublicApiUrl = await domainHelper.getPublicApiUrl({ path: '' })
+    const internalApiUrl = rawInternalApiUrl.endsWith('/') ? rawInternalApiUrl : `${rawInternalApiUrl}/`
+    const publicApiUrl = rawPublicApiUrl.endsWith('/') ? rawPublicApiUrl : `${rawPublicApiUrl}/`
+    // The engine presents this token to securityAccess.engine() routes
+    // (/v1/store-entries, /v1/files); the runtime's 'headless' placeholder string
+    // is rejected with 401 by their JWT verification, so mint a real engine
+    // principal — same as the user-interaction watcher does for its sandbox runs.
+    const engineToken = await accessTokenManager(log).generateEngineToken({
+        projectId,
+        platformId: project.platformId,
+    })
+
     const result = await runtime.execute({
         integration: canonicalPieceName,
         tool: actionName,
@@ -109,10 +128,28 @@ export async function executeAdhocAction({
         input,
         projectId,
         platformId: project.platformId,
-        internalApiUrl: publicUrl,
-        publicApiUrl: publicUrl,
+        internalApiUrl,
+        publicApiUrl,
+        engineToken,
     })
 
     const text = `Result:\n\`\`\`json\n${JSON.stringify(result, null, 2)}\n\`\`\``
+
+    // #546: a MISSING connection is a placeholder with no credentials attached —
+    // not "deleted or inaccessible". The engine still executes against it (it can
+    // even succeed for pieces that don't require auth), so flag the status in the
+    // tool result instead of letting humans and LLM agents misread the output as
+    // coming from a healthy connection.
+    if (connection.status === AppConnectionStatus.MISSING) {
+        const warning =
+            `Warning: connection "${connection.externalId}" (${pieceName}) has status MISSING — ` +
+            'it is a placeholder with no credentials attached. ' +
+            'The action below still ran, so its output may be unauthenticated or failing; re-connect it before trusting this result.'
+        return {
+            content: [{ type: 'text' as const, text: warning }, { type: 'text' as const, text }],
+            structuredContent: { connectionStatus: 'MISSING', result },
+        }
+    }
+
     return { content: [{ type: 'text', text }] }
 }

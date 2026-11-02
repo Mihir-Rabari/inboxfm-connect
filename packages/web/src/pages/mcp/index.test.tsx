@@ -421,6 +421,24 @@ describe('MCP Hub', () => {
       await waitFor(() => bodyText().includes('Generate a token first'))
     }, 15000)
 
+    it('does not claim a placeholder exists in bearer mode without a token and omits the auth header', async () => {
+      stubApi([...mcpRoutes(), catalogRoute()])
+      const container = renderMcp()
+
+      await waitFor(() => container.querySelector('[data-testid="mcp-auth-mode-select"]') !== null)
+      await selectOption('[data-testid="mcp-auth-mode-select"]', 'bearer')
+
+      await waitFor(() => bodyText().includes('Generate a token first'))
+
+      // The hint must not promise a placeholder that the config does not contain:
+      // buildMcpClientConfig omits the Authorization header entirely without a token.
+      expect(bodyText()).not.toContain('uses a placeholder')
+      const config =
+        container.querySelector('[data-testid="mcp-config-claude-desktop"]')?.textContent ?? ''
+      expect(config).not.toContain('Authorization')
+      expect(config).not.toContain('headers')
+    }, 15000)
+
     it('copies the configuration to the clipboard', async () => {
       stubApi([...mcpRoutes(), catalogRoute()])
       renderMcp()
@@ -481,6 +499,35 @@ describe('MCP Hub', () => {
       expect(list?.textContent).toContain('GitHub')
       const integrationCalls = calls.filter((call) => call.includes('/api/v1/integrations?'))
       expect(integrationCalls.length).toBe(1)
+    }, 15000)
+
+    it('shows a retryable error state when the callable integrations list fails to load', async () => {
+      let failing = true
+      const { calls } = stubApi([
+        ...mcpRoutes(),
+        {
+          match: (url) => url.pathname === '/api/v1/integrations',
+          respond: () =>
+            failing
+              ? { status: 500, body: { message: 'catalog down' } }
+              : { status: 200, body: seekPage(ALL_SUMMARIES) },
+        },
+      ])
+      const container = renderMcp()
+
+      await waitFor(
+        () => container.querySelector('[data-testid="mcp-callable-integrations-error"]') !== null,
+        5000
+      )
+      expect(container.querySelector('[data-testid="mcp-callable-integrations"]')).toBeNull()
+
+      failing = false
+      await clickButtonWithText('Try again')
+
+      await waitFor(() => container.querySelector('[data-testid="mcp-callable-integrations"]') !== null)
+      const list = container.querySelector('[data-testid="mcp-callable-integrations"]')
+      expect(list?.textContent).toContain('GitHub')
+      expect(calls.filter((call) => call.includes('/api/v1/integrations')).length).toBe(2)
     }, 15000)
   })
 

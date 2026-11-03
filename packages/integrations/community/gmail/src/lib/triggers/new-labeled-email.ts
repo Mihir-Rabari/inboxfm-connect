@@ -107,12 +107,12 @@ export const gmailNewLabeledEmailTrigger = createTrigger({
 
       const historyResponse: { data: gmail_v1.Schema$ListHistoryResponse } =
         await gmail.users.history.list({
-        userId: 'me',
-        startHistoryId: lastHistoryId as string,
-        labelId: context.propsValue.label.id,
-        historyTypes: ['labelAdded', 'messageAdded'],
-        pageToken: token,
-      });
+          userId: 'me',
+          startHistoryId: lastHistoryId as string,
+          labelId: context.propsValue.label.id,
+          historyTypes: ['labelAdded', 'messageAdded'],
+          pageToken: token,
+        });
 
       latestHistoryId = historyResponse.data.historyId ?? latestHistoryId;
 
@@ -216,4 +216,3 @@ export const gmailNewLabeledEmailTrigger = createTrigger({
     return results;
   },
 });
-

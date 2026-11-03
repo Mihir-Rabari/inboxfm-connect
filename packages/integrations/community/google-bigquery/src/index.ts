@@ -64,4 +64,3 @@ export const googleBigQuery = createPiece({
     newJobCompletedTrigger,
   ],
 });
-

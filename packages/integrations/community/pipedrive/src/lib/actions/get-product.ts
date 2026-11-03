@@ -22,30 +22,14 @@ export const getProductAction = createAction({
 		}),
 	},
 	async run(context) {
+		let response: { data: Record<string, any> };
 		try {
-			const response = await pipedriveApiCall<Record<string, any>>({
+			response = await pipedriveApiCall<Record<string, any>>({
 				accessToken: context.auth.access_token,
 				apiDomain: context.auth.data['api_domain'],
 				method: HttpMethod.GET,
 				resourceUri: `/v2/products/${context.propsValue.productId}`,
 			});
-
-			const customFieldsResponse = await pipedrivePaginatedV1ApiCall<GetField>({
-				accessToken: context.auth.access_token,
-				apiDomain: context.auth.data['api_domain'],
-				method: HttpMethod.GET,
-				resourceUri: '/v1/productFields',
-			});
-
-			const updatedProductProperties = pipedriveTransformCustomFields(
-				customFieldsResponse,
-				response.data,
-			);
-
-			return {
-				found: true,
-				data: [updatedProductProperties],
-			};
 		} catch (error) {
 			if (error instanceof HttpError && error.response?.status === 404) {
 				return {
@@ -55,5 +39,24 @@ export const getProductAction = createAction({
 			}
 			throw error;
 		}
+
+		// A 404 from the custom-fields endpoint is a lookup failure, not a
+		// missing product. Keep it outside the product-not-found catch.
+		const customFieldsResponse = await pipedrivePaginatedV1ApiCall<GetField>({
+			accessToken: context.auth.access_token,
+			apiDomain: context.auth.data['api_domain'],
+			method: HttpMethod.GET,
+			resourceUri: '/v1/productFields',
+		});
+
+		const updatedProductProperties = pipedriveTransformCustomFields(
+			customFieldsResponse,
+			response.data,
+		);
+
+		return {
+			found: true,
+			data: [updatedProductProperties],
+		};
 	},
 });

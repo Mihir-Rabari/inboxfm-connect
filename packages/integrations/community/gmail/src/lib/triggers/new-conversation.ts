@@ -158,7 +158,38 @@ export const gmailNewConversationTrigger = createTrigger({
       defaultValue: 24,
     }),
   },
-  sampleData: {},
+  sampleData: {
+    thread: {
+      id: '18c9f4a1b2e3d4f5',
+      snippet: 'Hi team, Here is the quarterly report...',
+      messageCount: 1,
+    },
+    message: {
+      from: {
+        text: 'Jane Doe <sender@example.com>',
+        value: [{ address: 'sender@example.com', name: 'Jane Doe' }],
+      },
+      to: {
+        text: 'recipient@example.com',
+        value: [{ address: 'recipient@example.com', name: '' }],
+      },
+      subject: 'Quarterly Report',
+      messageId: '<CAGx7QuarterlyReport7794@example.com>',
+      threadId: '18c9f4a1b2e3d4f5',
+      date: '2026-10-15T10:30:00.000Z',
+      text: 'Hi team,\\n\\nHere is the quarterly report...\\n\\nBest,\\nJane',
+      html: '<p>Hi team,</p><p>Here is the quarterly report...</p><p>Best,<br>Jane</p>',
+      attachments: [],
+    },
+    conversation: {
+      starter: {
+        from: 'Jane Doe <sender@example.com>',
+        to: 'recipient@example.com',
+        subject: 'Quarterly Report',
+        date: 'Wed, 15 Oct 2026 10:30:00 +0000',
+      },
+    },
+  },
   type: TriggerStrategy.POLLING,
   onEnable: async (context) => {
     const authClient = await createGoogleClient(context.auth);

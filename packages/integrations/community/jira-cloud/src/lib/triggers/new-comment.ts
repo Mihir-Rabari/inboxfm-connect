@@ -123,7 +123,20 @@ Not sure what to write? Open Jira → Filters → Advanced search, build the fil
 		comment: {
 			id: '10023',
 			self: 'https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10023',
-			body: 'Investigating - looks like a regression from the last deploy.',
+			body: {
+				 type: 'doc',
+				 version: 1,
+				 content: [
+					{
+						type: 'paragraph',
+						content: [
+							{
+								type: 'text',
+								text: 'Investigating - looks like a regression from the last deploy.',
+							},
+						],
+					},
+				],
 			created: '2026-10-15T10:30:00.000+0000',
 			updated: '2026-10-15T10:30:00.000+0000',
 			author: {

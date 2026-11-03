@@ -91,9 +91,9 @@ export const readNewRows = createTrigger({
   sampleData: {
     row: 2,
     values: {
-      ID: 101,
-      Product: 'Widget',
-      Price: 19.99,
+      A: 101,
+      B: 'Widget',
+      C: 19.99,
     },
   },
   onEnable: async (context) => {

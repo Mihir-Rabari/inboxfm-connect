@@ -75,13 +75,13 @@ export const newBitlinkCreatedTrigger = createTrigger({
       
       console.log(`Bitly New Bitlink trigger initialized with ${linkIds.length} existing links`);
     } catch (error: any) {
-      if (error.response?.status === 401) {
+      if (error.message?.startsWith('Authentication Failed:')) {
         throw new Error(
           'Authentication failed: Please check your access token. Make sure your token has permission to access Bitlinks.'
         );
       }
       
-      if (error.response?.status === 403) {
+      if (error.message?.startsWith('Access Forbidden:')) {
         throw new Error(
           'Access denied: You do not have permission to list Bitlinks. Please check your Bitly account permissions.'
         );
@@ -171,7 +171,7 @@ export const newBitlinkCreatedTrigger = createTrigger({
         );
       }
       
-      if (error.response?.status === 429) {
+      if (error.message?.startsWith('Rate Limit Exceeded:')) {
         throw new Error(
           'Rate limit exceeded: Bitly API rate limit reached. Consider increasing your polling interval.'
         );

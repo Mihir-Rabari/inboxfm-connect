@@ -740,4 +740,3 @@ export const newLabeledEmailTriggerOutputSchema: OutputSchema = {
     },
   ],
 };
-

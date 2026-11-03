@@ -30,7 +30,16 @@ const polling: Polling<
       0
     );
     const deletedIds = changes.deleted?.length ?? 0;
-    if (changedObjectIds === 0 && deletedIds === 0) {
+    // Webling reports metadata changes outside the record-ID collections.
+    const hasOtherChanges =
+      (changes.context?.length ?? 0) > 0 ||
+      (changes.definitions?.length ?? 0) > 0 ||
+      changes.settings === true ||
+      changes.quota === true ||
+      changes.subscription === true ||
+      changes.revision !== undefined ||
+      changes.version !== undefined;
+    if (changedObjectIds === 0 && deletedIds === 0 && !hasOtherChanges) {
       return [];
     }
 

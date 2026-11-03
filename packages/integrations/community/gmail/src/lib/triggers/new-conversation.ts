@@ -166,19 +166,15 @@ export const gmailNewConversationTrigger = createTrigger({
 
     const profile = await gmail.users.getProfile({ userId: 'me' });
     await context.store.put('lastHistoryId', profile.data.historyId);
-    await context.store.put('processedThreads', []);
   },
   onDisable: async (context) => {
     await context.store.delete('lastHistoryId');
-    await context.store.delete('processedThreads');
   },
   run: async (context) => {
     const authClient = await createGoogleClient(context.auth);
     const gmail = googleGmail({ version: 'v1', auth: authClient });
 
     const lastHistoryId = await context.store.get('lastHistoryId');
-    const processedThreads =
-      (await context.store.get<string[]>('processedThreads')) || [];
     const maxAge = (context.propsValue.maxAgeHours || 24) * 60 * 60 * 1000;
     const cutoffTime = Date.now() - maxAge;
 
@@ -213,7 +209,6 @@ export const gmailNewConversationTrigger = createTrigger({
                 const threadId = added.message?.threadId;
                 if (
                   threadId &&
-                  !processedThreads.includes(threadId) &&
                   !candidateThreadIds.includes(threadId)
                 ) {
                   candidateThreadIds.push(threadId);
@@ -324,15 +319,11 @@ export const gmailNewConversationTrigger = createTrigger({
           },
         });
 
-        processedThreads.push(threadId);
       }
 
       if (latestHistoryId) {
         await context.store.put('lastHistoryId', latestHistoryId);
       }
-
-      const recentThreads = processedThreads.slice(-1000);
-      await context.store.put('processedThreads', recentThreads);
 
       return results;
     } catch (error: any) {

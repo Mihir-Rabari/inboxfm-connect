@@ -75,13 +75,13 @@ export const newBitlinkCreatedTrigger = createTrigger({
       
       console.log(`Bitly New Bitlink trigger initialized with ${linkIds.length} existing links`);
     } catch (error: any) {
-      if (error.response?.status === 401) {
+      if (error.message?.startsWith('Authentication Failed:')) {
         throw new Error(
           'Authentication failed: Please check your access token. Make sure your token has permission to access Bitlinks.'
         );
       }
       
-      if (error.response?.status === 403) {
+      if (error.message?.startsWith('Access Forbidden:')) {
         throw new Error(
           'Access denied: You do not have permission to list Bitlinks. Please check your Bitly account permissions.'
         );
@@ -171,7 +171,7 @@ export const newBitlinkCreatedTrigger = createTrigger({
         );
       }
       
-      if (error.response?.status === 429) {
+      if (error.message?.startsWith('Rate Limit Exceeded:')) {
         throw new Error(
           'Rate limit exceeded: Bitly API rate limit reached. Consider increasing your polling interval.'
         );
@@ -231,78 +231,17 @@ export const newBitlinkCreatedTrigger = createTrigger({
           },
         ];
       } else {
-        return [
-          {
-            id: 'bit.ly/test123',
-            link: 'https://bit.ly/test123',
-            longUrl: 'https://example.com/very-long-url',
-            title: 'Sample Bitlink',
-            tags: ['sample', 'test'],
-            isArchived: false,
-            createdAt: '2025-01-15T10:00:00+0000',
-            modifiedAt: '2025-01-15T10:00:00+0000',
-            customBitlinks: [],
-            references: {
-              group: 'Ba1bc23dE4F',
-            },
-            rawLinkData: {
-              id: 'bit.ly/test123',
-              link: 'https://bit.ly/test123',
-              long_url: 'https://example.com/very-long-url',
-              title: 'Sample Bitlink',
-              tags: ['sample', 'test'],
-              archived: false,
-              created_at: '2025-01-15T10:00:00+0000',
-              modified_at: '2025-01-15T10:00:00+0000',
-              custom_bitlinks: [],
-              references: {
-                group: 'Ba1bc23dE4F',
-              },
-            },
-            triggerInfo: {
-              detectedAt: new Date().toISOString(),
-              source: 'bitly',
-              type: 'new_bitlink',
-            },
-          },
-        ];
+        return [];
       }
     } catch (error: any) {
-      return [
-        {
-          id: 'bit.ly/test123',
-          link: 'https://bit.ly/test123',
-          longUrl: 'https://example.com/test-url',
-          title: 'Test Bitlink',
-          tags: ['test'],
-          isArchived: false,
-          createdAt: '2025-01-15T10:00:00+0000',
-          modifiedAt: '2025-01-15T10:00:00+0000',
-          customBitlinks: [],
-          references: {
-            group: 'Ba1bc23dE4F',
-          },
-          rawLinkData: {
-            id: 'bit.ly/test123',
-            link: 'https://bit.ly/test123',
-            long_url: 'https://example.com/test-url',
-            title: 'Test Bitlink',
-            tags: ['test'],
-            archived: false,
-            created_at: '2025-01-15T10:00:00+0000',
-            modified_at: '2025-01-15T10:00:00+0000',
-            custom_bitlinks: [],
-            references: {
-              group: 'Ba1bc23dE4F',
-            },
-          },
-          triggerInfo: {
-            detectedAt: new Date().toISOString(),
-            source: 'bitly',
-            type: 'new_bitlink',
-          },
-        },
-      ];
+      if (error.response?.status === 401) {
+        throw new Error(
+          'Authentication failed: Your access token may have expired. Please check your Bitly authentication.'
+        );
+      }
+      throw new Error(
+        `Failed to fetch Bitlinks: ${error.message || 'Unknown error occurred'}`
+      );
     }
   },
 

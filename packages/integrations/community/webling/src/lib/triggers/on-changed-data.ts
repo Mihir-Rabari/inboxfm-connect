@@ -36,9 +36,7 @@ const polling: Polling<
       (changes.definitions?.length ?? 0) > 0 ||
       changes.settings === true ||
       changes.quota === true ||
-      changes.subscription === true ||
-      changes.revision !== undefined ||
-      changes.version !== undefined;
+      changes.subscription === true;
     if (changedObjectIds === 0 && deletedIds === 0 && !hasOtherChanges) {
       return [];
     }

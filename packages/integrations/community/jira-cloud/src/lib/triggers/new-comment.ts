@@ -124,9 +124,9 @@ Not sure what to write? Open Jira → Filters → Advanced search, build the fil
 			id: '10023',
 			self: 'https://your-domain.atlassian.net/rest/api/3/issue/10001/comment/10023',
 			body: {
-				 type: 'doc',
-				 version: 1,
-				 content: [
+				type: 'doc',
+				version: 1,
+				content: [
 					{
 						type: 'paragraph',
 						content: [
@@ -137,6 +137,7 @@ Not sure what to write? Open Jira → Filters → Advanced search, build the fil
 						],
 					},
 				],
+			},
 			created: '2026-10-15T10:30:00.000+0000',
 			updated: '2026-10-15T10:30:00.000+0000',
 			author: {

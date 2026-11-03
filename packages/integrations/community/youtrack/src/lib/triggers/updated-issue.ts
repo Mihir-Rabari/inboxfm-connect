@@ -18,22 +18,30 @@ const polling: Polling<AppConnectionValueForAuthProperty<typeof youtrackAuth>, R
     const since = new Date(lastFetchEpochMS - 24 * 60 * 60 * 1000)
       .toISOString()
       .slice(0, 19);
-    const response = await youtrackApiCall<Array<Record<string, unknown>>>({
-      baseUrl: auth.props.baseUrl,
-      token: auth.props.apiToken,
-      method: HttpMethod.GET,
-      path: '/issues',
-      queryParams: {
-        fields: ISSUE_FIELDS,
-        query: 'updated: ' + since + ' .. *',
-        '$top': '50',
-      },
-    });
-    return (response.body || [])
-      // The old query tried to exclude issues created after the last poll
-      // (`created: {before <epoch>}`) so brand-new issues only fire the New
-      // Issue trigger. Keep that split client-side; test mode
-      // (lastFetchEpochMS === 0) still shows sample issues.
+    const issues: Array<Record<string, unknown>> = [];
+    const pageSize = 50;
+    let skip = 0;
+    while (true) {
+      const response = await youtrackApiCall<Array<Record<string, unknown>>>({
+        baseUrl: auth.props.baseUrl,
+        token: auth.props.apiToken,
+        method: HttpMethod.GET,
+        path: '/issues',
+        queryParams: {
+          fields: ISSUE_FIELDS,
+          query: 'updated: ' + since + ' .. *',
+          '$top': String(pageSize),
+          '$skip': String(skip),
+        },
+      });
+      const page = response.body || [];
+      issues.push(...page);
+      if (page.length < pageSize) {
+        break;
+      }
+      skip += page.length;
+    }
+    return issues
       .filter(
         (issue) =>
           lastFetchEpochMS === 0 ||

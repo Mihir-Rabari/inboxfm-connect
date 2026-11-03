@@ -29,9 +29,7 @@ export const newReview = createTrigger({
   },
   sampleData: {
     name: 'accounts/106385697981783857474/locations/123456789012345/reviews/AZ5456',
-    relativePublishTimeDescription: '2 days ago',
     starRating: 'FIVE',
-    rating: 5,
     comment: 'Great service, highly recommended!',
     createTime: '2026-10-13T09:15:00Z',
     updateTime: '2026-10-13T09:15:00Z',

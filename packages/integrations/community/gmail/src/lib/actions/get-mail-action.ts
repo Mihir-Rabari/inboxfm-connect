@@ -50,4 +50,3 @@ export const gmailGetEmailAction = createAction({
     };
   },
 });
-

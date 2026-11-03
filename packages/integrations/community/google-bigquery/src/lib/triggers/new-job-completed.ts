@@ -154,7 +154,7 @@ export const newJobCompletedTrigger = createTrigger({
     created_at: '2024-01-15T10:20:00.000Z',
     started_at: '2024-01-15T10:20:05.000Z',
     completed_at: '2024-01-15T10:30:00.000Z',
-    bytes_processed: 2048,
+    bytes_processed: '2048',
     cache_hit: false,
     dml_inserted_rows: null,
     dml_deleted_rows: null,

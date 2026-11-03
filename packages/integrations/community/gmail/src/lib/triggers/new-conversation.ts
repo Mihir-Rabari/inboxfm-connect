@@ -159,27 +159,12 @@ export const gmailNewConversationTrigger = createTrigger({
     }),
   },
   sampleData: {
-    conversation: {
-      threadId: '18c9f4a1b2e3d4f5',
-      messageCount: 1,
+    thread: {
+      id: '18c9f4a1b2e3d4f5',
       snippet: 'Hi team, Here is the quarterly report...',
-      historyId: '3547892',
-      participants: {
-        from: ['Jane Doe <sender@example.com>'],
-        to: ['recipient@example.com'],
-        cc: [],
-      },
-      subject: 'Quarterly Report',
-      starter: {
-        from: 'Jane Doe <sender@example.com>',
-        to: 'recipient@example.com',
-        cc: '',
-        bcc: '',
-        date: 'Wed, 15 Oct 2026 10:30:00 +0000',
-        messageId: '18d5f2b8c9e0a1f2',
-      },
+      messageCount: 1,
     },
-    firstMessage: {
+    message: {
       from: {
         text: 'Jane Doe <sender@example.com>',
         value: [{ address: 'sender@example.com', name: 'Jane Doe' }],
@@ -190,15 +175,19 @@ export const gmailNewConversationTrigger = createTrigger({
       },
       subject: 'Quarterly Report',
       messageId: '<CAGx7QuarterlyReport7794@example.com>',
+      threadId: '18c9f4a1b2e3d4f5',
       date: '2026-10-15T10:30:00.000Z',
-      text: 'Hi team,\n\nHere is the quarterly report...\n\nBest,\nJane',
+      text: 'Hi team,\\n\\nHere is the quarterly report...\\n\\nBest,\\nJane',
       html: '<p>Hi team,</p><p>Here is the quarterly report...</p><p>Best,<br>Jane</p>',
       attachments: [],
     },
-    conversationInfo: {
-      createdAt: 1760521800000,
-      historyId: '3547892',
-      triggeredAt: 1760521800000,
+    conversation: {
+      starter: {
+        from: 'Jane Doe <sender@example.com>',
+        to: 'recipient@example.com',
+        subject: 'Quarterly Report',
+        date: 'Wed, 15 Oct 2026 10:30:00 +0000',
+      },
     },
   },
   type: TriggerStrategy.POLLING,

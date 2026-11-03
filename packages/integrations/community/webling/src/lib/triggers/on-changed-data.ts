@@ -20,13 +20,33 @@ const polling: Polling<
   strategy: DedupeStrategy.TIMEBASED,
   items: async ({ auth, propsValue, lastFetchEpochMS }) => {
     const changes: WeblingChanges = await getChanges(auth, lastFetchEpochMS);
-    const items = [
+
+    // getChanges always resolves with a changes object, even when nothing
+    // changed since the last request. Guard against emitting that empty
+    // batch on every poll: without this check, the item below would always
+    // be newer than `lastPoll` and the trigger would fire on each poll.
+    const changedObjectIds = Object.values(changes.objects ?? {}).reduce(
+      (acc, ids) => acc + (ids?.length ?? 0),
+      0
+    );
+    const deletedIds = changes.deleted?.length ?? 0;
+    // Webling reports metadata changes outside the record-ID collections.
+    const hasOtherChanges =
+      (changes.context?.length ?? 0) > 0 ||
+      (changes.definitions?.length ?? 0) > 0 ||
+      changes.settings === true ||
+      changes.quota === true ||
+      changes.subscription === true;
+    if (changedObjectIds === 0 && deletedIds === 0 && !hasOtherChanges) {
+      return [];
+    }
+
+    return [
       {
-        epochMilliSeconds: Date.now(), // maybe use revision instead?
+        epochMilliSeconds: Date.now(),
         data: changes,
       },
     ];
-    return items;
   },
 };
 

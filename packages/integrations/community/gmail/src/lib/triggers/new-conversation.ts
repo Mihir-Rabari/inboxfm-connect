@@ -6,7 +6,7 @@ import {
 } from '@inboxfm-connect/pieces-framework';
 import { GmailProps } from '../common/props';
 import { gmailAuth, createGoogleClient } from '../auth';
-import { gmail as googleGmail } from '@googleapis/gmail';
+import { gmail as googleGmail, gmail_v1 } from '@googleapis/gmail';
 import { parseStream, convertAttachment } from '../common/data';
 
 async function enrichNewConversation({
@@ -166,50 +166,69 @@ export const gmailNewConversationTrigger = createTrigger({
 
     const profile = await gmail.users.getProfile({ userId: 'me' });
     await context.store.put('lastHistoryId', profile.data.historyId);
-    await context.store.put('processedThreads', []);
   },
   onDisable: async (context) => {
     await context.store.delete('lastHistoryId');
-    await context.store.delete('processedThreads');
   },
   run: async (context) => {
     const authClient = await createGoogleClient(context.auth);
     const gmail = googleGmail({ version: 'v1', auth: authClient });
 
     const lastHistoryId = await context.store.get('lastHistoryId');
-    const processedThreads =
-      (await context.store.get<string[]>('processedThreads')) || [];
     const maxAge = (context.propsValue.maxAgeHours || 24) * 60 * 60 * 1000;
     const cutoffTime = Date.now() - maxAge;
 
     try {
-      const historyResponse = await gmail.users.history.list({
-        userId: 'me',
-        startHistoryId: lastHistoryId as string,
-        historyTypes: ['messageAdded'],
-        maxResults: 100,
-      });
+      // history.list paginates (~100 history records per page). Drain every
+      // page before advancing the cursor: the response historyId is the
+      // mailbox's CURRENT history id, so storing it after reading only the
+      // first page would permanently skip message-added events on later
+      // pages.
+      let pageToken: string | undefined = undefined;
+      let latestHistoryId: string | undefined = undefined;
+      const candidateThreadIds: string[] = [];
 
-      const newConversations: string[] = [];
+      do {
+        const token: string | undefined = pageToken;
 
-      if (historyResponse.data.history) {
-        for (const history of historyResponse.data.history) {
-          if (history.messagesAdded) {
-            for (const added of history.messagesAdded) {
-              const threadId = added.message?.threadId;
-              if (threadId && !processedThreads.includes(threadId)) {
-                const threadResponse = await gmail.users.threads.get({
-                  userId: 'me',
-                  id: threadId,
-                  format: 'minimal',
-                });
+        const historyResponse: { data: gmail_v1.Schema$ListHistoryResponse } =
+          await gmail.users.history.list({
+            userId: 'me',
+            startHistoryId: lastHistoryId as string,
+            historyTypes: ['messageAdded'],
+            maxResults: 100,
+            pageToken: token,
+          });
 
-                if (threadResponse.data.messages?.length === 1) {
-                  newConversations.push(threadId);
+        latestHistoryId = historyResponse.data.historyId ?? latestHistoryId;
+
+        if (historyResponse.data.history) {
+          for (const history of historyResponse.data.history) {
+            if (history.messagesAdded) {
+              for (const added of history.messagesAdded) {
+                const threadId = added.message?.threadId;
+                if (threadId && !candidateThreadIds.includes(threadId)) {
+                  candidateThreadIds.push(threadId);
                 }
               }
             }
           }
+        }
+
+        pageToken = historyResponse.data.nextPageToken ?? undefined;
+      } while (pageToken);
+
+      const newConversations: string[] = [];
+
+      for (const threadId of candidateThreadIds) {
+        const threadResponse = await gmail.users.threads.get({
+          userId: 'me',
+          id: threadId,
+          format: 'minimal',
+        });
+
+        if (threadResponse.data.messages?.length === 1) {
+          newConversations.push(threadId);
         }
       }
 
@@ -297,18 +316,11 @@ export const gmailNewConversationTrigger = createTrigger({
           },
         });
 
-        processedThreads.push(threadId);
       }
 
-      if (historyResponse.data.historyId) {
-        await context.store.put(
-          'lastHistoryId',
-          historyResponse.data.historyId
-        );
+      if (latestHistoryId) {
+        await context.store.put('lastHistoryId', latestHistoryId);
       }
-
-      const recentThreads = processedThreads.slice(-1000);
-      await context.store.put('processedThreads', recentThreads);
 
       return results;
     } catch (error: any) {
@@ -411,4 +423,3 @@ export const gmailNewConversationTrigger = createTrigger({
     return results;
   },
 });
-

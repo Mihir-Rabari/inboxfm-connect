@@ -37,4 +37,3 @@ export const gmailGetThread = createAction({
       format: format ?? GmailMessageFormat.FULL,
     }),
 });
-

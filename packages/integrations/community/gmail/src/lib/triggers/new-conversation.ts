@@ -207,10 +207,7 @@ export const gmailNewConversationTrigger = createTrigger({
             if (history.messagesAdded) {
               for (const added of history.messagesAdded) {
                 const threadId = added.message?.threadId;
-                if (
-                  threadId &&
-                  !candidateThreadIds.includes(threadId)
-                ) {
+                if (threadId && !candidateThreadIds.includes(threadId)) {
                   candidateThreadIds.push(threadId);
                 }
               }
@@ -426,4 +423,3 @@ export const gmailNewConversationTrigger = createTrigger({
     return results;
   },
 });
-

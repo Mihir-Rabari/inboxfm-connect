@@ -14,13 +14,13 @@ import { AIProviderName } from '@/lib/api/ai-providers'
 
 export interface AIProvidersTableProps {
   providers: AIProviderWithoutSensitiveData[]
+  /** Set false for non-admin users: edit/delete and the chat toggle hit admin-only endpoints. */
+  canManage?: boolean
   onEdit: (provider: AIProviderWithoutSensitiveData) => void
   onDelete: (provider: AIProviderWithoutSensitiveData) => void
   onBrowseModels: (provider: AIProviderWithoutSensitiveData) => void
   onToggleChat: (provider: AIProviderWithoutSensitiveData, enabled: boolean) => void
   togglingId?: string | null
-  /** Set false for non-admin users: edit/delete and the chat toggle hit admin-only endpoints. */
-  canManage?: boolean
 }
 
 const PROVIDER_NAMES: Record<string, string> = {
@@ -38,12 +38,12 @@ const PROVIDER_NAMES: Record<string, string> = {
 
 export function AIProvidersTable({
   providers,
+  canManage = true,
   onEdit,
   onDelete,
   onBrowseModels,
   onToggleChat,
   togglingId,
-  canManage = true,
 }: AIProvidersTableProps) {
   return (
     <div className="overflow-x-auto rounded-lg border border-border">

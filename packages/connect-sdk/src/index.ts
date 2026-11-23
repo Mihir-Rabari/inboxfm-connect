@@ -10,7 +10,7 @@ import type {
     ToolInput,
     ToolInputContract,
 } from './api-types'
-import { ConnectError } from './errors'
+import { ConnectError, connectErrorFactory } from './errors'
 import { transport } from './transport'
 
 const DEFAULT_TIMEOUT_MS = 10_000
@@ -139,7 +139,12 @@ export class InboxFM {
                 headers,
                 query,
                 body,
-                timeoutMs,
+                // The server's ConnectProxyRequest schema bounds this upstream budget
+                // to [500, 60000] ms (integer); anything else is a 400 on every call.
+                // The SDK reuses its transport `timeoutMs` option as this value, so a
+                // legitimate client-side budget (e.g. 2 minutes) must not fail the
+                // request server-side — normalize it into the accepted range.
+                timeoutMs: toUpstreamTimeoutMs(timeoutMs),
                 idempotencyKey,
             },
             idempotencyKey,
@@ -149,19 +154,33 @@ export class InboxFM {
     }
 
     private async request<T>(path: string, { method, body, ...requestOptions }: { method: string, body?: unknown } & ConnectRequestOptions): Promise<T> {
-        return transport.request<T>({
-            url: `${this.baseUrl}${path}`,
-            method,
-            body,
-            apiKey: this.apiKey,
-            timeoutMs: requestOptions.timeoutMs ?? this.defaultTimeoutMs,
-            maxAttempts: this.maxAttempts,
-            baseDelayMs: this.baseDelayMs,
-            maxDelayMs: this.maxDelayMs,
-            signal: requestOptions.signal,
-            retryable: requestOptions.retryable,
-            idempotencyKey: requestOptions.idempotencyKey,
-        })
+        try {
+            return await transport.request<T>({
+                url: `${this.baseUrl}${path}`,
+                method,
+                body,
+                apiKey: this.apiKey,
+                timeoutMs: requestOptions.timeoutMs ?? this.defaultTimeoutMs,
+                maxAttempts: this.maxAttempts,
+                baseDelayMs: this.baseDelayMs,
+                maxDelayMs: this.maxDelayMs,
+                signal: requestOptions.signal,
+                retryable: requestOptions.retryable,
+                idempotencyKey: requestOptions.idempotencyKey,
+            })
+        }
+        catch (error) {
+            // The README promises every failed request rejects with a ConnectError,
+            // never a bare Error. A 2xx whose body is not the promised JSON (an HTML
+            // error page from a captive portal or misrouted gateway, an empty body)
+            // makes the body parse throw a bare SyntaxError; surface it typed instead.
+            // It is marked retryable (like a 502: transient in principle), but the
+            // decision to retry lives in the transport, which has already returned.
+            if (error instanceof SyntaxError) {
+                throw connectErrorFactory.fromMalformedBody({ cause: error })
+            }
+            throw error
+        }
     }
 }
 
@@ -186,6 +205,31 @@ function toToolInput({ name, prop }: { name: string, prop: ToolInputContract }):
         required: prop.required,
         ...(prop.description !== undefined ? { description: prop.description } : {}),
     }
+}
+
+// The server's `ConnectProxyRequest` zod contract accepts an integer upstream
+// timeout of 500..60000 ms and defaults to 30000 when the field is omitted
+// (`packages/core/shared/src/lib/connect-proxy/index.ts`). Values outside that
+// range are rejected with a 400 on every call, and `JSON.stringify` writes a
+// non-finite number as `null`, which the server rejects the same way.
+const PROXY_UPSTREAM_TIMEOUT_MIN_MS = 500
+const PROXY_UPSTREAM_TIMEOUT_MAX_MS = 60_000
+
+/**
+ * Normalizes the caller's `timeoutMs` into the upstream budget the server
+ * accepts: in-range values pass through untouched, out-of-range or non-integer
+ * values are clamped/rounded into the accepted window, and unusable values
+ * (undefined, NaN, Infinity) are dropped so the server applies its own default.
+ * The caller's client-side transport timeout is not altered by this.
+ */
+function toUpstreamTimeoutMs(timeoutMs: number | undefined): number | undefined {
+    if (timeoutMs === undefined || !Number.isFinite(timeoutMs)) {
+        return undefined
+    }
+    return Math.min(
+        PROXY_UPSTREAM_TIMEOUT_MAX_MS,
+        Math.max(PROXY_UPSTREAM_TIMEOUT_MIN_MS, Math.round(timeoutMs)),
+    )
 }
 
 export { ConnectError }

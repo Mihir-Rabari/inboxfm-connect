@@ -34,8 +34,16 @@ parser.functions.combine = (a: unknown, b: unknown, sep: unknown = '') =>
     `${a ?? ''}${String(sep)}${b ?? ''}`
 parser.functions.uppercase = (s: unknown) => String(s ?? '').toUpperCase()
 parser.functions.lowercase = (s: unknown) => String(s ?? '').toLowerCase()
+// Word starts are matched with \p{L}, not the ASCII-only \w: `\w\S*` left a word
+// that begins with a non-ASCII letter uncapitalized and then capitalized its
+// SECOND letter (titlecase("élan vital") -> "éLan Vital"); Cyrillic/CJK text was
+// not capitalized at all. A hyphen or underscore separates words, the in-word
+// apostrophe does not (so "MCDONALD'S" -> "Mcdonald's", not "Mcdonald'S").
 parser.functions.titlecase = (s: unknown) =>
-    String(s ?? '').replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    String(s ?? '')
+        .toLowerCase()
+        .replace(/(^|[^\p{L}\p{N}'])(\p{L})/gu, (_match, separator: string, letter: string) =>
+            separator + letter.toUpperCase())
 parser.functions.trim = (s: unknown) => String(s ?? '').trim()
 parser.functions.prefix = (s: unknown, pfx: unknown) => `${String(pfx ?? '')}${String(s ?? '')}`
 parser.functions.suffix = (s: unknown, sfx: unknown) => `${String(s ?? '')}${String(sfx ?? '')}`
@@ -43,17 +51,32 @@ parser.functions.replace = (s: unknown, from: unknown, to: unknown) =>
     String(s ?? '').split(String(from ?? '')).join(String(to ?? ''))
 parser.functions.remove = (s: unknown, sub: unknown) =>
     String(s ?? '').split(String(sub ?? '')).join('')
+// Text functions operate on CHARACTERS, not UTF-16 code units: `length("😀")`
+// was 2 and `first_n("😀abc"; 1)` returned the lone high surrogate "\ud83d" —
+// a string that cannot be encoded and is replaced by U+FFFD downstream (see
+// sanitizeObjectForPostgresql, which exists to strip such halves before they
+// reach the database). `reverse` already used code points; the rest now do too.
+// Code points, not grapheme clusters: full segmentation would need
+// Intl.Segmenter and would also change length() for combining accents.
+function toCharacters(value: unknown): string[] {
+    return Array.from(String(value ?? ''))
+}
+// Lists are counted by items (expr-eval's built-in unary `length` did that too,
+// so `length({{list}})` keeps working); everything else by code points.
+function codePointLength(value: unknown): number {
+    return Array.isArray(value) ? value.length : toCharacters(value).length
+}
 parser.functions.first_n = (s: unknown, n: unknown) =>
-    String(s ?? '').slice(0, Number(n))
+    toCharacters(s).slice(0, Number(n)).join('')
 parser.functions.last_n = (s: unknown, n: unknown) => {
-    const str = String(s ?? '')
+    const chars = toCharacters(s)
     const num = Number(n)
-    return str.slice(Math.max(0, str.length - num))
+    return chars.slice(Math.max(0, chars.length - num)).join('')
 }
 parser.functions.truncate = (s: unknown, n: unknown) => {
-    const str = String(s ?? '')
+    const chars = toCharacters(s)
     const num = Number(n)
-    return str.length > num ? str.slice(0, num) + '...' : str
+    return chars.length > num ? chars.slice(0, num).join('') + '...' : chars.join('')
 }
 parser.functions.split = (s: unknown, sep: unknown, idx: unknown) => {
     const parts = String(s ?? '').split(String(sep ?? ''))
@@ -77,7 +100,11 @@ parser.functions.extract_url = (s: unknown) => {
     const match = String(s ?? '').match(/https?:\/\/[^\s]+/)
     return match ? match[0] : ''
 }
-parser.functions.length = (s: unknown) => String(s ?? '').length
+parser.functions.length = (s: unknown) => codePointLength(s)
+// `length` is also a built-in expr-eval unary operator, which is what actually
+// runs for the documented `length( text )` syntax — see normalizeExpression.
+// The alias below receives the rewritten call.
+parser.functions.ap_length = (s: unknown) => codePointLength(s)
 parser.functions.contains = (s: unknown, sub: unknown) =>
     String(s ?? '').includes(String(sub ?? ''))
 parser.functions.starts_with = (s: unknown, prefix: unknown) =>
@@ -112,9 +139,20 @@ parser.functions.repeat = (s: unknown, count: unknown) => {
     return String(s ?? '').repeat(n)
 }
 parser.functions.reverse = (s: unknown) => [...String(s ?? '')].reverse().join('')
+// Only letters that NFKD decomposes into ASCII survive the [^a-z0-9] strip below;
+// ß, Ø, Æ, Ł, Đ, Þ and friends do not decompose, so they were treated as
+// separators and lost: slug("Straße 5") was "stra-e-5" and slug("Øre") was "re"
+// — distinct titles collapsing onto one URL key. Fold those letters explicitly
+// before decomposing. (Non-Latin scripts are still dropped; transliterating
+// Cyrillic/CJK is a separate, much larger table.)
+const LATIN_LETTER_FOLDS: Record<string, string> = {
+    'ß': 'ss', 'æ': 'ae', 'œ': 'oe', 'ø': 'o', 'đ': 'd', 'ð': 'd', 'þ': 'th',
+    'ł': 'l', 'ı': 'i', 'ħ': 'h', 'ŋ': 'n', 'ŧ': 't', 'ĳ': 'ij', 'ſ': 's',
+}
 parser.functions.slug = (s: unknown) =>
     String(s ?? '')
         .toLowerCase()
+        .replace(/[ßæœøđðþłıħŋŧĳſ]/g, (letter) => LATIN_LETTER_FOLDS[letter] ?? letter)
         .normalize('NFKD')
         .replace(/[\u0300-\u036f]/g, '')
         .replace(/[^a-z0-9]+/g, '-')
@@ -172,85 +210,109 @@ parser.functions.sign = (n: unknown) => {
     return Object.is(s, -0) ? 0 : s
 }
 
+// Date inputs arrive as date strings, `Date` objects, or epoch milliseconds —
+// a formula arg read from a variable keeps its number type. `dayjs(String(d))`
+// turned a 13-digit epoch into a date *string*, which dayjs reads as a year:
+// 1705316400000-01-01 overflows into 1707-09-02, so every epoch timestamp
+// (webhook `created_at`, table date columns) formatted to a nonsense date, and
+// epoch 0 became 1999-12-31. Pass numbers straight to dayjs and treat long
+// all-digit strings the same way (the implicit-quoting pass hands a bare epoch
+// literal to a date slot as text).
+const EPOCH_MILLIS_PATTERN = /^-?\d{11,}$/
+
+function toDayjs(value: unknown, options: { utc?: boolean } = {}): dayjs.Dayjs {
+    const factory = options.utc ? dayjs.utc : dayjs
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? factory(value) : factory(Number.NaN)
+    }
+    if (typeof value === 'string' && EPOCH_MILLIS_PATTERN.test(value.trim())) {
+        return factory(Number(value.trim()))
+    }
+    if (value instanceof Date) {
+        return factory(value)
+    }
+    return factory(String(value ?? ''))
+}
+
 parser.functions.format_date = (d: unknown, pattern: unknown = 'YYYY-MM-DD') => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.format(String(pattern)) : ''
 }
 parser.functions.format_date_long = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     if (!parsed.isValid()) return ''
     return parsed.toDate().toLocaleDateString('en-US', {
         weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     })
 }
 parser.functions.format_time = (d: unknown, pattern: unknown = 'HH:mm') => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.format(String(pattern)) : ''
 }
 parser.functions.relative_time = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.fromNow() : ''
 }
 parser.functions.add_days = (d: unknown, n: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.add(Number(n), 'day').toISOString() : ''
 }
 parser.functions.subtract_days = (d: unknown, n: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.subtract(Number(n), 'day').toISOString() : ''
 }
 parser.functions.add_hours = (d: unknown, n: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.add(Number(n), 'hour').toISOString() : ''
 }
 parser.functions.days_between = (a: unknown, b: unknown) => {
-    const da = dayjs(String(a ?? ''))
-    const db = dayjs(String(b ?? ''))
+    const da = toDayjs(a)
+    const db = toDayjs(b)
     if (!da.isValid() || !db.isValid()) return ''
     return Math.round(Math.abs(db.diff(da, 'day', true)))
 }
 parser.functions.get_day = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.date() : ''
 }
 parser.functions.get_month = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.toDate().toLocaleDateString('en-US', { month: 'long' }) : ''
 }
 parser.functions.get_year = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.year() : ''
 }
 parser.functions.get_day_of_week = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.toDate().toLocaleDateString('en-US', { weekday: 'long' }) : ''
 }
 parser.functions.start_of_month = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.startOf('month').toISOString() : ''
 }
 parser.functions.end_of_month = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.endOf('month').toISOString() : ''
 }
 parser.functions.convert_timezone = (d: unknown, tz: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     if (!parsed.isValid()) return ''
     return parsed.tz(String(tz ?? 'UTC')).format()
 }
 parser.functions.now = () => new Date().toISOString()
 parser.functions.today = () => dayjs().format('YYYY-MM-DD')
 parser.functions.to_date = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.toISOString() : ''
 }
 parser.functions.add_minutes = (d: unknown, n: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = toDayjs(d)
     return parsed.isValid() ? parsed.add(Number(n), 'minute').toISOString() : ''
 }
 parser.functions.hours_between = (a: unknown, b: unknown) => {
-    const da = dayjs(String(a ?? ''))
-    const db = dayjs(String(b ?? ''))
+    const da = toDayjs(a)
+    const db = toDayjs(b)
     if (!da.isValid() || !db.isValid()) return ''
     // floor (not round): 8h 30min is "8 complete hours between", not 9.
     return Math.floor(Math.abs(db.diff(da, 'hour', true)))
@@ -261,22 +323,22 @@ parser.functions.hours_between = (a: unknown, b: unknown) => {
 // timestamp into local time first, then snap to local midnight, which both
 // disagrees with the doc examples and makes flow output depend on host TZ.
 parser.functions.start_of_day = (d: unknown) => {
-    const parsed = dayjs.utc(String(d ?? ''))
+    const parsed = toDayjs(d, { utc: true })
     return parsed.isValid() ? parsed.startOf('day').toISOString() : ''
 }
 parser.functions.end_of_day = (d: unknown) => {
-    const parsed = dayjs.utc(String(d ?? ''))
+    const parsed = toDayjs(d, { utc: true })
     return parsed.isValid() ? parsed.endOf('day').toISOString() : ''
 }
 parser.functions.is_before = (a: unknown, b: unknown) => {
-    const da = dayjs(String(a ?? ''))
-    const db = dayjs(String(b ?? ''))
+    const da = toDayjs(a)
+    const db = toDayjs(b)
     if (!da.isValid() || !db.isValid()) return false
     return da.isBefore(db)
 }
 parser.functions.is_after = (a: unknown, b: unknown) => {
-    const da = dayjs(String(a ?? ''))
-    const db = dayjs(String(b ?? ''))
+    const da = toDayjs(a)
+    const db = toDayjs(b)
     if (!da.isValid() || !db.isValid()) return false
     return da.isAfter(db)
 }

@@ -171,4 +171,3 @@ async function pollRecentMessages({
 
   return pollingResponse;
 }
-

@@ -67,4 +67,3 @@ export const gmail = createPiece({
   ],
   auth: gmailAuth,
 });
-

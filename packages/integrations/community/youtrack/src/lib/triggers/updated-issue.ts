@@ -7,21 +7,51 @@ import { ISSUE_FIELDS, flattenObject, youtrackApiCall } from '../common';
 const polling: Polling<AppConnectionValueForAuthProperty<typeof youtrackAuth>, Record<string, never>> = {
   strategy: DedupeStrategy.TIMEBASED,
   items: async ({ auth, lastFetchEpochMS }) => {
-    const response = await youtrackApiCall<Array<Record<string, unknown>>>({
-      baseUrl: auth.props.baseUrl,
-      token: auth.props.apiToken,
-      method: HttpMethod.GET,
-      path: '/issues',
-      queryParams: {
-        fields: ISSUE_FIELDS,
-        query: 'updated: {after ' + lastFetchEpochMS + '} AND created: {before ' + lastFetchEpochMS + '}',
-        '$top': '50',
-      },
-    });
-    return (response.body || []).map((issue) => ({
-      epochMilliSeconds: (issue['updated'] as number) || (issue['created'] as number) || 0,
-      data: flattenObject(issue),
-    }));
+    // YouTrack's search language has no `{after <epoch>}` / `{before
+    // <epoch>}` form: raw epoch-ms values in braces are not documented date
+    // values (documented syntax is `updated: <date> .. *` ranges with
+    // YYYY-MM-DD[THH:MM:SS] dates), so those fragments never filtered
+    // anything server-side. Use the documented open range instead, widened
+    // by 24h because query dates are interpreted in the querying user's
+    // timezone — the epoch-ms dedupe in pollingHelper drops the
+    // over-fetched issues.
+    const since = new Date(lastFetchEpochMS - 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 19);
+    const issues: Array<Record<string, unknown>> = [];
+    const pageSize = 50;
+    let skip = 0;
+    while (true) {
+      const response = await youtrackApiCall<Array<Record<string, unknown>>>({
+        baseUrl: auth.props.baseUrl,
+        token: auth.props.apiToken,
+        method: HttpMethod.GET,
+        path: '/issues',
+        queryParams: {
+          fields: ISSUE_FIELDS,
+          query: 'updated: ' + since + ' .. *',
+          '$top': String(pageSize),
+          '$skip': String(skip),
+        },
+      });
+      const page = response.body || [];
+      issues.push(...page);
+      if (page.length < pageSize) {
+        break;
+      }
+      skip += page.length;
+    }
+    return issues
+      .filter(
+        (issue) =>
+          lastFetchEpochMS === 0 ||
+          ((issue['created'] as number) ?? 0) <= lastFetchEpochMS
+      )
+      .map((issue) => ({
+        epochMilliSeconds:
+          (issue['updated'] as number) || (issue['created'] as number) || 0,
+        data: flattenObject(issue),
+      }));
   },
 };
 

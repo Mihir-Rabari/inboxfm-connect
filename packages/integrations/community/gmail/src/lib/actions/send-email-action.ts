@@ -1,4 +1,8 @@
-import { ApFile, createAction, Property } from '@inboxfm-connect/pieces-framework';
+import {
+  ApFile,
+  createAction,
+  Property,
+} from '@inboxfm-connect/pieces-framework';
 import mime from 'mime-types';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import Mail, { Attachment } from 'nodemailer/lib/mailer';
@@ -211,4 +215,3 @@ export const gmailSendEmailAction = createAction({
     }
   },
 });
-

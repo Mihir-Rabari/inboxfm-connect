@@ -114,4 +114,3 @@ export async function getUserEmail(
       .data.email ?? undefined
   );
 }
-

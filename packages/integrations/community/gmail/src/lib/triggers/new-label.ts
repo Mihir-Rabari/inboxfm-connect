@@ -1,4 +1,7 @@
-import { createTrigger, TriggerStrategy } from '@inboxfm-connect/pieces-framework';
+import {
+  createTrigger,
+  TriggerStrategy,
+} from '@inboxfm-connect/pieces-framework';
 import { gmailAuth, createGoogleClient } from '../auth';
 import { gmail as googleGmail } from '@googleapis/gmail';
 import { getFirstFiveOrAll } from '../common/data';
@@ -81,4 +84,3 @@ export const gmailNewLabelTrigger = createTrigger({
     return newLables;
   },
 });
-

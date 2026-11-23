@@ -7,18 +7,41 @@ import { ISSUE_FIELDS, flattenObject, youtrackApiCall } from '../common';
 const polling: Polling<AppConnectionValueForAuthProperty<typeof youtrackAuth>, Record<string, never>> = {
   strategy: DedupeStrategy.TIMEBASED,
   items: async ({ auth, lastFetchEpochMS }) => {
-    const response = await youtrackApiCall<Array<Record<string, unknown>>>({
-      baseUrl: auth.props.baseUrl,
-      token: auth.props.apiToken,
-      method: HttpMethod.GET,
-      path: '/issues',
-      queryParams: {
-        fields: ISSUE_FIELDS,
-        query: 'created: {after ' + lastFetchEpochMS + '}',
-        '$top': '50',
-      },
-    });
-    return (response.body || []).map((issue) => ({
+    // YouTrack's search language has no `{after <epoch>}` form: the raw
+    // epoch-ms value in braces is not a documented date value (documented
+    // syntax is `created: <date> .. <date>` with YYYY-MM-DD[THH:MM:SS]
+    // dates), so the old fragment never filtered anything server-side.
+    // Use the documented open range instead. Query dates are interpreted
+    // in the querying user's timezone, so widen the lower bound by 24h and
+    // let the epoch-ms dedupe in pollingHelper drop the over-fetched
+    // issues.
+    const since = new Date(lastFetchEpochMS - 24 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 19);
+    const issues: Array<Record<string, unknown>> = [];
+    const pageSize = 50;
+    let skip = 0;
+    while (true) {
+      const response = await youtrackApiCall<Array<Record<string, unknown>>>({
+        baseUrl: auth.props.baseUrl,
+        token: auth.props.apiToken,
+        method: HttpMethod.GET,
+        path: '/issues',
+        queryParams: {
+          fields: ISSUE_FIELDS,
+          query: 'created: ' + since + ' .. *',
+          '$top': String(pageSize),
+          '$skip': String(skip),
+        },
+      });
+      const page = response.body || [];
+      issues.push(...page);
+      if (page.length < pageSize) {
+        break;
+      }
+      skip += page.length;
+    }
+    return issues.map((issue) => ({
       epochMilliSeconds: (issue['created'] as number) || 0,
       data: flattenObject(issue),
     }));

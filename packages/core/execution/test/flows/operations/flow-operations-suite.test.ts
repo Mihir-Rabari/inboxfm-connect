@@ -18,8 +18,9 @@ import { _updateAction } from '../../../src/lib/flows/operations/update-action'
 import { _updateTrigger } from '../../../src/lib/flows/operations/update-trigger'
 import { _updateSampleDataInfo } from '../../../src/lib/flows/operations/update-sample-data-info'
 import { _getOperationsForPaste } from '../../../src/lib/flows/operations/paste-operations'
+import { _moveAction } from '../../../src/lib/flows/operations/move-action'
 import { notesOperations } from '../../../src/lib/flows/operations/notes-operations'
-import { FlowOperationType, StepLocationRelativeToParent } from '../../../src/lib/flows/operations'
+import { flowOperations, FlowOperationType, StepLocationRelativeToParent } from '../../../src/lib/flows/operations'
 import { EmptyTrigger, FlowTrigger, FlowTriggerType, PieceTrigger } from '../../../src/lib/flows/triggers/trigger'
 import { Note } from '../../../src/lib/flows/note'
 
@@ -551,6 +552,82 @@ describe('flow-operations-suite', () => {
 
             expect(updated.notes).toHaveLength(1)
             expect(updated.notes[0].id).toBe('n2')
+        })
+    })
+
+    describe('_moveAction & MOVE_ACTION (Issue #141)', () => {
+        it('emits DELETE_ACTION and ADD_ACTION operations via _moveAction', () => {
+            const step2 = createMockCodeAction('step_2')
+            const step1 = createMockCodeAction('step_1', step2)
+            const flow = createMockFlowVersion(createMockEmptyTrigger('trigger', step1))
+
+            const operations = _moveAction(flow, {
+                name: 'step_2',
+                newParentStep: 'step_1',
+                stepLocationRelativeToNewParent: StepLocationRelativeToParent.AFTER,
+            })
+
+            expect(operations).toHaveLength(2)
+            expect(operations[0].type).toBe(FlowOperationType.DELETE_ACTION)
+            expect(operations[1].type).toBe(FlowOperationType.ADD_ACTION)
+        })
+
+        it('moves an action after another action via flowOperations.apply', () => {
+            const step2 = createMockCodeAction('step_2')
+            const step1 = createMockCodeAction('step_1', step2)
+            const stepToMove = createMockCodeAction('step_to_move')
+            step2.nextAction = stepToMove
+            const flow = createMockFlowVersion(createMockEmptyTrigger('trigger', step1))
+
+            const updated = flowOperations.apply(flow, {
+                type: FlowOperationType.MOVE_ACTION,
+                request: {
+                    name: 'step_to_move',
+                    newParentStep: 'step_1',
+                    stepLocationRelativeToNewParent: StepLocationRelativeToParent.AFTER,
+                },
+            })
+
+            const first = updated.trigger.nextAction
+            expect(first?.name).toBe('step_1')
+            const second = first?.nextAction
+            expect(second?.name).toBe('step_to_move')
+            const third = second?.nextAction
+            expect(third?.name).toBe('step_2')
+            expect(third?.nextAction).toBeUndefined()
+        })
+
+        it('moves an action into a loop using INSIDE_LOOP via flowOperations.apply', () => {
+            const loop: LoopOnItemsAction = {
+                name: 'loop_1',
+                displayName: 'Loop 1',
+                type: FlowActionType.LOOP_ON_ITEMS,
+                valid: true,
+                settings: { items: '["item1"]' },
+                lastUpdatedDate: '2026-01-01T00:00:00.000Z',
+            }
+            const stepToMove = createMockCodeAction('step_to_move')
+            const initialStep = createMockCodeAction('step_initial', stepToMove)
+            loop.nextAction = initialStep
+            const flow = createMockFlowVersion(createMockEmptyTrigger('trigger', loop))
+
+            const updated = flowOperations.apply(flow, {
+                type: FlowOperationType.MOVE_ACTION,
+                request: {
+                    name: 'step_to_move',
+                    newParentStep: 'loop_1',
+                    stepLocationRelativeToNewParent: StepLocationRelativeToParent.INSIDE_LOOP,
+                },
+            })
+
+            const updatedLoop = updated.trigger.nextAction
+            if (updatedLoop?.type === FlowActionType.LOOP_ON_ITEMS) {
+                expect(updatedLoop.firstLoopAction?.name).toBe('step_to_move')
+                expect(updatedLoop.nextAction?.name).toBe('step_initial')
+                expect(updatedLoop.nextAction?.nextAction).toBeUndefined()
+            } else {
+                expect.unreachable('Expected loop_1 to be a loop action')
+            }
         })
     })
 })

@@ -46,6 +46,15 @@ Variables marked ❗ are required for a self-hosted production deployment.
   <Card title="Pieces & flows" icon="puzzle-piece" href="#pieces-&-flows">
     Piece syncing, polling, publish behavior.
   </Card>
+  <Card title="Logging & observability" icon="file-lines" href="#logging-&-observability">
+    Log level, sampling, and log drains.
+  </Card>
+  <Card title="Enterprise (EE & cloud)" icon="shield-check" href="#enterprise-ee-&-cloud">
+    Embed, billing, license keys, AI credits.
+  </Card>
+  <Card title="Legacy & removed" icon="tag" href="#legacy-&-removed">
+    Old names kept or refused for compatibility.
+  </Card>
 </CardGroup>
 
 ---
@@ -63,6 +72,14 @@ protect connections and tokens, and telemetry.
 | `AP_CONFIG_PATH` | Path where the PGLite database and local settings are stored. | `~/.activepieces` |
 | `AP_INTERNAL_URL` | (Beta) Internal URL used for SSO authentication, e.g. `https://demo.activepieces.com/api`. | `None` |
 | `AP_TELEMETRY_ENABLED` | Collect anonymous telemetry. | `true` |
+| `AP_TELEMETRY_INCLUDE_PII` | Opt in (issue #406) to sending user identity fields — email, first name, last name — along with anonymous telemetry. Without it, usage telemetry still flows but identity fields are stripped. | `false` |
+| `AP_PORT` | Port the API server listens on. Also used to build the worker role's callback URL (`http://127.0.0.1:<port>/api`). | `3000` (the Docker entrypoint defaults it to `80` inside the container) |
+| `AP_EDITION` | Feature set to boot: `ce` (Community), `ee` (Enterprise), or `cloud`. The enterprise and cloud editions register the SSO/SAML, SCIM, platform-plan, license-key, and embed-subdomain modules on startup. | `ce` |
+| `AP_ENVIRONMENT` | Deployment mode: `prod`, `dev`, or `test`. `dev` skips serving the built console (run the web dev server instead) and warns that only the pieces in `AP_DEV_PIECES` are listed; `test` skips SMTP delivery, runs PGLite in memory, and skips the S3 startup validation. | `prod` |
+| `AP_JWT_ISSUER` | `iss` claim for newly issued JWTs. Verification keeps accepting the legacy `activepieces` issuer until the configured value equals it, so tokens minted before an issuer change keep working (issue #373). | `activepieces` (legacy upstream value) |
+| `AP_SENTRY_DSN` | Sentry DSN for server-side error capture. | `None` |
+| `AP_FRONTEND_SENTRY_DSN` | Sentry DSN exposed to the web console for client-side error capture. | `None` |
+| `AP_API_KEY` | Platform admin API key. Gates the admin endpoints (sent as the `api-key` header, compared in constant time; cloud edition) and authenticates the pieces CLI (`publish-piece`, `sync`). `tools/deploy.sh` generates one into the root `.env`. | `None` |
 
 <Warning>
 `AP_FRONTEND_URL` is essential for webhooks and app triggers. It must be
@@ -73,6 +90,32 @@ The default URL is the machine's IP address. If that address isn't reachable
 from the internet, set `AP_FRONTEND_URL` explicitly. For local development you
 can expose the frontend port (4200) with a tunneling service such as
 [ngrok](https://ngrok.com/).
+
+---
+
+### Logging & observability
+
+Controls the server's log pipeline: level, formatting, sampling, and where logs
+are shipped. Remote drains are resolved in order — **Axiom → HyperDX → Loki →
+Better Stack → OTLP** — and only the first fully-configured one is used.
+`AP_LOG_FILE` writes local files *in addition to* any remote drain.
+
+| Variable | Description | Default |
+|---|---|---|
+| `AP_LOG_LEVEL` | Minimum log level: `error`, `warn`, `info`, `debug`, or `trace`. | `info` |
+| `AP_LOG_PRETTY` | Pretty-print logs on the console instead of raw JSON. | `false` |
+| `AP_LOG_FILE` | Write NDJSON log files under `.evlog/logs` (kept for 14 files, oldest rotated out). Development-oriented; also enables the browser client-logs endpoint on non-cloud editions. | `false` |
+| `AP_LOG_SAMPLE_RATE_INFO` | Percentage (0–100) of `info`-level events kept by the sampler. `warn` and `error` events are always kept. | `100` |
+| `AP_LOG_KEEP_SLOW_MS` | Events slower than this (in milliseconds) are always kept, even when the sampler would drop them. | `2000` |
+| `AP_AXIOM_TOKEN` | Axiom API token. Both this and `AP_AXIOM_DATASET` must be set for the Axiom drain to activate. | `None` |
+| `AP_AXIOM_DATASET` | Axiom dataset that logs are shipped to. | `None` |
+| `AP_HYPERDX_TOKEN` | HyperDX API token (enables the HyperDX drain). | `None` |
+| `AP_LOKI_URL` | Loki base URL; batches are pushed to `<url>/loki/api/v1/push`. | `None` |
+| `AP_LOKI_USERNAME` | Basic-auth username for the Loki endpoint. | `None` |
+| `AP_LOKI_PASSWORD` | Basic-auth password for the Loki endpoint. | `None` |
+| `AP_BETTERSTACK_HOST` | Better Stack host. Both this and `AP_BETTERSTACK_TOKEN` must be set for the Better Stack drain to activate. | `None` |
+| `AP_BETTERSTACK_TOKEN` | Better Stack source token. | `None` |
+| `AP_OTEL_ENABLED` | Export logs via OTLP (OpenTelemetry). Only used when no other drain is configured. | `false` |
 
 ---
 
@@ -150,8 +193,24 @@ run timeouts, and the network egress posture for user code. Read
 | `AP_TRIGGER_TIMEOUT_SECONDS` | Maximum runtime for a trigger's polling, in seconds. | `60` |
 | `AP_DEFAULT_CONCURRENT_JOBS_LIMIT` | Default maximum concurrent runs per project. Can be overridden per project in settings. | `5` |
 | `AP_PROJECT_RATE_LIMITER_ENABLED` | Enforce per-project rate limits to prevent excessive usage. | `false` |
+| `AP_PROJECT_RATE_LIMITER_MAX_REQUESTS` | Requests per window, per project. Comfortably covers a busy flow-builder session plus normal webhook/API traffic for one project. Only read when `AP_PROJECT_RATE_LIMITER_ENABLED` is `true`. | `300` |
+| `AP_PROJECT_RATE_LIMITER_WINDOW_SECONDS` | Window (seconds) for `AP_PROJECT_RATE_LIMITER_MAX_REQUESTS`. | `60` |
+| `AP_PROJECT_EXECUTION_CONCURRENCY_LIMITER_ENABLED` | Cap how many executions a single project can keep in flight at once (each trigger RUN holds one slot for its duration). Disabled by default so an existing deployment never starts rejecting requests it didn't reject before. | `false` |
+| `AP_PROJECT_EXECUTION_CONCURRENCY_LIMIT` | Concurrent in-flight executions allowed per project when the limiter above is on. A project's concurrency-pool settings override this on the enterprise/cloud editions. | `5` |
+| `AP_PROJECT_EXECUTION_CONCURRENCY_SLOT_TTL_SECONDS` | Backstop TTL for a project's execution slots. Refreshed on every acquire, so a live execution never expires — it only matters when a process dies mid-execution without releasing its slot. Keep it above `AP_FLOW_TIMEOUT_SECONDS` plus queueing overhead. | `900` |
 | `AP_NETWORK_MODE` | Egress posture for user code. `STRICT` installs the engine's in-process SSRF guard, blocking outbound connections to private, loopback, link-local, and cloud-metadata IPs across every Node egress path (`axios`, `fetch`, `undici`, raw `http`/`net`). This is best-effort, in-process protection — enforce the real boundary in infrastructure (see [Network Security](/install/architecture/network-security)). `UNRESTRICTED` disables the guard. | `UNRESTRICTED` |
 | `AP_SSRF_ALLOW_LIST` | Comma-separated IPs or CIDR ranges that bypass `AP_NETWORK_MODE=STRICT`, e.g. `10.0.0.5,10.10.0.0/24`. Only applies when `AP_NETWORK_MODE=STRICT`. | `None` |
+
+#### Engine & sandbox internals
+
+Read by the sandboxed engine child process. Mostly plumbing — the sandbox host
+injects them per start, so there is normally no reason to set them by hand.
+
+| Variable | Description | Default |
+|---|---|---|
+| `AP_BASE_CODE_DIRECTORY` | Directory the engine reads bundled flow-step code from. The sandbox host passes the per-flow code directory into the engine child; the default only applies when the engine runs without a sandbox host. | `./codes` |
+| `AP_SANDBOX_WS_PORT` | Port of the parent's sandbox RPC websocket, which the engine child connects back to (the host picks a port per sandbox start). Also allowlisted for loopback connections by the SSRF guard. | `12345` (fallback when not injected) |
+| `AP_SANDBOX_WS_TOKEN` | Token authenticating the engine child on the sandbox RPC websocket. Generated fresh by the sandbox host on every start — never set this manually. | `None` (auto-generated) |
 
 ---
 
@@ -213,7 +272,7 @@ once `AP_SMTP_HOST`, `AP_SMTP_PORT`, `AP_SMTP_USERNAME`, and
 `AP_SMTP_PASSWORD` are **all** set (partial configuration falls back to a
 log-only sender). TLS is supported. See the
 [Production Deployment Checklist](/install/configure-operate/production-checklist#email-smtp)
-for the current CE-safe send path, including the `AP_ENVIRONMENT=PRODUCTION`
+for the current CE-safe send path, including the `AP_ENVIRONMENT=prod`
 behavior difference.
 
 ---
@@ -228,6 +287,9 @@ Sign-in providers and SCIM provisioning.
 | `AP_GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret. Required together with `AP_GOOGLE_CLIENT_ID`. | `None` |
 | `AP_CLOUD_AUTH_ENABLED` | Use Inboxfm Connect-hosted OAuth2 apps for piece connections. Set to `false` to disable them. | `true` |
 | `AP_SCIM_DEFAULT_PROJECT_ROLE` | Default project role for members added via SCIM group sync. One of `Admin`, `Editor`, `Viewer`. | `Editor` |
+| `AP_ALLOW_OPEN_SIGN_UP` | When `true`, anyone can sign up with email/password to an existing platform. When unset, platform sign-up requires the email to be invited to the platform or one of its projects (the first user of a fresh instance signs up regardless). | `None` (invitation required) |
+| `AP_FIREBASE_HASH_PARAMETERS` | JSON object of Firebase SCRYPT parameters, used only to verify legacy `$scrypt$`-prefixed password hashes imported from Firebase Auth. Accounts with bcrypt hashes don't need it. | `None` |
+| `AP_PROJECT_REPLACE_SIGNING_SECRET` | Dedicated signing secret for project-replace plans (MCP project replacement). Falls back to the `PROJECT_REPLACE_SIGNING_SECRET` env var, then to `AP_JWT_SECRET`. | `None` (falls back to `AP_JWT_SECRET`) |
 
 #### Sign-up & sign-in abuse protection
 
@@ -251,6 +313,25 @@ is a no-op, same as before this feature existed.
 | `AP_API_SIGN_IN_EMAIL_THROTTLE_WINDOW_SECONDS` | Rolling window (seconds) for `AP_API_SIGN_IN_EMAIL_THROTTLE_MAX_ATTEMPTS`. | `900` (15 minutes) |
 | `AP_CAPTCHA_PROVIDER` | Optional CAPTCHA on sign-up: `hcaptcha` or `turnstile`. Unset by default — sign-up behaves exactly as before. Requires `AP_CAPTCHA_SECRET_KEY`; the server refuses to start if only one of the two is set. | `None` |
 | `AP_CAPTCHA_SECRET_KEY` | Secret key for the provider above, used server-side to verify the client-supplied token against the provider's `siteverify` endpoint. Only read when `AP_CAPTCHA_PROVIDER` is set. | `None` |
+| `AP_CLIENT_REAL_IP_HEADER` | Header used to extract the client's real IP behind a reverse proxy. All IP-based rate limiting, the sign-in email throttle, and audit events key on it; falls back to the socket address when the header is absent. The proxy **must** overwrite or sanitize this header, or clients can spoof their IP and drain rate-limit buckets. | `x-real-ip` |
+| `AP_API_RATE_LIMIT_SYNC_ENABLED` | Enable the IP-scoped tier on routes that synchronously run piece code or fan out to AI/search providers inside the API process: `execute`, executions list/create, `knowledge-search`, and the AI-provider routes. Shares the underlying `@fastify/rate-limit` plugin with the authentication tier, but can be toggled independently. | `true` |
+| `AP_API_RATE_LIMIT_SYNC_MAX` | Requests per window, per IP, for the sync tier above. | `60` |
+| `AP_API_RATE_LIMIT_SYNC_WINDOW` | Window for `AP_API_RATE_LIMIT_SYNC_MAX`, e.g. `1 minute`. | `1 minute` |
+
+#### Request rate limiting & API keys
+
+Per-principal limiters for authenticated traffic (all safe defaults) and the
+public-ingress limiter that is on by default.
+
+| Variable | Description | Default |
+|---|---|---|
+| `AP_API_KEY_RATE_LIMITER_ENABLED` | Enable per-key rate limiting for requests authenticated with an API key (`sk-` platform keys and `cak-` connect keys). Buckets by the key's own id, so one compromised or misbehaving key is capped independently of every other key, project, or IP on the platform. | `false` |
+| `AP_API_KEY_RATE_LIMITER_MAX_REQUESTS` | Requests per window, per API key. Only read when `AP_API_KEY_RATE_LIMITER_ENABLED` is `true`. | `120` |
+| `AP_API_KEY_RATE_LIMITER_WINDOW_SECONDS` | Window (seconds) for `AP_API_KEY_RATE_LIMITER_MAX_REQUESTS`. | `60` |
+| `AP_API_KEY_ROTATION_GRACE_PERIOD_SECONDS` | How long a rotated-out API key keeps authenticating after `rotate` mints its replacement, giving callers a window to swap the new value in before the old one is rejected. Applies to `cak-` connect keys and `sk-` platform keys. | `86400` (24 hours) |
+| `AP_PUBLIC_INGRESS_RATE_LIMITER_ENABLED` | Enable the rate limit on the only unauthenticated route that mints executions: `POST /v1/trigger-bindings/:id/run`, bucketed per (binding id, client IP). On by default so a leaked capability URL cannot farm unlimited paid executions. | `true` |
+| `AP_PUBLIC_INGRESS_RATE_LIMITER_MAX_REQUESTS` | Requests per window, per binding and IP. Zero, negative, or non-numeric values fall back to this built-in default rather than rejecting everything. | `30` (built-in fallback) |
+| `AP_PUBLIC_INGRESS_RATE_LIMITER_WINDOW_SECONDS` | Window (seconds) for `AP_PUBLIC_INGRESS_RATE_LIMITER_MAX_REQUESTS`. Same fallback protection as above. | `60` (built-in fallback) |
 
 <Info>
 Enabling `AP_CAPTCHA_PROVIDER` only turns on **server-side verification** — the
@@ -270,6 +351,44 @@ flow-authoring defaults.
 | Variable | Description | Default |
 |---|---|---|
 | `AP_PIECES_SYNC_MODE` | `OFFICIAL_AUTO` syncs piece metadata automatically from the cloud; `NONE` disables syncing. | `OFFICIAL_AUTO` |
+| `AP_DEV_PIECES` | Comma-separated piece names to load from source during development, e.g. `http,data-mapper`. The dev watcher hot-reloads them; in `AP_ENVIRONMENT=dev` the piece list only shows these; the list is also passed into sandboxed executions so dev pieces resolve there too. | `None` |
+| `AP_CUSTOM_PIECES_PATHS` | Colon-separated directories the engine scans for custom-installed pieces, checked before the standard locations. When a sandbox starts for a platform, the host injects the platform's custom-pieces mount automatically. | `None` |
+| `AP_USE_CDN_FOR_BUNDLES` | Serve official-piece bundles from the CDN when the bundle is not already in S3; falls back to the npm registry (or the local build) when the CDN copy 404s. | `false` |
+| `AP_APP_WEBHOOK_SECRETS` | JSON object mapping app/piece names to their webhook secret, e.g. `{"app-name":{"webhookSecret":"..."}}`. Defines which app-trigger webhooks are supported and the secret used to verify them. | `{}` |
+| `AP_TOOL_SEARCH_ENABLED` | Master switch for the tool-search engine. Read live per call, so flipping it takes effect without a process restart. When off, the search tools don't register and the cold-start backfill is a no-op. | `false` |
+| `AP_OPENAI_API_KEY` | When set, funds **all** tool-search embedding (backfill, reindex, and queries) with one key — the simplest setup for a single-tenant deployment. Falls back to the platform's configured OpenAI provider; when neither exists, tool search degrades to keyword matching. | `None` |
 | `AP_TRIGGER_DEFAULT_POLL_INTERVAL` | Minutes between checks for new data on pieces with scheduled triggers (e.g. new Google Contacts). | `5` |
 | `AP_ENABLE_FLOW_ON_PUBLISH` | Automatically enable a flow when a new version is published. | `true` |
 | `AP_LOAD_TRANSLATIONS_FOR_DEV_PIECES` | Load translations for dev pieces (configured via `AP_DEV_PIECES`). Affects development mode only. | `false` |
+
+---
+
+### Enterprise (EE & cloud)
+
+Only consumed when `AP_EDITION` is `ee` or `cloud` — the modules that read them
+register on those editions only.
+
+| Variable | Description | Default |
+|---|---|---|
+| `AP_ALLOWED_EMBED_ORIGINS` | Comma-separated origins allowed to embed the console (drives the CSP `frame-ancestors` directive). Merged with each platform's own allowed-embed-origins setting; the enterprise flag endpoint also exposes it to the console. | `None` |
+| `AP_CLOUDFLARE_API_TOKEN` | Cloudflare API token used by the embed-subdomain service to create and verify custom hostnames (Cloudflare for SaaS). Required together with `AP_CLOUDFLARE_ZONE_ID` when the feature is used. | `None` |
+| `AP_CLOUDFLARE_ZONE_ID` | Cloudflare zone that hosts the SaaS fallback origin for custom hostnames. | `None` |
+| `AP_CLOUDFLARE_API_BASE` | Base URL of the Cloudflare API. | `https://api.cloudflare.com/client/v4` |
+| `AP_CLOUDFLARE_SAAS_FALLBACK_ORIGIN` | Fallback origin (the CNAME target) issued to verified custom hostnames. | `cloud.activepieces.com` |
+| `AP_STRIPE_SECRET_KEY` | Stripe secret key for platform billing. The billing surface only turns on when the edition is `cloud` and this is set. | `None` |
+| `AP_STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret, used to verify incoming billing webhooks. | `None` |
+| `AP_OPENROUTER_PROVISION_KEY` | OpenRouter key used to create, update, and inspect per-platform AI-credit keys. Setting it also flips the AI-credits flag on. | `None` |
+| `AP_SECRET_MANAGER_API_KEY` | API key sent to the upstream license-key service (`secrets.activepieces.com`) when managing trial licenses (activation, expiry extension). | `None` |
+| `AP_APPSUMO_TOKEN` | Shared secret for the AppSumo endpoints (`POST /v1/appsumo/token` and `/v1/appsumo/action`, cloud edition). When unset, both endpoints reject every request. | `None` |
+
+---
+
+### Legacy & removed
+
+Names the code still recognizes for backwards compatibility, plus knobs that
+were removed entirely. Do **not** use these in new deployments.
+
+| Variable | Description | Default |
+|---|---|---|
+| `AP_QUEUE_MODE` | Legacy alias for `AP_REDIS_TYPE`. The only value still honored is `MEMORY`, translated to `AP_REDIS_TYPE=MEMORY` at startup (all other values are ignored). Set `AP_REDIS_TYPE` directly instead. | *(removed — use `AP_REDIS_TYPE`)* |
+| `AP_CODE_SANDBOX_TYPE` | Removed. The server refuses to start when it is set, directing you to `AP_EXECUTION_MODE` instead. | *(removed — use `AP_EXECUTION_MODE`)* |

@@ -24,7 +24,7 @@ export const getProductAction = createAction({
 	async run(context) {
 		let response: { data: Record<string, any> };
 		try {
-			response = await pipedriveApiCall<Record<string, any>>({
+			response = await pipedriveApiCall<{ data: Record<string, any> }>({
 				accessToken: context.auth.access_token,
 				apiDomain: context.auth.data['api_domain'],
 				method: HttpMethod.GET,

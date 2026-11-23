@@ -66,6 +66,7 @@ export async function initializeStore(): Promise<void> {
     ALTER TABLE flowscript_triggers ADD COLUMN IF NOT EXISTS dispatch_lag_ms bigint;
     ALTER TABLE flowscript_triggers ADD COLUMN IF NOT EXISTS last_error text;
     CREATE INDEX IF NOT EXISTS flowscript_triggers_due_idx ON flowscript_triggers(kind, next_fire_at) WHERE enabled=true;
+    CREATE INDEX IF NOT EXISTS flowscript_triggers_secret_idx ON flowscript_triggers(secret_hash) WHERE kind='webhook';
     CREATE TABLE IF NOT EXISTS flowscript_runs (
       id uuid PRIMARY KEY,
       project_id text NOT NULL,
@@ -134,6 +135,9 @@ export async function initializeStore(): Promise<void> {
       UNIQUE(trigger_id, scheduled_instant)
     );
     CREATE INDEX IF NOT EXISTS flowscript_sched_occurrences_idx ON flowscript_schedule_occurrences(scheduled_instant);
+    CREATE INDEX IF NOT EXISTS flowscript_webhook_idempotency_run_id_idx ON flowscript_webhook_idempotency(run_id);
+    CREATE INDEX IF NOT EXISTS flowscript_schedule_occurrences_run_id_idx ON flowscript_schedule_occurrences(run_id);
+    CREATE INDEX IF NOT EXISTS flowscript_runs_prunable_idx ON flowscript_runs(created_at) WHERE status IN ('succeeded','failed','cancelled','dead_letter','uncertain');
   `)
 }
 
@@ -352,7 +356,7 @@ export async function getRun(projectId: string, runId: string) {
   }
 }
 
-export async function listRuns(projectId: string, flowName?: string, limit = 50) {
+export async function listRuns(projectId: string, flowName?: string, limit = 50, status?: string) {
   const result = await pool.query<{
     id: string
     flow_name: string
@@ -370,9 +374,9 @@ export async function listRuns(projectId: string, flowName?: string, limit = 50)
     created_at: Date
   }>(
     `SELECT id, flow_name, environment, version_id, trigger_kind, status, error, worker_id, attempt_count, retry_at, cancellation_reason, started_at, finished_at, created_at
-     FROM flowscript_runs WHERE project_id=$1 AND ($2::text IS NULL OR flow_name=$2)
-     ORDER BY created_at DESC LIMIT $3`,
-    [projectId, flowName ?? null, Math.min(Math.max(limit, 1), 100)],
+     FROM flowscript_runs WHERE project_id=$1 AND ($2::text IS NULL OR flow_name=$2) AND ($3::text IS NULL OR status=$3)
+     ORDER BY created_at DESC LIMIT $4`,
+    [projectId, flowName ?? null, status ?? null, Math.min(Math.max(limit, 1), 100)],
   )
   return result.rows.map(row => ({
     id: row.id,
@@ -512,6 +516,23 @@ export async function recoverStaleRuns(options?: {
     for (const run of expired.rows) {
       result.recoveredCount++
       const maxAttempts = run.max_attempts ?? defaultMaxAttempts
+
+      // The worker that held this lease died mid-step: whatever attempt rows it opened are
+      // stuck at status='running' with finished_at NULL, and nothing else would ever close
+      // them. Finalize them now so the per-run audit trail reflects the recovery instead of
+      // leaking permanently-'running' rows on requeued, uncertain and dead-lettered runs.
+      // (A late recordStepAttemptFinish from a stalled-but-alive worker still overwrites
+      // this placeholder with the real outcome.)
+      await client.query(
+        `UPDATE flowscript_step_attempts
+         SET status='failed',
+             error_code='WORKER_LEASE_EXPIRED',
+             error_message='Step attempt abandoned: worker lease expired before the step reported an outcome',
+             retryable=false,
+             finished_at=now()
+         WHERE run_id=$1 AND status='running'`,
+        [run.id],
+      )
 
       if (run.had_non_idempotent_step) {
         await client.query(
@@ -1097,4 +1118,117 @@ export async function rotateWebhookTriggerToken(
   )
   const row = result.rows[0]
   return row ? { id: row.id, flowName: row.flow_name, token: newToken } : null
+}
+
+export type RetentionPruneResult = {
+  retentionDays: number
+  deadLetterRetentionDays: number
+  batchSize: number
+  runsDeleted: number
+  deadLetterRunsDeleted: number
+  webhookIdempotencyDeleted: number
+  scheduleOccurrencesDeleted: number
+  disabled: boolean
+}
+
+function resolveNonNegativeIntEnv(raw: string | undefined, fallback: number): number {
+  const parsed = Number(raw)
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : fallback
+}
+
+/**
+ * Bounded retention sweep for the flowscript tables that would otherwise grow forever:
+ * `flowscript_runs` (with its `steps`/`output` jsonb blobs), `flowscript_step_attempts`
+ * (via ON DELETE CASCADE), `flowscript_webhook_idempotency` and
+ * `flowscript_schedule_occurrences` (a schedule trigger inserting one occurrence row per
+ * tick accumulates ~525k rows/year at a 1-minute cron with no other writer deleting any).
+ *
+ * Each class is pruned with a single `DELETE ... WHERE id IN (SELECT ... LIMIT $n)`
+ * statement so a sweep never locks or buffers an unbounded number of rows; the worker
+ * re-runs the sweep on its next cadence tick, so large backlogs drain gradually.
+ *
+ * `succeeded`/`failed`/`cancelled` runs are pruned after `retentionDays`
+ * (FLOWSCRIPT_RETENTION_DAYS, default 30). `dead_letter`/`uncertain` runs are held for
+ * operator triage and are only pruned after `deadLetterRetentionDays`
+ * (FLOWSCRIPT_DEAD_LETTER_RETENTION_DAYS, default 90). A retention of 0 for a class
+ * disables pruning it. Setting both to 0 disables the sweep entirely.
+ */
+export async function pruneExpiredFlowscriptData(options?: {
+  retentionDays?: number
+  deadLetterRetentionDays?: number
+  batchSize?: number
+}): Promise<RetentionPruneResult> {
+  const retentionDays = options?.retentionDays ?? resolveNonNegativeIntEnv(process.env.FLOWSCRIPT_RETENTION_DAYS, 30)
+  const deadLetterRetentionDays = options?.deadLetterRetentionDays
+    ?? resolveNonNegativeIntEnv(process.env.FLOWSCRIPT_DEAD_LETTER_RETENTION_DAYS, 90)
+  const requestedBatchSize = options?.batchSize ?? resolveNonNegativeIntEnv(process.env.FLOWSCRIPT_RETENTION_BATCH_SIZE, 1000)
+  const batchSize = Number.isFinite(requestedBatchSize) && requestedBatchSize >= 1
+    ? Math.min(Math.floor(requestedBatchSize), 10_000)
+    : 1000
+
+  const result: RetentionPruneResult = {
+    retentionDays,
+    deadLetterRetentionDays,
+    batchSize,
+    runsDeleted: 0,
+    deadLetterRunsDeleted: 0,
+    webhookIdempotencyDeleted: 0,
+    scheduleOccurrencesDeleted: 0,
+    disabled: retentionDays <= 0 && deadLetterRetentionDays <= 0,
+  }
+
+  if (!result.disabled) {
+    if (retentionDays > 0) {
+      const runsRes = await pool.query(
+        `DELETE FROM flowscript_runs WHERE id IN (
+           SELECT id FROM flowscript_runs
+           WHERE status IN ('succeeded','failed','cancelled')
+             AND created_at < now() - make_interval(days => $1::int)
+           LIMIT $2
+         )`,
+        [retentionDays, batchSize],
+      )
+      result.runsDeleted = runsRes.rowCount ?? 0
+
+      const idempotencyRes = await pool.query(
+        `DELETE FROM flowscript_webhook_idempotency WHERE id IN (
+           SELECT id FROM flowscript_webhook_idempotency
+           WHERE created_at < now() - make_interval(days => $1::int)
+           LIMIT $2
+         )`,
+        [retentionDays, batchSize],
+      )
+      result.webhookIdempotencyDeleted = idempotencyRes.rowCount ?? 0
+
+      const occurrencesRes = await pool.query(
+        `DELETE FROM flowscript_schedule_occurrences WHERE id IN (
+           SELECT id FROM flowscript_schedule_occurrences
+           WHERE scheduled_instant < now() - make_interval(days => $1::int)
+           LIMIT $2
+         )`,
+        [retentionDays, batchSize],
+      )
+      result.scheduleOccurrencesDeleted = occurrencesRes.rowCount ?? 0
+    }
+
+    if (deadLetterRetentionDays > 0) {
+      const deadLetterRes = await pool.query(
+        `DELETE FROM flowscript_runs WHERE id IN (
+           SELECT id FROM flowscript_runs
+           WHERE status IN ('dead_letter','uncertain')
+             AND created_at < now() - make_interval(days => $1::int)
+           LIMIT $2
+         )`,
+        [deadLetterRetentionDays, batchSize],
+      )
+      result.deadLetterRunsDeleted = deadLetterRes.rowCount ?? 0
+    }
+  }
+
+  const totalDeleted = result.runsDeleted + result.deadLetterRunsDeleted
+    + result.webhookIdempotencyDeleted + result.scheduleOccurrencesDeleted
+  if (totalDeleted > 0 || !result.disabled) {
+    console.log(JSON.stringify({ event: 'retention_sweep', ...result, totalDeleted }))
+  }
+  return result
 }

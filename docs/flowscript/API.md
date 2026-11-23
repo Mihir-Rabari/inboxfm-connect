@@ -78,8 +78,15 @@ Ingress endpoint for registered webhook triggers.
 
 - GET /v1/runs?flow=<name>&limit=50
 - GET /v1/runs/:id
+- GET /v1/runs/:id/attempts?limit=200&offset=0
+
+Step attempts are paginated per run: `limit` defaults to 200 and is capped at 500, `offset` is capped at 100000, and the response is `{ runId, attempts, limit, offset, hasMore }`. Rows are ordered by `startedAt` with the attempt id as tiebreaker so paging is stable, and at most `limit + 1` rows are read to compute `hasMore`.
 
 Project ID is used in queries. Add cursor pagination before run history grows significantly.
+
+### POST /v1/flows/:name/runs/:id/cancel
+
+Cancels a queued or running run that belongs to the named flow. `:name` participates in the lookup: a run of a different flow in the same project (and a run of any other project) returns HTTP 404 `RUN_NOT_FOUND` without changing state, so a flow-scoped caller cannot cancel a sibling flow's run. `POST /v1/runs/:id/cancel` remains the project-wide variant and deliberately does not filter by flow.
 
 ## Request IDs and trace correlation
 - Every request accepts an optional `x-request-id` header from the client or edge gateway.

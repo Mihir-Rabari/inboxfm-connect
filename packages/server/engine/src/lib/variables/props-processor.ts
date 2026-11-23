@@ -26,14 +26,21 @@ export const propsProcessor = {
         if (authValue && requireAuth) {
             const authPropsToProcess = getAuthPropsToProcess(authValue, auth)
             if (authPropsToProcess) {
+                // V1+ pieces receive the connection value as a `{ type, props }` envelope;
+                // V0 pieces (undefined context version) get the bare props object. The
+                // processors/validators are keyed by the auth property names, so they must
+                // run against the field map itself — recursing on the envelope matched no
+                // property at all, leaving number/JSON/date auth fields unparsed and
+                // required auth fields unvalidated for every wrapped connection.
+                const { authProps, rebuildAuthValue } = unwrapAuthProps(authValue)
                 const { processedInput: authProcessedInput, errors: authErrors } = await propsProcessor.applyProcessorsAndValidators(
-                    resolvedInput[AUTHENTICATION_PROPERTY_NAME],
+                    authProps as StaticPropsValue<PiecePropertyMap>,
                     authPropsToProcess,
                     undefined,
                     false,
                     {},
                 )
-                processedInput[AUTHENTICATION_PROPERTY_NAME] = authProcessedInput
+                processedInput[AUTHENTICATION_PROPERTY_NAME] = rebuildAuthValue(authProcessedInput)
                 if (Object.keys(authErrors).length > 0) {
                     errors[AUTHENTICATION_PROPERTY_NAME] = authErrors
                 }
@@ -44,7 +51,14 @@ export const propsProcessor = {
             if (isNil(property)) {
                 continue
             }
-            if (property.type === PropertyType.DYNAMIC && !isNil(dynamaicPropertiesSchema?.[key])) {
+            // Only recurse into values shaped like the schema expects: a DYNAMIC value is
+            // an object of fields and an ARRAY value is either a list or, from the builder,
+            // an object of per-field arrays that gets zipped. Anything else (a string, a
+            // number, a nested array) used to be spread key-by-key into a fabricated object
+            // — `'oops'` became `{ 0: 'o', 1: 'o', 2: 'p', 3: 's' }` and `[1, 2]` became
+            // `[{}, {}]` — silently replacing the caller's value with garbage the piece
+            // then used as if it were valid input.
+            if (property.type === PropertyType.DYNAMIC && !isNil(dynamaicPropertiesSchema?.[key]) && isObject(value)) {
                 const { processedInput: itemProcessedInput, errors: itemErrors } = await propsProcessor.applyProcessorsAndValidators(
                     value,
                     dynamaicPropertiesSchema[key],
@@ -57,11 +71,19 @@ export const propsProcessor = {
                     errors[key] = itemErrors
                 }
             }
-            if (property.type === PropertyType.ARRAY && property.properties) {
+            if (property.type === PropertyType.ARRAY && property.properties && (Array.isArray(value) || isObject(value))) {
                 const arrayOfObjects = arrayZipperProcessor(property, value) ?? []
                 const processedArray = []
                 const processedErrors = []
                 for (const item of arrayOfObjects) {
+                    if (!isObject(item)) {
+                        // An array item that is not an object cannot satisfy a nested
+                        // property schema; keep it as the user supplied it instead of
+                        // collapsing it into `{}` and reporting a valid-looking run.
+                        processedArray.push(item)
+                        processedErrors.push({})
+                        continue
+                    }
                     const { processedInput: itemProcessedInput, errors: itemErrors } = await propsProcessor.applyProcessorsAndValidators(
                         item,
                         property.properties,
@@ -157,4 +179,24 @@ function getAuthPropsToProcess(authValue: AppConnectionValue, auth: PieceAuthPro
         return usedAuthProperty.props
     }
     return null
+}
+
+/**
+ * Splits a connection value into the auth field map the processors expect and a
+ * rebuild function that puts the processed fields back into the original shape.
+ * Wrapped (`{ type, props }`) values keep their envelope — dropping it would hand a
+ * V1 piece a bare props object and lose `access_token`/`data` for OAuth2.
+ */
+function unwrapAuthProps(authValue: AppConnectionValue): { authProps: Record<string, unknown>, rebuildAuthValue: (processed: StaticPropsValue<PiecePropertyMap>) => AppConnectionValue } {
+    const wrappedProps = (authValue as { props?: unknown }).props
+    if (!isNil((authValue as { type?: unknown }).type) && isObject(wrappedProps)) {
+        return {
+            authProps: wrappedProps,
+            rebuildAuthValue: (processed) => ({ ...authValue, props: processed }) as AppConnectionValue,
+        }
+    }
+    return {
+        authProps: authValue as unknown as Record<string, unknown>,
+        rebuildAuthValue: (processed) => processed as unknown as AppConnectionValue,
+    }
 }

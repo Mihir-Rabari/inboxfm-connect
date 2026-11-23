@@ -13,17 +13,21 @@ export const oauth2Util = (log: FastifyBaseLogger) => ({
         const secondsSinceEpoch = Math.round(Date.now() / 1000)
         const formattedResponse: BaseOAuth2ConnectionValue = {
             ...response,
-            data: response,
+            // `data` echoes the provider response so pieces can read non-token
+            // extras (e.g. Zoho's api_domain), but it must not duplicate the
+            // token fields. deleteProps returns a NEW object — it does not
+            // mutate — so the previous call was a silent no-op and stored the
+            // full provider response, secrets included, in every connection
+            // value.
+            data: deleteProps(response, [
+                'access_token',
+                'expires_in',
+                'refresh_token',
+                'scope',
+                'token_type',
+            ]),
             claimed_at: secondsSinceEpoch,
         }
-
-        deleteProps(formattedResponse.data, [
-            'access_token',
-            'expires_in',
-            'refresh_token',
-            'scope',
-            'token_type',
-        ])
         return formattedResponse
     },
     isExpired: (connection: BaseOAuth2ConnectionValue): boolean => {
@@ -165,15 +169,38 @@ export const oauth2Util = (log: FastifyBaseLogger) => ({
         }
     },
     removeRefreshTokenAndClientSecret: (connection: AppConnection): AppConnection => {
-        if (connection.value.type === AppConnectionType.OAUTH2 && connection.value.grant_type === OAuth2GrantType.CLIENT_CREDENTIALS) {
-            connection.value.client_secret = '(REDACTED)'
-        }
         if (connection.value.type === AppConnectionType.OAUTH2
             || connection.value.type === AppConnectionType.CLOUD_OAUTH2
             || connection.value.type === AppConnectionType.PLATFORM_OAUTH2) {
             connection.value = {
                 ...connection.value,
                 refresh_token: '(REDACTED)',
+            }
+            // The client secret is only needed by the server-side refresh (which
+            // re-resolves it from the stored value / secret manager); the engine
+            // boundary only needs the access_token to run steps. Redact it for
+            // every OAuth2 family type that carries one — previously only
+            // OAUTH2 + CLIENT_CREDENTIALS was redacted, so authorization-code
+            // connections handed their client secret (secret-manager-resolved
+            // to the live value by the worker controller) to the engine, and
+            // legacy platform rows did the same with the platform app secret.
+            const value = connection.value as unknown as Record<string, unknown>
+            if ('client_secret' in value) {
+                value['client_secret'] = '(REDACTED)'
+            }
+            // Rows written while formatOAuth2Response's data echo was a silent
+            // no-op still duplicate the provider's token response inside
+            // `data` — strip the same known token fields there (piece-facing
+            // extras like Zoho's api_domain are kept), so the engine boundary
+            // stops leaking refresh tokens through the echo.
+            if (typeof value['data'] === 'object' && value['data'] !== null) {
+                value['data'] = deleteProps(value['data'] as Record<string, unknown>, [
+                    'access_token',
+                    'expires_in',
+                    'refresh_token',
+                    'scope',
+                    'token_type',
+                ])
             }
         }
         return connection

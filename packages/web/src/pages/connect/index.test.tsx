@@ -211,6 +211,74 @@ describe('public connect page', () => {
     })
   }, 15000)
 
+  it('tells the user the link is used or expired when the API answers 403, not "try again"', async () => {
+    // A consumed or expired session is 403 SESSION_EXPIRED, not 404/410 — the page
+    // used to answer that with the generic "try again in a moment" copy, even for the
+    // most common case: reloading the link right after a successful connection.
+    stubApi([
+      {
+        match: (url) => url.pathname === `/api/v1/connect-sessions/${SESSION_TOKEN}`,
+        respond: () => ({
+          status: 403,
+          body: { code: 'SESSION_EXPIRED', params: { message: 'Connect session has already been used' } },
+        }),
+      },
+    ])
+    const container = renderConnectPage()
+
+    await waitFor(() =>
+      container.textContent?.includes('This connect link has expired or was already used') === true
+    )
+    expect(container.textContent?.includes('Try again in a moment')).toBe(false)
+  }, 15000)
+
+  it('shows the server\'s reason when a redemption is rejected, not a bare status code', async () => {
+    // The API sends `{ code, params }` with no top-level message, so the generic
+    // ApiClientError message ("Request failed with status 403") used to be rendered
+    // verbatim. A session burned before the form was submitted is the common case.
+    stubApi([
+      {
+        match: (url) => url.pathname === `/api/v1/connect-sessions/${SESSION_TOKEN}`,
+        respond: () => ({ status: 200, body: SECRET_SESSION }),
+      },
+      {
+        match: (url) => url.pathname === '/api/v1/integrations/slack',
+        respond: () => ({
+          status: 200,
+          body: {
+            name: 'slack',
+            displayName: 'Slack',
+            logoUrl: '',
+            description: 'Team communication and messaging.',
+            version: '0.2.1',
+            auth: { type: 'SECRET_TEXT', description: 'Create a Slack bot user token.' },
+            actions: {},
+            triggers: {},
+          },
+        }),
+      },
+      {
+        match: (url, method) =>
+          url.pathname === `/api/v1/connect-sessions/${SESSION_TOKEN}/connections` && method === 'POST',
+        respond: () => ({
+          status: 403,
+          body: {
+            code: 'SESSION_EXPIRED',
+            params: { message: 'Connect session has already been used or expired' },
+          },
+        }),
+      },
+    ])
+    const container = renderConnectPage()
+
+    await submitSecretForm(container)
+
+    await waitFor(() =>
+      container.textContent?.includes('Connect session has already been used or expired') === true
+    )
+    expect(container.textContent?.includes('Request failed with status 403')).toBe(false)
+  }, 15000)
+
   it('sends the session projectId and externalUserId in the redemption body', async () => {
     const { requests } = secretRedemptionRoutes()
     const container = renderConnectPage()

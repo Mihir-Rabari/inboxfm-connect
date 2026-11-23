@@ -137,7 +137,11 @@ export async function initializeStore(): Promise<void> {
   `)
 }
 
-export async function publishFlow(projectId: string, source: string, ir: FlowIR, hash: string) {
+function isUniqueViolation(error: unknown): boolean {
+  return Boolean(error && typeof error === 'object' && (error as { code?: unknown }).code === '23505')
+}
+
+async function publishFlowOnce(projectId: string, source: string, ir: FlowIR, hash: string) {
   const client = await pool.connect()
   try {
     await client.query('BEGIN')
@@ -163,6 +167,21 @@ export async function publishFlow(projectId: string, source: string, ir: FlowIR,
     throw error
   } finally {
     client.release()
+  }
+}
+
+export async function publishFlow(projectId: string, source: string, ir: FlowIR, hash: string) {
+  // The next version is computed with a check-then-act on MAX(version); two
+  // concurrent publishes of the same flow can pick the same version and the
+  // loser trips UNIQUE(project_id, flow_name, version). Retry with a fresh
+  // version lookup instead of surfacing the raw constraint violation as a 500.
+  const maxAttempts = 3
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await publishFlowOnce(projectId, source, ir, hash)
+    } catch (error) {
+      if (attempt >= maxAttempts || !isUniqueViolation(error)) throw error
+    }
   }
 }
 
@@ -269,6 +288,15 @@ export async function createRun(params: {
   }
 }
 
+/**
+ * Persist the terminal outcome of a run.
+ *
+ * When `ownerWorkerId` is supplied, the update is scoped to that worker via
+ * `worker_id`. A worker whose lease expired (and whose run was therefore
+ * re-queued with `worker_id=NULL` or re-claimed / marked uncertain by another
+ * worker) then fails to match any row instead of corrupting the new attempt's
+ * state. Returns the number of rows updated (0 = ownership lost or run gone).
+ */
 export async function finishRun(
   id: string,
   result: {
@@ -278,12 +306,14 @@ export async function finishRun(
     error?: string
     cancellationReason?: string
   },
-) {
-  await pool.query(
+  ownerWorkerId?: string,
+): Promise<number> {
+  const scoped = ownerWorkerId !== undefined
+  const res = await pool.query(
     `UPDATE flowscript_runs
      SET status=CASE WHEN status='cancelled' THEN 'cancelled' ELSE $2 END,
          output=$3, steps=$4, error=$5, cancellation_reason=COALESCE(cancellation_reason, $6), finished_at=now()
-     WHERE id=$1`,
+     WHERE id=$1${scoped ? ' AND worker_id=$7' : ''}`,
     [
       id,
       result.status,
@@ -291,8 +321,10 @@ export async function finishRun(
       JSON.stringify(result.steps),
       result.error ?? null,
       result.cancellationReason ?? null,
+      ...(scoped ? [ownerWorkerId] : []),
     ],
   )
+  return res.rowCount ?? 0
 }
 
 export async function getRun(projectId: string, runId: string) {
@@ -993,13 +1025,21 @@ export async function enqueueWebhook(
       )
 
       if (!insertIdemp.rows[0]) {
-        // Race condition: another concurrent delivery inserted first
-        const winner = await client.query<{ run_id: string }>(
+        // Race condition: another concurrent delivery inserted first and our
+        // own run insert is about to be rolled back. Re-read the winner with a
+        // fresh snapshot AFTER the rollback: our transaction may not be able to
+        // see the winner's row (e.g. under REPEATABLE READ), and returning the
+        // rolled-back runId would hand the caller a run that does not exist.
+        await client.query('ROLLBACK')
+        const winner = await pool.query<{ run_id: string }>(
           'SELECT run_id FROM flowscript_webhook_idempotency WHERE trigger_id=$1 AND idempotency_key=$2',
           [trigger.id, cleanKey],
         )
-        await client.query('ROLLBACK')
-        return { runId: winner.rows[0]?.run_id ?? runId, duplicate: true }
+        const winnerRunId = winner.rows[0]?.run_id
+        if (!winnerRunId) {
+          throw new Error('Webhook idempotency conflict could not be resolved after rollback; run insert was rolled back')
+        }
+        return { runId: winnerRunId, duplicate: true }
       }
 
       await client.query('COMMIT')

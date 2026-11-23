@@ -73,9 +73,37 @@ parser.functions.extract_email = (s: unknown) => {
     const match = String(s ?? '').match(/[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}/)
     return match ? match[0] : ''
 }
+// A URL in text is normally surrounded by the sentence that mentions it, so the
+// whitespace-delimited capture ends with whatever followed the link: the
+// sentence's full stop, a comma, the quote or the bracket that wrapped it
+// ("See https://acme.com." returned "https://acme.com." — not usable as a URL).
+// Trim that trailing punctuation, but keep a closing bracket the URL opened
+// itself: https://en.wikipedia.org/wiki/Foo_(bar) is a valid URL.
+const URL_TRAILING_PUNCTUATION = /[.,;:!?'"’”<>]+$/
+const BRACKET_PAIRS: Record<string, string> = { ')': '(', ']': '[', '}': '{' }
+
+function trimUrlTail(url: string): string {
+    let trimmed = url
+    for (;;) {
+        const withoutPunctuation = trimmed.replace(URL_TRAILING_PUNCTUATION, '')
+        if (withoutPunctuation !== trimmed) {
+            trimmed = withoutPunctuation
+            continue
+        }
+        const closing = trimmed.slice(-1)
+        const opening = BRACKET_PAIRS[closing]
+        if (!opening) return trimmed
+        // Keep balanced brackets (a URL may contain "(bar)"), drop the wrapper's.
+        const opened = trimmed.split(opening).length - 1
+        const closed = trimmed.split(closing).length - 1
+        if (closed <= opened) return trimmed
+        trimmed = trimmed.slice(0, -1)
+    }
+}
+
 parser.functions.extract_url = (s: unknown) => {
     const match = String(s ?? '').match(/https?:\/\/[^\s]+/)
-    return match ? match[0] : ''
+    return match ? trimUrlTail(match[0]) : ''
 }
 parser.functions.length = (s: unknown) => String(s ?? '').length
 parser.functions.contains = (s: unknown, sub: unknown) =>
@@ -172,85 +200,99 @@ parser.functions.sign = (n: unknown) => {
     return Object.is(s, -0) ? 0 : s
 }
 
+// Dates are parsed in UTC on purpose: a flow's stored output must not depend on
+// the server's timezone. start_of_day/end_of_day/is_same_day already parsed with
+// dayjs.utc() for that reason; every function here that reads a date value now
+// does the same, so the whole family shares one convention (see
+// docs/flows/formula-reference.mdx). Before this, a UTC+14 host read
+// "2024-02-29T23:30:00Z" as March 1 (wrong day, month, year and weekday),
+// format_time rendered a Z timestamp in the host's offset instead of the
+// documented UTC wall clock, and add_days("2024-01-01"; 5) stored a different
+// instant per server (2024-01-06T00:00:00Z only on a UTC host). Naive input such
+// as "2025-01-15" is unaffected: it is read as midnight UTC and rendered back as
+// the same date. today() alone keeps the host clock — "today" is a wall-clock
+// question, not a stored date.
 parser.functions.format_date = (d: unknown, pattern: unknown = 'YYYY-MM-DD') => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.format(String(pattern)) : ''
 }
 parser.functions.format_date_long = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     if (!parsed.isValid()) return ''
     return parsed.toDate().toLocaleDateString('en-US', {
-        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+        weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
     })
 }
 parser.functions.format_time = (d: unknown, pattern: unknown = 'HH:mm') => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.format(String(pattern)) : ''
 }
 parser.functions.relative_time = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.fromNow() : ''
 }
 parser.functions.add_days = (d: unknown, n: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.add(Number(n), 'day').toISOString() : ''
 }
 parser.functions.subtract_days = (d: unknown, n: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.subtract(Number(n), 'day').toISOString() : ''
 }
 parser.functions.add_hours = (d: unknown, n: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.add(Number(n), 'hour').toISOString() : ''
 }
 parser.functions.days_between = (a: unknown, b: unknown) => {
-    const da = dayjs(String(a ?? ''))
-    const db = dayjs(String(b ?? ''))
+    const da = dayjs.utc(String(a ?? ''))
+    const db = dayjs.utc(String(b ?? ''))
     if (!da.isValid() || !db.isValid()) return ''
     return Math.round(Math.abs(db.diff(da, 'day', true)))
 }
 parser.functions.get_day = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.date() : ''
 }
 parser.functions.get_month = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
-    return parsed.isValid() ? parsed.toDate().toLocaleDateString('en-US', { month: 'long' }) : ''
+    const parsed = dayjs.utc(String(d ?? ''))
+    return parsed.isValid() ? MONTH_NAMES[parsed.month()] : ''
 }
 parser.functions.get_year = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.year() : ''
 }
 parser.functions.get_day_of_week = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
-    return parsed.isValid() ? parsed.toDate().toLocaleDateString('en-US', { weekday: 'long' }) : ''
+    const parsed = dayjs.utc(String(d ?? ''))
+    return parsed.isValid() ? DAY_NAMES[parsed.day()] : ''
 }
 parser.functions.start_of_month = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.startOf('month').toISOString() : ''
 }
 parser.functions.end_of_month = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.endOf('month').toISOString() : ''
 }
 parser.functions.convert_timezone = (d: unknown, tz: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     if (!parsed.isValid()) return ''
     return parsed.tz(String(tz ?? 'UTC')).format()
 }
 parser.functions.now = () => new Date().toISOString()
+// today() and now() read the clock, not a stored date value, so they keep the
+// host's notion of "today"; every function that parses an input date is UTC.
 parser.functions.today = () => dayjs().format('YYYY-MM-DD')
 parser.functions.to_date = (d: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.toISOString() : ''
 }
 parser.functions.add_minutes = (d: unknown, n: unknown) => {
-    const parsed = dayjs(String(d ?? ''))
+    const parsed = dayjs.utc(String(d ?? ''))
     return parsed.isValid() ? parsed.add(Number(n), 'minute').toISOString() : ''
 }
 parser.functions.hours_between = (a: unknown, b: unknown) => {
-    const da = dayjs(String(a ?? ''))
-    const db = dayjs(String(b ?? ''))
+    const da = dayjs.utc(String(a ?? ''))
+    const db = dayjs.utc(String(b ?? ''))
     if (!da.isValid() || !db.isValid()) return ''
     // floor (not round): 8h 30min is "8 complete hours between", not 9.
     return Math.floor(Math.abs(db.diff(da, 'hour', true)))
@@ -269,14 +311,14 @@ parser.functions.end_of_day = (d: unknown) => {
     return parsed.isValid() ? parsed.endOf('day').toISOString() : ''
 }
 parser.functions.is_before = (a: unknown, b: unknown) => {
-    const da = dayjs(String(a ?? ''))
-    const db = dayjs(String(b ?? ''))
+    const da = dayjs.utc(String(a ?? ''))
+    const db = dayjs.utc(String(b ?? ''))
     if (!da.isValid() || !db.isValid()) return false
     return da.isBefore(db)
 }
 parser.functions.is_after = (a: unknown, b: unknown) => {
-    const da = dayjs(String(a ?? ''))
-    const db = dayjs(String(b ?? ''))
+    const da = dayjs.utc(String(a ?? ''))
+    const db = dayjs.utc(String(b ?? ''))
     if (!da.isValid() || !db.isValid()) return false
     return da.isAfter(db)
 }

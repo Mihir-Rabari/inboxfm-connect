@@ -1,13 +1,15 @@
 import { ActivepiecesError, apId, assertNotNullOrUndefined, ErrorCode, isNil, LocalesEnum, PlatformId } from '@inboxfm-connect/core-utils'
 import { PieceMetadata, PieceMetadataModel, PieceMetadataModelSummary, PiecePackageInformation, pieceTranslation } from '@inboxfm-connect/pieces-framework'
 import { apVersionUtil } from '@inboxfm-connect/server-utils'
-import { EXACT_VERSION_REGEX, PackageType, PieceCategory, PieceOrderBy, PiecePackage, PieceSortBy, PieceType, PrivatePiecePackage, PublicPiecePackage, SuggestionType } from '@inboxfm-connect/shared'
+import { EXACT_VERSION_REGEX, FileType, PackageType, PieceCategory, PieceOrderBy, PiecePackage, PieceSortBy, PieceType, PrivatePiecePackage, PublicPiecePackage, SuggestionType } from '@inboxfm-connect/shared'
 import dayjs from 'dayjs'
 import { FastifyBaseLogger } from 'fastify'
 import semVer from 'semver'
 import { EntityManager, In, IsNull } from 'typeorm'
 import { repoFactory } from '../../core/db/repo-factory'
 import { distributedLock } from '../../database/redis-connections'
+import { fileRepo } from '../../file/file.service'
+import { s3Helper } from '../../file/s3-helper'
 import { pieceTagService } from '../tags/pieces/piece-tag.service'
 import { localPieceCatalog } from './local-piece-catalog'
 import { pieceCache, PieceRegistryEntry } from './piece-cache'
@@ -221,7 +223,22 @@ export const pieceMetadataService = (log: FastifyBaseLogger) => {
                     params: { message: 'Only custom pieces can be deleted' },
                 })
             }
+            // Collect every archive the uninstall is about to orphan BEFORE deleting the
+            // rows that reference them — after the delete there is no way to know which
+            // files belonged to this piece anymore.
+            const pieceRows = await pieceRepos().find({
+                where: { name: piece.name, platformId, pieceType: PieceType.CUSTOM },
+            })
             await pieceRepos().delete({ name: piece.name, platformId, pieceType: PieceType.CUSTOM })
+            // Rows first, archives second: fk_piece_metadata_file is ON DELETE RESTRICT,
+            // so deleting a file row while its piece row still exists would abort the
+            // uninstall. deleteArchives is best-effort — a cleanup failure must not turn a
+            // successful uninstall into an error.
+            await deleteArchives({
+                archiveIds: pieceRows.map((row) => row.archiveId).filter((archiveId): archiveId is string => !isNil(archiveId)),
+                platformId,
+                log,
+            })
             await pieceCache(log).invalidate()
         },
     }
@@ -279,7 +296,13 @@ export function toPieceMetadataModelSummary<T extends PieceMetadataSchema | Piec
     suggestionType?: SuggestionType,
 ): PieceMetadataModelSummary[] {
     return pieceMetadataEntityList.map((pieceMetadataEntity) => {
-        const originalMetadata = originalMetadataList.find((p) => p.name === pieceMetadataEntity.name)
+        // The original must be paired by (name, platformId) scope, not name alone: in
+        // platform-less views the same name can appear twice (an official row plus a
+        // platform-scoped custom row), and a name-only find() attributed the FIRST
+        // same-name row's action/trigger counts to the other scope. (name, platformId)
+        // is the identity the unique index and lastVersionOfEachPiece dedupe on.
+        const originalMetadata = originalMetadataList.find((p) => p.name === pieceMetadataEntity.name
+            && (p.platformId ?? null) === (pieceMetadataEntity.platformId ?? null))
         assertNotNullOrUndefined(originalMetadata, `Original metadata not found for ${pieceMetadataEntity.name}`)
         return {
             ...pieceMetadataEntity,
@@ -350,6 +373,41 @@ const findOldestCreatedDate = async ({ name, platformId }: { name: string, platf
     return piece?.created ?? dayjs().toISOString()
 }
 
+// Uninstall archive cleanup: nothing else ever deletes PACKAGE_ARCHIVE files — the hourly
+// FILE_CLEANUP_TRIGGER sweep only covers flow-run/trigger/webhook payload types — so
+// before this, every custom-piece uninstall leaked its uploaded archive (the File row
+// plus its S3 object, or the raw bytes stored in the file table) forever.
+const deleteArchives = async ({ archiveIds, platformId, log }: DeleteArchivesParams): Promise<void> => {
+    if (archiveIds.length === 0) {
+        return
+    }
+    try {
+        const uniqueArchiveIds = Array.from(new Set(archiveIds))
+        const files = await fileRepo().find({
+            select: ['id', 's3Key'],
+            where: {
+                id: In(uniqueArchiveIds),
+                platformId,
+                type: FileType.PACKAGE_ARCHIVE,
+            },
+        })
+        if (files.length === 0) {
+            return
+        }
+        const s3Keys = files.filter((file) => !isNil(file.s3Key)).map((file) => file.s3Key!)
+        if (s3Keys.length > 0) {
+            await s3Helper(log).deleteFiles(s3Keys)
+        }
+        for (const file of files) {
+            await fileRepo().delete({ id: file.id })
+        }
+    }
+    catch (cleanupError) {
+        log.warn({ cleanupError, archiveIds, platformId },
+            '[pieceMetadataService#delete] Failed to clean up uninstalled piece archives')
+    }
+}
+
 const enrichTags = async (platformId: string | undefined, pieces: PieceMetadataSchema[], includeTags: boolean | undefined): Promise<PieceMetadataSchema[]> => {
     if (!includeTags || isNil(platformId)) {
         return pieces
@@ -404,10 +462,24 @@ const findExactVersion = async (
     }
 
     const sortedEntries = matchingRegistryEntries.sort(sortByVersionDescending)
+    // Scope precedence (the #625 class, server side): when the same name exists both
+    // platform-scoped and official, the platform's piece replaces the official one for
+    // that platform — the exact rule the list path already enforces
+    // (lastVersionOfEachPiece, issue #417). A pure version sort let the (usually
+    // higher-versioned) official row shadow the platform's custom piece on every
+    // unpinned lookup, so the engine resolved and served the WRONG piece while the
+    // dashboard advertised the platform's replacement. Entries from other platforms
+    // were already dropped by filterRegistry, so this only re-ranks the caller's own
+    // scope against the platform-less one; an exact version pin still wins via the
+    // range filter above.
+    const platformScopedEntry = !isNil(platformId)
+        ? sortedEntries.find((entry) => entry.platformId === platformId)
+        : undefined
+    const winningEntry = platformScopedEntry ?? sortedEntries[0]
     return {
-        name: sortedEntries[0].name,
-        version: sortedEntries[0].version,
-        platformId: sortedEntries[0].platformId,
+        name: winningEntry.name,
+        version: winningEntry.version,
+        platformId: winningEntry.platformId,
     }
 }
 
@@ -630,6 +702,12 @@ type GetOrThrowParams = {
 type DeleteParams = {
     id: string
     platformId: string
+}
+
+type DeleteArchivesParams = {
+    archiveIds: string[]
+    platformId: string
+    log: FastifyBaseLogger
 }
 
 
